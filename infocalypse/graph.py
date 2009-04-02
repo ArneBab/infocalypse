@@ -72,6 +72,8 @@ def has_version(repo, version):
         repo.changectx(version)
     except mercurial.repo.RepoError:
         return False
+    except mercurial.revlog.LookupError:
+        return False
     return True
 
 def pull_bundle(repo, ui_, bundle_file):
