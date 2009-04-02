@@ -409,7 +409,6 @@ def execute_create(ui_, repo, params, stored_cfg):
     """ Run the create command. """
     update_sm = None
     try:
-
         update_sm = setup(ui_, repo, params, stored_cfg)
         # REDFLAG: Do better.
         # This call is not necessary, but I do it to set
@@ -615,7 +614,7 @@ def execute_setup(ui_, host, port, tmp, cfg_file = None):
     cfg.defaults['HOST'] = host
     cfg.defaults['PORT'] = port
     cfg.defaults['TMP_DIR'] = tmp
-    cfg.defaults['default_private_key'] = default_private_key
+    cfg.defaults['DEFAULT_PRIVATE_KEY'] = default_private_key
     Config.to_file(cfg, cfg_file)
 
     ui_.status("""\nFinished setting configuration.
