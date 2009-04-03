@@ -42,6 +42,16 @@ def normalize(usk_or_id):
         usk_or_id = get_usk_hash(usk_or_id)
     return usk_or_id
 
+def norm_path(dir_name):
+    """ Get a canonical path rep which works on Windows. """
+    dir_name = os.path.normcase(os.path.abspath(dir_name))
+    # Hack to deal with the fact that mercurial config parsing
+    # chokes on ':' in option values.
+    # Required for Windows. Should be a harmless NOP on *nix.
+    split = os.path.splitdrive(dir_name)
+    fixed = split[0].replace(':', '') + split[1]
+    return fixed
+
 # Eventually set state from fms feed. i.e. latest repo updates.
 class Config:
     """ Persisted state used by the Infocalypse mercurial extension. """
@@ -79,12 +89,12 @@ class Config:
     def update_dir(self, repo_dir, usk):
         """ Updated the repo USK used pull changes into repo_dir. """
         assert is_usk_file(usk)
-        repo_dir = os.path.abspath(repo_dir)
+        repo_dir = norm_path(repo_dir)
         self.request_usks[repo_dir] = usk
 
     def get_request_uri(self, for_dir):
         """ Get the repo USK used to pull changes into for_dir or None. """
-        uri = self.request_usks.get(os.path.abspath(for_dir))
+        uri = self.request_usks.get(norm_path(for_dir))
         if uri is None:
             return None
         version = self.get_index(uri)
@@ -112,7 +122,7 @@ class Config:
     # Hmmm... really nescessary?
     def get_dir_insert_uri(self, repo_dir):
         """ Return the insert USK for repo_dir or None. """
-        request_uri = self.request_usks.get(os.path.abspath(repo_dir))
+        request_uri = self.request_usks.get(norm_path(repo_dir))
         if request_uri is None:
             return None
         return self.get_insert_uri(request_uri)
