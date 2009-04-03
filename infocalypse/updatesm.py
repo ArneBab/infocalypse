@@ -474,7 +474,7 @@ def get_top_key_updates(graph):
 
     ret = []
     for edge in coalesced_edges:
-        parent_rev = graph.index_table[edge[0]][0]
+        parent_rev = graph.index_table[edge[0]][1]
         latest_rev = graph.index_table[edge[1]][1]
         length = graph.get_length(edge)
         assert len(graph.edge_table[edge][1:]) > 0
