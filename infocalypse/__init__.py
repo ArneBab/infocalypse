@@ -121,7 +121,7 @@ import os
 from mercurial import commands, util
 
 from infcmds import get_config_info, execute_create, execute_pull, \
-     execute_push, execute_setup
+     execute_push, execute_setup, execute_copy
 
 def set_target_version(ui_, repo, opts, params, msg_fmt):
     """ INTERNAL: Update TARGET_VERSION in params. """
@@ -150,6 +150,27 @@ def infocalypse_create(ui_, repo, **opts):
                        "Only inserting to version: %s\n")
     params['INSERT_URI'] = insert_uri
     execute_create(ui_, repo, params, stored_cfg)
+
+def infocalypse_copy(ui_, repo, **opts):
+    """ Copy an Infocalypse repository to a new URI. """
+    params, stored_cfg = get_config_info(ui_, opts)
+
+    insert_uri = opts['inserturi']
+    if insert_uri == '':
+        # REDFLAG: fix parameter definition so that it is required?
+        ui_.warn("Please set the insert URI with --inserturi.\n")
+        return
+
+    request_uri = opts['requesturi']
+    if request_uri == '':
+        request_uri = stored_cfg.get_request_uri(repo.root)
+        if not request_uri:
+            ui_.warn("There is no stored request URI for this repo.\n"
+                     "Please set one with the --requesturi option.\n")
+            return
+    params['INSERT_URI'] = insert_uri
+    params['REQUEST_URI'] = request_uri
+    execute_copy(ui_, repo, params, stored_cfg)
 
 def infocalypse_pull(ui_, repo, **opts):
     """ Pull from an Infocalypse repository in Freenet.
@@ -229,6 +250,11 @@ cmdtable = {
                   [('', 'uri', '', 'insert URI to create on'),
                    ('r', 'rev', [],'maximum rev to push'),]
                   + FCP_OPTS,
+                "[options]"),
+    "fn-copy": (infocalypse_copy,
+                [('', 'requesturi', '', 'request URI to copy from'),
+                 ('', 'inserturi', '', 'insert URI to copy to'), ]
+                + FCP_OPTS,
                 "[options]"),
 
     "fn-setup": (infocalypse_setup,

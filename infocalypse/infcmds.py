@@ -441,6 +441,32 @@ def execute_create(ui_, repo, params, stored_cfg):
     finally:
         cleanup(update_sm)
 
+# REDFLAG: LATER: make this work without a repo?
+def execute_copy(ui_, repo, params, stored_cfg):
+    """ Run the copy command. """
+    update_sm = None
+    try:
+        update_sm = setup(ui_, repo, params, stored_cfg)
+        handle_key_inversion(ui_, update_sm, params, stored_cfg)
+
+        ui_.status("%sInsert URI:\n%s\n" % (is_redundant(params['INSERT_URI']),
+                                            params['INSERT_URI']))
+        update_sm.start_copying(params['REQUEST_URI'],
+                                params['INSERT_URI'])
+
+        run_until_quiescent(update_sm, params['POLL_SECS'])
+
+        if update_sm.get_state(QUIESCENT).arrived_from(((FINISHING,))):
+            ui_.status("Copied to:\n%s\n" %
+                       '\n'.join(update_sm.get_state(INSERTING_URI).
+                                 get_request_uris()))
+        else:
+            ui_.status("Copy failed.\n")
+
+        handle_updating_config(repo, update_sm, params, stored_cfg)
+    finally:
+        cleanup(update_sm)
+
 # REDFLAG: move into fcpclient?
 #def usks_equal(usk_a, usk_b):
 #    assert is_usk(usk_a) and and is_usk(usk_b)

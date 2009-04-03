@@ -454,6 +454,15 @@ class InsertingGraph(StaticRequestList):
         StaticRequestList.reset(self)
         self.working_graph = None
 
+    def get_top_key_tuple(self):
+        """ Get the python rep of the data required to insert a new URI
+            with the updated graph CHK(s). """
+        graph = self.parent.ctx.graph
+        assert not graph is None
+        return ((self.get_result(0)[1]['URI'],
+                 self.get_result(1)[1]['URI']),
+                get_top_key_updates(graph))
+
 def get_top_key_updates(graph):
     """ Returns the update tuples needed to build the top key."""
 
@@ -499,16 +508,10 @@ class InsertingUri(StaticRequestList):
             This creates the binary rep for the top level key
             data and starts inserting it into Freenet.
         """
-        require_state(from_state, INSERTING_GRAPH)
+        if not hasattr(from_state, 'get_top_key_tuple'):
+            raise Exception("Illegal Transition from: %s" % from_state.name)
 
-        # Pull the graph CHKs out of the inserting
-        # graph state instance. REDFLAG: Hardcoded state name ok?
-        graph_insert = self.parent.get_state(INSERTING_GRAPH)
-        graph = self.parent.ctx.graph
-
-        top_key_tuple = ((graph_insert.get_result(0)[1]['URI'],
-                          graph_insert.get_result(1)[1]['URI']),
-                         get_top_key_updates(graph))
+        top_key_tuple = from_state.get_top_key_tuple()
 
         salt = {0:0x00, 1:0xff} # grrr.... less code.
         insert_uris = make_insert_uris(self.parent.ctx['INSERT_URI'])
@@ -716,6 +719,8 @@ class RequestingGraph(StaticRequestList):
         StaticRequestList.__init__(self, parent, name, success_state,
                                    failure_state)
 
+    # REDFLAG: remove this? why aren't I just calling get_top_key_tuple
+    # on REQUESTING_URI_4_INSERT???
     def get_top_key_tuple(self):
         """ Returns the Python rep of the data in the request uri. """
         results = [candidate[5] for candidate in
@@ -791,6 +796,7 @@ FINISHING = 'FINISHING'
 
 REQUESTING_URI = 'REQUESTING_URI'
 REQUESTING_BUNDLES = 'REQUESTING_BUNDLES'
+REQUESTING_URI_4_COPY = 'REQUESTING_URI_4_COPY'
 
 class UpdateStateMachine(RequestQueue, StateMachine):
     """ A StateMachine implementaion to create, push to and pull from
@@ -844,6 +850,14 @@ class UpdateStateMachine(RequestQueue, StateMachine):
                                                  FAILING),
 
             FINISHING:CleaningUp(self, FINISHING, QUIESCENT),
+
+
+            # Copying.
+            # This doesn't verify that the graph chk(s) are fetchable.
+            REQUESTING_URI_4_COPY:RequestingUri(self, REQUESTING_URI_4_COPY,
+                                                INSERTING_URI,
+                                                FAILING),
+
             }
 
         self.current_state = self.get_state(QUIESCENT)
@@ -914,6 +928,22 @@ class UpdateStateMachine(RequestQueue, StateMachine):
         self.ctx.graph = None
         self.ctx['REQUEST_URI'] = request_uri
         self.transition(REQUESTING_URI)
+
+
+    def start_copying(self, from_uri, to_insert_uri):
+        """ Start pulling changes from an Infocalypse repository URI
+            in Freenet into the local hg repository. """
+        self.require_state(QUIESCENT)
+        self.reset()
+        self.ctx.graph = None
+
+        assert not from_uri is None
+        assert not to_insert_uri is None
+
+        self.ctx['REQUEST_URI'] = from_uri
+        self.ctx['INSERT_URI'] = to_insert_uri
+        self.ctx['IS_KEYPAIR'] = False
+        self.transition(REQUESTING_URI_4_COPY)
 
     # REDFLAG: SSK case untested
     def start_inverting(self, insert_uri):

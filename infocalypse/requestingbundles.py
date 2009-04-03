@@ -162,7 +162,7 @@ class RequestingBundles(RetryingRequestList):
             else:
                 self._handle_failure(client, msg, candidate)
 
-        # Catch statemachine stalls.
+        # Catch state machine stalls.
         if (self.parent.current_state == self and
             self.is_stalled()):
             self.parent.transition(self.failure_state)
