@@ -45,7 +45,7 @@ def normalize(usk_or_id):
 def norm_path(dir_name):
     """ Get a canonical path rep which works on Windows. """
     dir_name = os.path.normcase(os.path.abspath(dir_name))
-    # Hack to deal with the fact that mercurial config parsing
+    # Hack to deal with the fact that ConfigParser parsing
     # chokes on ':' in option values.
     # Required for Windows. Should be a harmless NOP on *nix.
     split = os.path.splitdrive(dir_name)
