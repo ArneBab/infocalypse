@@ -323,27 +323,27 @@ def handle_key_inversion(ui_, update_sm, params, stored_cfg):
     params['INVERTED_INSERT_URI'] = inverted_uri
 
     if is_usk(insert_uri):
-        version = get_version(insert_uri)
-        # Latest previously known version of the insert_uri's request_uri.
-        # Can be None.
-        max_index = max(stored_cfg.get_index(inverted_uri), version)
-        request_uri = params.get('REQUEST_URI')
-        if not request_uri is None and is_usk(request_uri):
-            max_index = max(get_version(request_uri), max_index)
-            # Update Request URI to the latest known version.
-            params['REQUEST_URI'] = get_usk_for_usk_version(request_uri,
-                                                            max_index)
-        # Update the Insert URI to the latest known version.
+        # Determine the highest known index for the insert uri.
+        max_index = max(stored_cfg.get_index(inverted_uri),
+                        get_version(insert_uri))
+
+        # Update the insert uri to the latest known version.
         params['INSERT_URI'] = get_usk_for_usk_version(insert_uri,
                                                        max_index)
 
-        # Update the inverted Insert URI to the latest known version.
+        # Update the inverted insert URI to the latest known version.
         params['INVERTED_INSERT_URI'] = get_usk_for_usk_version(
         inverted_uri,
         max_index)
 
-    # Skip key inversion if we already inverted the insert_uri.
+    # NO COUPLING
+    # Update the index of the request uri using the stored config.
     request_uri = params.get('REQUEST_URI')
+    if not request_uri is None:
+        max_index = max(stored_cfg.get_index(request_uri), get_version(request_uri))
+        request_uri = get_usk_for_usk_version(request_uri, max_index)
+
+    # Skip key inversion if we already inverted the insert_uri.
     is_keypair = False
     if (request_uri is None and
         not params.get('INVERTED_INSERT_URI') is None):
