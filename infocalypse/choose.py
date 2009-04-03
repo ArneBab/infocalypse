@@ -127,7 +127,7 @@ def low_block_cost_edges(graph, known_edges, from_index, allowed):
     paths = graph.enumerate_update_paths(from_index + 1,
                                          graph.latest_index, MAX_PATH_LEN - 1)
     if len(paths) == 0:
-        return
+        return []
 
     first = []
 
