@@ -229,7 +229,11 @@ def setup(ui_, repo, params, stored_cfg):
         params['DUMP_UPDATE_EDGES'] = True
     if verbosity > 4 and params.get('DUMP_CANONICAL_PATHS', None) is None:
         params['DUMP_CANONICAL_PATHS'] = True
+    if verbosity > 4 and params.get('DUMP_URIS', None) is None:
         params['DUMP_URIS'] = True
+    if verbosity > 4 and params.get('DUMP_TOP_KEY', None) is None:
+        params['DUMP_TOP_KEY'] = True
+
     callbacks = UICallbacks(ui_)
     callbacks.verbosity = verbosity
 

@@ -36,7 +36,7 @@ from choose import get_update_edges, dump_update_edges
 
 from statemachine import RetryingRequestList, CandidateRequest
 
-#from topkey import dump_top_key_tuple
+from topkey import dump_top_key_tuple
 from chk import clear_control_bytes
 
 # REDFLAG: Make sure that you are copying lists. eg. updates
@@ -291,7 +291,8 @@ class RequestingBundles(RetryingRequestList):
             if self.top_key_tuple is None:
                 raise Exception("No top key data.")
 
-            #dump_top_key_tuple(top_key_tuple)
+            if self.parent.params.get('DUMP_TOP_KEY', False):
+                dump_top_key_tuple(top_key_tuple)
 
             updates = self.top_key_tuple[1]
 
@@ -370,6 +371,18 @@ class RequestingBundles(RetryingRequestList):
         fixup(edges, self.current_candidates)
         fixup(edges, self.next_candidates)
         fixup(edges, self.finished_candidates)
+
+        assert not self.top_key_tuple is None
+        if self.parent.params.get('DUMP_TOP_KEY', False):
+            text = "Fixed up top key CHKs:\n"
+            for update in self.top_key_tuple[1]:
+                for chk in update[3]:
+                    if chk in edges:
+                        text += "   " + str(edges[chk]) + ":" + chk + "\n"
+                    else:
+                        text += "   BAD TOP KEY DATA!" + ":" + chk + "\n"
+            self.parent.ctx.ui_.status(text)
+
 
         self.parent.ctx.graph = graph
 
