@@ -162,6 +162,11 @@ class RequestingBundles(RetryingRequestList):
             else:
                 self._handle_failure(client, msg, candidate)
 
+        # Catch statemachine stalls.
+        if (self.parent.current_state == self and
+            self.is_stalled()):
+            self.parent.transition(self.failure_state)
+
     # DONT add to pending. Base clase does that.
     def make_request(self, candidate):
         """ Implementation of RetryingRequestList virtual. """
@@ -420,6 +425,8 @@ class RequestingBundles(RetryingRequestList):
 
         self.finished_candidates.append(candidate)
         if self.is_stalled():
+            # BUG: Kind of. We can update w/o the graph without ever reporting
+            # that we couldn't get the graph.
             self.parent.ctx.ui_.warn("Couldn't read graph from Freenet!\n")
             self.parent.transition(self.failure_state)
 
