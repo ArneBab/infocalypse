@@ -678,7 +678,7 @@ class FCPConnection:
             return True
 
         if not msg[1]['Identifier'] in self.running_clients:
-            print "No client for identifier: %s" % msg[1]['Identifier']
+            #print "No client for identifier: %s" % msg[1]['Identifier']
             # BITCH: You get a PersistentRequestRemoved msg even for non
             #        peristent requests AND you get it after the GetFailed.
             #print msg[0]
