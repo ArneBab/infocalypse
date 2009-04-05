@@ -41,7 +41,7 @@ from bundlecache import BundleCache, is_writable
 from updatesm import UpdateStateMachine, QUIESCENT, FINISHING, REQUESTING_URI, \
      REQUESTING_GRAPH, REQUESTING_BUNDLES, INVERTING_URI, \
      REQUESTING_URI_4_INSERT, INSERTING_BUNDLES, INSERTING_GRAPH, \
-     INSERTING_URI, FAILING
+     INSERTING_URI, FAILING, REQUESTING_URI_4_COPY
 
 from config import Config, DEFAULT_CFG_PATH
 
@@ -61,12 +61,16 @@ DEFAULT_PARAMS = {
 
 MSG_TABLE = {(QUIESCENT, REQUESTING_URI_4_INSERT)
              :"Requesting previous URI...",
+             (QUIESCENT, REQUESTING_URI_4_COPY)
+             :"Requesting URI to copy...",
              (REQUESTING_URI_4_INSERT,REQUESTING_GRAPH)
              :"Requesting previous graph...",
              (INSERTING_BUNDLES,INSERTING_GRAPH)
              :"Inserting updated graph...",
              (INSERTING_GRAPH, INSERTING_URI)
              :"Inserting URI...",
+             (REQUESTING_URI_4_COPY, INSERTING_URI)
+             :"Inserting copied URI...",
              (QUIESCENT, REQUESTING_URI)
              :"Fetching URI...",
              (REQUESTING_URI, REQUESTING_BUNDLES)
@@ -108,7 +112,7 @@ class UICallbacks:
         if not msg is None:
             self.ui_.status("%s\n" % msg)
 
-    def monitor_callback(self, dummy, client, msg):
+    def monitor_callback(self, update_sm, client, msg):
         """ FCP message status callback which writes to a ui. """
         if self.verbosity < 2:
             return
@@ -117,10 +121,9 @@ class UICallbacks:
         prefix = ''
         if self.verbosity > 2:
             prefix = client.request_id()[:10] + ':'
-        #if hasattr(update_sm.current_state, 'pending'):
-        #    prefix = str(len(update_sm.current_state.pending)) + ":" + prefix
-        #else:
-        #    prefix = "?:" + prefix
+
+        if hasattr(update_sm.current_state, 'pending') and self.verbosity > 1:
+            prefix = ("{%i}:" % len(update_sm.runner.running)) + prefix
 
         if msg[0] == 'SimpleProgress':
             text = str(parse_progress(msg))
@@ -376,7 +379,7 @@ def handle_updating_config(repo, update_sm, params, stored_cfg,
         # Hmmm... if we wanted to be clever we could update the request
         # uri too when it doesn't match the insert uri. Ok for now.
         # Only for usks and only on success.
-        print "UPDATED STORED CONFIG(0)"
+        #print "UPDATED STORED CONFIG(0)"
         Config.to_file(stored_cfg)
 
     else:
@@ -393,7 +396,7 @@ def handle_updating_config(repo, update_sm, params, stored_cfg,
         version = get_version(updated_uri)
         stored_cfg.update_index(updated_uri, version)
         stored_cfg.update_dir(repo.root, updated_uri)
-        print "UPDATED STORED CONFIG(1)"
+        #print "UPDATED STORED CONFIG(1)"
         Config.to_file(stored_cfg)
 
 
