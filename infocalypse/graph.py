@@ -673,7 +673,7 @@ class UpdateGraph:
             if entries[0] > MAX_METADATA_HACK_LEN:
                 #print "_add_canonical_path_redundancy -- too big: ", str(step)
                 continue
-            edge = self.add_edge(step[:2], (entries[0][0], PENDING_INSERT1))
+            edge = self.add_edge(step[:2], (entries[0], PENDING_INSERT1))
             #print "_add_canonical_path_redundancy -- added edge: ", str(edge)
             ret.append(edge)
         return ret
