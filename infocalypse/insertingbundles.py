@@ -80,7 +80,7 @@ class InsertingBundles(RequestQueueState):
         for edge in self.new_edges:
             text += "%i:%s\n" % (graph.get_length(edge), str(edge))
         if len(text) > 0:
-            self.parent.ctx.ui_.status('Adding new bundles:\n' + text)
+            self.parent.ctx.ui_.status('Inserting bundles:\n' + text)
 
         #print "--- Updated Graph ---"
         #print graph_to_string(graph)
@@ -108,7 +108,6 @@ class InsertingBundles(RequestQueueState):
         for edge in self.required_edges:
             # Will be re-added when the required metadata arrives.
             self.new_edges.remove((edge[0], edge[1], 1))
-        print "REQUIRED_EDGES:", self.required_edges, self.new_edges
 
     # REDFLAG: no longer needed?
     def leave(self, dummy):
@@ -167,7 +166,7 @@ class InsertingBundles(RequestQueueState):
             else:
                 # Dunno what's going on.
                 raise
-        
+
         return request
 
     def request_done(self, client, msg):
@@ -203,9 +202,19 @@ class InsertingBundles(RequestQueueState):
                 # Hmmm... also no file names.
                 assert len(chk0_fields) == len(chk1_fields)
                 chk1 = ','.join(chk1_fields[:-1] + chk0_fields[-1:])
-            graph.set_chk(edge[:2], edge[2],
-                          graph.get_length(edge),
-                          chk1)
+            if self.parent.ctx.get('REINSERT', 0) < 1:
+                graph.set_chk(edge[:2], edge[2],
+                              graph.get_length(edge),
+                              chk1)
+            else:
+                if chk1 != graph.get_chk(edge):
+                    self.parent.ctx.ui_.status("Bad CHK: %s %s\n" %
+                                               (str(edge), chk1))
+                    self.parent.ctx.ui_.warn("CHK for reinserted edge doesn't match!\n"
+                                             + "Maybe the repository was inserted with a "
+                                             + "different version of hg?\n")
+                    self.parent.transition(FAILING)
+
         else:
             # REDFLAG: retrying?
             # REDFLAG: More failure information, FAILING state?
