@@ -542,13 +542,17 @@ class UpdateGraph:
         paths.sort(cmp_age_weight)
         return paths
 
-    def path_cost(self, path):
+    def path_cost(self, path, blocks=False):
         """ The sum of the lengths of the hg bundles required to update
             using the path. """
 
         value = 0
         for step in path:
-            value += self.edge_table[step[:2]][0]
+            if blocks:
+                value += block_cost(self.edge_table[step[:2]][0])
+            else:
+                value += self.edge_table[step[:2]][0]
+
         return value
 
     # Returns ((start_index, end_index, chk_list_ordinal), ...)
@@ -798,7 +802,7 @@ def dump_path(graph, path):
 
     print "(%s)-->[%s] cost=%0.2f" % (pretty_index(path[0][0]),
                                       pretty_index(path[-1][1]),
-                                      graph.path_cost(path))
+                                      graph.path_cost(path, True))
     for step in path:
         cost = graph.get_length(step)
         print "   (%s) -- (%0.2f, %i) --> [%s]" % (pretty_index(step[0]),
