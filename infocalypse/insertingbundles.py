@@ -57,7 +57,8 @@ class InsertingBundles(RequestQueueState):
 
         """
         #require_state(from_state, QUIESCENT)
-        assert not self.parent.ctx['INSERT_URI'] is None
+        assert (self.parent.ctx.get('REINSERT', 0) > 0 or
+                (not self.parent.ctx['INSERT_URI'] is None))
         assert not self.parent.ctx.graph is None
 
         graph = self.parent.ctx.graph.clone()
@@ -67,10 +68,7 @@ class InsertingBundles(RequestQueueState):
 
         # Update graph.
         try:
-            self.new_edges = graph.update(self.parent.ctx.repo,
-                                          self.parent.ctx.ui_,
-                                          self.parent.ctx['TARGET_VERSION'],
-                                          self.parent.ctx.bundle_cache)
+            self.set_new_edges(graph)
         except UpToDate, err:
             # REDFLAG: Later, add FORCE_INSERT parameter?
             self.parent.ctx.ui_.warn(str(err) + '\n') # Hmmm
@@ -109,6 +107,7 @@ class InsertingBundles(RequestQueueState):
         for edge in self.required_edges:
             # Will be re-added when the required metadata arrives.
             self.new_edges.remove((edge[0], edge[1], 1))
+        print "REQUIRED_EDGES:", self.required_edges, self.new_edges
 
     # REDFLAG: no longer needed?
     def leave(self, dummy):
@@ -130,7 +129,15 @@ class InsertingBundles(RequestQueueState):
             if edge in self.pending:
                 # Already running.
                 continue
-            if not self.parent.ctx.graph.has_chk(edge):
+
+            # We can't count on the graph when reinserting.
+            # Because the chks are already set.
+
+            #if not self.parent.ctx.graph.has_chk(edge):
+            #    # Depends on an edge which hasn't been inserted yet.
+            #    continue
+
+            if edge in self.new_edges:
                 # Depends on an edge which hasn't been inserted yet.
                 continue
 
@@ -196,3 +203,21 @@ class InsertingBundles(RequestQueueState):
             len(self.required_edges) == 0):
             self.parent.transition(INSERTING_GRAPH)
 
+    def set_new_edges(self, graph):
+        """ INTERNAL: Set the list of new edges to insert. """
+        if self.parent.ctx.get('REINSERT', 0) == 0:
+            self.new_edges = graph.update(self.parent.ctx.repo,
+                                          self.parent.ctx.ui_,
+                                          self.parent.ctx['TARGET_VERSION'],
+                                          self.parent.ctx.bundle_cache)
+            return
+
+        # Hmmmm... later support different int values of REINSERT?
+        self.new_edges = graph.get_top_key_edges()
+        redundant = []
+        for edge in  self.new_edges:
+            if graph.is_redundant(edge):
+                alternate_edge = (edge[0], edge[1], int(not edge[2]))
+                if not alternate_edge in self.new_edges:
+                    redundant.append(alternate_edge)
+        self.new_edges += redundant

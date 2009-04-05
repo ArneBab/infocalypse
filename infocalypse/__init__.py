@@ -121,7 +121,7 @@ import os
 from mercurial import commands, util
 
 from infcmds import get_config_info, execute_create, execute_pull, \
-     execute_push, execute_setup, execute_copy
+     execute_push, execute_setup, execute_copy, execute_reinsert
 
 def set_target_version(ui_, repo, opts, params, msg_fmt):
     """ INTERNAL: Update TARGET_VERSION in params. """
@@ -171,6 +171,32 @@ def infocalypse_copy(ui_, repo, **opts):
     params['INSERT_URI'] = insert_uri
     params['REQUEST_URI'] = request_uri
     execute_copy(ui_, repo, params, stored_cfg)
+
+def infocalypse_reinsert(ui_, repo, **opts):
+    """ Re-insert Infocalypse repository data. """
+    params, stored_cfg = get_config_info(ui_, opts)
+
+    request_uri = opts['requesturi']
+    if request_uri == '':
+        request_uri = stored_cfg.get_request_uri(repo.root)
+        if not request_uri:
+            ui_.warn("There is no stored request URI for this repo.\n"
+                     "Please set one with the --requesturi option.\n")
+            return
+
+    insert_uri = opts['inserturi']
+    if insert_uri == '':
+        insert_uri = stored_cfg.get_dir_insert_uri(repo.root)
+        # REDFLAG: fix parameter definition so that it is required?
+        if not insert_uri:
+            ui_.status("No insert URI specified. Will skip re-insert "
+                       +"of top key.\n")
+            insert_uri = None
+
+    params['INSERT_URI'] = insert_uri
+    params['REQUEST_URI'] = request_uri
+    execute_reinsert(ui_, repo, params, stored_cfg)
+
 
 def infocalypse_pull(ui_, repo, **opts):
     """ Pull from an Infocalypse repository in Freenet.
@@ -254,6 +280,12 @@ cmdtable = {
     "fn-copy": (infocalypse_copy,
                 [('', 'requesturi', '', 'request URI to copy from'),
                  ('', 'inserturi', '', 'insert URI to copy to'), ]
+                + FCP_OPTS,
+                "[options]"),
+
+    "fn-reinsert": (infocalypse_reinsert,
+                [('', 'requesturi', '', 'request URI to re-insert data from'),
+                 ('', 'inserturi', '', 'insert URI (required to re-insert the top key)'), ]
                 + FCP_OPTS,
                 "[options]"),
 

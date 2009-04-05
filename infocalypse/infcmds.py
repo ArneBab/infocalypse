@@ -471,6 +471,38 @@ def execute_copy(ui_, repo, params, stored_cfg):
     finally:
         cleanup(update_sm)
 
+def execute_reinsert(ui_, repo, params, stored_cfg):
+    """ Run the reinsert command. """
+    update_sm = None
+    try:
+        update_sm = setup(ui_, repo, params, stored_cfg)
+        request_uri, is_keypair = handle_key_inversion(ui_, update_sm,
+                                                       params, stored_cfg)
+        params['REQUEST_URI'] = request_uri
+
+        if not params['INSERT_URI'] is None:
+            ui_.status("%sInsert URI:\n%s\n" % (is_redundant(params['INSERT_URI']),
+                                                params['INSERT_URI']))
+        ui_.status("%sRequest URI:\n%s\n" % (is_redundant(params['REQUEST_URI']),
+                                             params['REQUEST_URI']))
+
+        update_sm.start_reinserting(params['REQUEST_URI'],
+                                    params['INSERT_URI'],
+                                    is_keypair)
+
+        run_until_quiescent(update_sm, params['POLL_SECS'])
+
+        if update_sm.get_state(QUIESCENT).arrived_from(((FINISHING,))):
+            ui_.status("Reinsert finished.\n")
+        else:
+            ui_.status("Reinsert failed.\n")
+
+        # Don't need to update the config.
+    finally:
+        cleanup(update_sm)
+
+
+
 # REDFLAG: move into fcpclient?
 #def usks_equal(usk_a, usk_b):
 #    assert is_usk(usk_a) and and is_usk(usk_b)

@@ -87,16 +87,17 @@ def make_search_uris(uri):
     return (uri, '/'.join(fields))
 
 # For insert
-def make_insert_uris(uri):
+def make_insert_uris(uri, increment=True):
     """ Returns a possibly redundant insert uri tuple.
-        NOTE: This increments the version by 1 if uri is a USK.
+        NOTE: This increments the version by 1 if uri is a USK
+              and increment is True.
     """
     if uri == 'CHK@':
         return (uri,)
     assert is_usk_file(uri)
     version = get_version(uri)
     # REDFLAG: does index increment really belong here?
-    return make_redundant_ssk(uri, version + 1)
+    return make_redundant_ssk(uri, version + int(bool(increment)))
 
 def ssk_to_usk(ssk):
     """ Convert an SSK for a file USK back into a file USK. """
@@ -511,10 +512,19 @@ class InsertingUri(StaticRequestList):
         if not hasattr(from_state, 'get_top_key_tuple'):
             raise Exception("Illegal Transition from: %s" % from_state.name)
 
+        if (self.parent.ctx['INSERT_URI'] is None
+            and self.parent.ctx.get('REINSERT', 0) > 0):
+            # Hmmmm... hackery to deal with reinsert w/o insert uri
+            self.parent.transition(self.success_state)
+            return
+
+        assert not self.parent.ctx['INSERT_URI'] is None
+
         top_key_tuple = from_state.get_top_key_tuple()
 
         salt = {0:0x00, 1:0xff} # grrr.... less code.
-        insert_uris = make_insert_uris(self.parent.ctx['INSERT_URI'])
+        insert_uris = make_insert_uris(self.parent.ctx['INSERT_URI'],
+                                       self.parent.ctx.get('REINSERT', 0) < 1)
         assert len(insert_uris) < 3
         for index, uri in enumerate(insert_uris):
             if self.parent.params.get('DUMP_URIS', False):
@@ -529,7 +539,8 @@ class InsertingUri(StaticRequestList):
         if to_state.name == self.success_state:
             # Hmmm... what about chks?
             # Update the index in the insert_uri on success
-            if is_usk(self.parent.ctx['INSERT_URI']):
+            if (self.parent.ctx.get('REINSERT', 0) < 1 and
+                is_usk(self.parent.ctx['INSERT_URI'])):
                 version = get_version(self.parent.ctx['INSERT_URI']) + 1
                 self.parent.ctx['INSERT_URI'] = (
                     get_usk_for_usk_version(self.parent.ctx['INSERT_URI'],
@@ -954,6 +965,17 @@ class UpdateStateMachine(RequestQueue, StateMachine):
         self.reset()
         self.get_state(INVERTING_URI).insert_uri = insert_uri
         self.transition(INVERTING_URI)
+
+    def start_reinserting(self, request_uri, insert_uri=None, is_keypair=False):
+        """ """
+        self.require_state(QUIESCENT)
+        self.reset()
+        self.ctx['REQUEST_URI'] = request_uri
+        self.ctx['INSERT_URI'] = insert_uri
+        self.ctx['IS_KEYPAIR'] = is_keypair
+        self.ctx['REINSERT'] = 1
+        # REDFLAG: add hack code to InsertingUri to handle reinsert w/o insert uri?
+        self.transition(REQUESTING_URI_4_INSERT)
 
     # REDFLAG: UNTESTED
     def cancel(self):

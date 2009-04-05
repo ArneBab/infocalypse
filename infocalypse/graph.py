@@ -328,10 +328,16 @@ class UpdateGraph:
         if not edge_list[ordinal + 1].startswith(PENDING_INSERT):
             print "set_chk -- replacing a non pending chk (%i, %i, %i)?" % \
                   (index_pair[0], index_pair[1], ordinal)
+            if edge_list[ordinal + 1] == chk:
+                print "Values are same."
+            else:
+                print "Values are different:"
+                print "old:", edge_list[ordinal + 1]
+                print "new:", chk
         edge_list[ordinal + 1] = chk
         self.edge_table[index_pair] = tuple(edge_list)
 
-    def insert_type(self, edge_triple):
+    def insert_type_(self, edge_triple):
         """ Return the kind of insert required to insert the CHK
             for the edge.
 
@@ -348,6 +354,34 @@ class UpdateGraph:
         if edge_info[0] <= FREENET_BLOCK_LEN:
             return INSERT_PADDED
         return INSERT_SALTED_METADATA
+
+    def insert_type(self, edge_triple):
+        """ Return the kind of insert required to insert the CHK
+            for the edge.
+
+            INSERT_NORMAL -> No modification to the bundle file.
+            INSERT_PADDED -> Add one trailing pad byte.
+            INSERT_SALTED_METADATA -> Copy and salt the Freenet
+            split file metadata for the normal insert. """
+
+        if edge_triple[2] == 0:
+            return INSERT_NORMAL
+
+        assert edge_triple[2] == 1
+
+        length = self.edge_table[edge_triple[:2]][0]
+
+        # REDFLAG: DCI. MUST DEAL WITH ==32k case
+        if length <= FREENET_BLOCK_LEN:
+            # Made redundant path by padding.
+            return  INSERT_PADDED
+
+        if length <= MAX_METADATA_HACK_LEN:
+            return INSERT_SALTED_METADATA
+
+        print "insert_type called for edge that's too big to salt???"
+        print edge_triple
+        assert False
 
     def insert_length(self, step):
         """ Returns the actual length of the data inserted into
