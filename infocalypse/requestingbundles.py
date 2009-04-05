@@ -452,9 +452,11 @@ class RequestingBundles(RetryingRequestList):
                     self.parent.ctx.ui_.status("\n---\n")
                 graph = parse_graph(data)
                 if self.parent.params.get('DUMP_CANONICAL_PATHS', False):
+                    paths = graph.canonical_paths(graph.latest_index,
+                                                  MAX_PATH_LEN)[-20:]
+                    paths.reverse()
                     dump_paths(graph,
-                               graph.canonical_paths(graph.latest_index,
-                                                     MAX_PATH_LEN),
+                               paths,
                                "Canonical paths")
                 self._set_graph(graph)
                 self._reevaluate()
