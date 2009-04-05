@@ -343,7 +343,8 @@ def handle_key_inversion(ui_, update_sm, params, stored_cfg):
     # Update the index of the request uri using the stored config.
     request_uri = params.get('REQUEST_URI')
     if not request_uri is None:
-        max_index = max(stored_cfg.get_index(request_uri), get_version(request_uri))
+        max_index = max(stored_cfg.get_index(request_uri),
+                        get_version(request_uri))
         request_uri = get_usk_for_usk_version(request_uri, max_index)
 
     # Skip key inversion if we already inverted the insert_uri.
