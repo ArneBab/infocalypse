@@ -35,7 +35,7 @@ from fcpmessage import GET_DEF, PUT_FILE_DEF, GET_REQUEST_URI_DEF
 from requestqueue import RequestQueue
 
 from chk import clear_control_bytes
-from bundlecache import make_temp_file
+from bundlecache import make_temp_file, BundleException
 from graph import INSERT_NORMAL, INSERT_PADDED, INSERT_SALTED_METADATA, \
      minimal_update_graph, graph_to_string, \
      FREENET_BLOCK_LEN, has_version, pull_bundle, parse_graph, hex_version
@@ -230,6 +230,10 @@ class UpdateContext(dict):
             bundle = self.parent.ctx.bundle_cache.make_bundle(self.graph,
                                                           edge[:2],
                                                           tmp_file)
+
+            if bundle[0] != original_len:
+                raise BundleException("Wrong size. Expected: %i. Got: %i"
+                                      % (original_len, bundle[0]))
             assert bundle[0] == original_len
             if pad:
                 out_file = open(tmp_file, 'ab')

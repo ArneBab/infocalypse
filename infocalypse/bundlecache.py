@@ -51,6 +51,11 @@ def is_writable(dir_name):
             os.remove(tmp_file)
 
 
+class BundleException(Exception):
+    """ An Exception for problems encountered with bundles."""
+    def __init__(self, msg):
+        Exception.__init__(self, msg)
+
 class BundleCache:
     """ Class to create hg bundle files and cache information about
         their sizes. """

@@ -22,6 +22,7 @@
 
 from graph import graph_to_string, UpToDate, INSERT_SALTED_METADATA, \
      FREENET_BLOCK_LEN
+from bundlecache import BundleException
 
 from statemachine import RequestQueueState
 
@@ -150,10 +151,23 @@ class InsertingBundles(RequestQueueState):
         if len(self.new_edges) == 0:
             return None
 
-        edge = self.new_edges.pop()
-        request = self.parent.ctx.make_edge_insert_request(edge, edge,
+        request = None
+        try:
+            edge = self.new_edges.pop()
+            request = self.parent.ctx.make_edge_insert_request(edge, edge,
                                                            self.salting_cache)
-        self.pending[edge] = request
+            self.pending[edge] = request
+        except BundleException, err:
+            if self.parent.ctx.get('REINSERT', 0) > 0:
+                self.parent.ctx.ui_.warn("Couldn't create an identical bundle to "
+                                         + "re-insert.\n"
+                                         + "Maybe the repository was inserted with a "
+                                         + "different version of hg?\n")
+                self.parent.transition(FAILING)
+            else:
+                # Dunno what's going on.
+                raise
+        
         return request
 
     def request_done(self, client, msg):
