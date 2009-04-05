@@ -47,7 +47,7 @@ from config import Config, DEFAULT_CFG_PATH
 
 DEFAULT_PARAMS = {
     # FCP params
-    'MaxRetries':1,
+    'MaxRetries':3,
     'PriorityClass':1,
     'DontCompress':True, # hg bundles are already compressed.
     'Verbosity':1023, # MUST set this to get progress messages.
