@@ -252,12 +252,12 @@ class RequestingBundles(RetryingRequestList):
             chks = list(update[3][:])
             full_chk = random.choice(chks)
             chks.remove(full_chk)
-            candidate = [full_chk, 0, not one_full, None, None, None, False]
+            candidate = [full_chk, 0, not one_full, None, update, None, False]
             one_full = True
             candidate_list.insert(0, candidate)
 
             for chk in chks:
-                candidate = [chk, 0, True, None, None, None, False]
+                candidate = [chk, 0, True, None, update, None, False]
                 candidate_list.insert(0, candidate)
             last_queued = index
             if index > 1:
@@ -323,6 +323,7 @@ class RequestingBundles(RetryingRequestList):
             parallel_graph_fetch = True
             chks = list(self.top_key_tuple[0][:])
             random.shuffle(chks)
+            #chks = [] # Hack to test bootstrapping w/o graph
             for chk in self.top_key_tuple[0]:
                 candidate = [chk, 0, False, None, None, None, True]
                 # insert not append, because this should run AFTER
@@ -502,6 +503,26 @@ class RequestingBundles(RetryingRequestList):
                 candidate[2] = True
                 # break. paranoia?
 
+    # REDFLAG: for now, do parallel multiblock fetches.
+    def _handled_multiblock_no_graph_case(self, dummy, msg, candidate):
+        if (candidate[2] and self._multiple_block(candidate) and
+            self.parent.ctx.graph is None):
+            assert not candidate[4] is None
+            update = candidate[4]
+            # Compare without control bytes, which were cleared.
+            target = candidate[0].split(',')[:-1]
+            for chk in update[3]:
+                if chk.split(',')[:-1] == target:
+                    # Reset the CHK because the control bytes were zorched.
+                    candidate[0] = chk
+                    #candidate[1] += 1
+                    candidate[2] = False
+                    candidate[5] = None # Reset!
+                    self.current_candidates.insert(0, candidate)
+                    return True
+
+            assert False
+
     def _handle_success(self, client, msg, candidate):
         """ INTERNAL: Handle successful FCP requests. """
         #print "_handle_success -- ", candidate
@@ -510,8 +531,10 @@ class RequestingBundles(RetryingRequestList):
             candidate[5] = msg
             self.finished_candidates.append(candidate)
             return
-        if (candidate[2] and
-            self._multiple_block(candidate)):
+        if self._handled_multiblock_no_graph_case(client, msg, candidate):
+            return
+
+        if (candidate[2] and self._multiple_block(candidate)):
             #print "_handle_success -- multiple block..."
             # Cases:
             # 0) No redundant edge exists, -> requeue
@@ -543,7 +566,7 @@ class RequestingBundles(RetryingRequestList):
                               % str(candidate[3]))
             # Reset the CHK because the control bytes were zorched.
             candidate[0] = self.parent.ctx.graph.get_chk(candidate[3])
-            candidate[1] += 1
+            #candidate[1] += 1
             candidate[2] = False
             candidate[5] = None # Reset!
             self.rep_invariant()
@@ -558,10 +581,15 @@ class RequestingBundles(RetryingRequestList):
         #print "_handle_success -- pulling!"
         self._pull_bundle(client, msg, candidate)
         #print "_handle_success -- pulled bundle ", candidate[3]
-        self.parent.ctx.ui_.status("Pulled bundle: %s\n" % str(candidate[3]))
+
+        name = str(candidate[3])
+        if name == 'None':
+            name = "%s:%s" % (candidate[4][1][:12], candidate[4][2][:12])
+        self.parent.ctx.ui_.status("Pulled bundle: %s\n" % name)
+
         graph = self.parent.ctx.graph
         if graph is None:
-            latest_version = self.top_key_tuple[1][2]
+            latest_version = self.top_key_tuple[1][0][2]
         else:
             latest_version = graph.index_table[graph.latest_index][1]
 
@@ -695,12 +723,15 @@ class RequestingBundles(RetryingRequestList):
             only.  """
         # Use chks since we don't have access to edges.
         pending, current, next, finished = self._known_chks()
-        all_chks = pending + current + next + finished
+        all_chks = pending.union(current).union(next).union(finished)
 
         for update in self.top_key_tuple[1]:
-            # REDFLAG: bug? Hmmm.. can't remember why I marked this bug.
-            if not self.parent.ctx.needs_bundle(update[1], update[2]):
-                continue
+            if not self.parent.ctx.has_version(update[1]):
+                continue # Don't have parent.
+
+            if self.parent.ctx.has_version(update[2]):
+                continue # Already have the update's changes.
+
             new_chks = []
             for chk in update[3]:
                 if not chk in all_chks:
