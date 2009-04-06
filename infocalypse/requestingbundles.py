@@ -504,7 +504,9 @@ class RequestingBundles(RetryingRequestList):
                 # break. paranoia?
 
     # REDFLAG: for now, do parallel multiblock fetches.
-    def _handled_multiblock_no_graph_case(self, dummy, msg, candidate):
+    def _handled_multiblock_case(self, candidate):
+        """ INTERNAL: Handle requeueing full fetches when we don't have
+            the graph yet. """
         if (candidate[2] and self._multiple_block(candidate) and
             self.parent.ctx.graph is None):
             assert not candidate[4] is None
@@ -531,7 +533,7 @@ class RequestingBundles(RetryingRequestList):
             candidate[5] = msg
             self.finished_candidates.append(candidate)
             return
-        if self._handled_multiblock_no_graph_case(client, msg, candidate):
+        if self._handled_multiblock_case(candidate):
             return
 
         if (candidate[2] and self._multiple_block(candidate)):
@@ -952,3 +954,5 @@ class RequestingBundles(RetryingRequestList):
         print_list("current_candidates", self.current_candidates)
         print_list("next_candidates", self.next_candidates)
 
+
+#  LocalWords:  requeueing
