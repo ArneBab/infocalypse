@@ -156,12 +156,12 @@ class InsertingBundles(RequestQueueState):
             request = self.parent.ctx.make_edge_insert_request(edge, edge,
                                                            self.salting_cache)
             self.pending[edge] = request
-        except BundleException, err:
+        except BundleException:
             if self.parent.ctx.get('REINSERT', 0) > 0:
-                self.parent.ctx.ui_.warn("Couldn't create an identical bundle to "
-                                         + "re-insert.\n"
-                                         + "Maybe the repository was inserted with a "
-                                         + "different version of hg?\n")
+                self.parent.ctx.ui_.warn("Couldn't create an identical "
+                                         + "bundle to re-insert.\n"
+                                         + "Maybe the repository was inserted "
+                                         + "with a different version of hg?\n")
                 self.parent.transition(FAILING)
             else:
                 # Dunno what's going on.
@@ -210,9 +210,11 @@ class InsertingBundles(RequestQueueState):
                 if chk1 != graph.get_chk(edge):
                     self.parent.ctx.ui_.status("Bad CHK: %s %s\n" %
                                                (str(edge), chk1))
-                    self.parent.ctx.ui_.warn("CHK for reinserted edge doesn't match!\n"
-                                             + "Maybe the repository was inserted with a "
-                                             + "different version of hg?\n")
+                    self.parent.ctx.ui_.warn("CHK for reinserted edge doesn't "
+                                             + "match!\n"
+                                             + "Maybe the repository was "
+                                             + "inserted with a different "
+                                             + "version of hg?\n")
                     self.parent.transition(FAILING)
 
         else:

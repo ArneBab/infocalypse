@@ -481,9 +481,11 @@ def execute_reinsert(ui_, repo, params, stored_cfg):
         params['REQUEST_URI'] = request_uri
 
         if not params['INSERT_URI'] is None:
-            ui_.status("%sInsert URI:\n%s\n" % (is_redundant(params['INSERT_URI']),
+            ui_.status("%sInsert URI:\n%s\n" % (is_redundant(params[
+                'INSERT_URI']),
                                                 params['INSERT_URI']))
-        ui_.status("%sRequest URI:\n%s\n" % (is_redundant(params['REQUEST_URI']),
+        ui_.status("%sRequest URI:\n%s\n" % (is_redundant(params[
+            'REQUEST_URI']),
                                              params['REQUEST_URI']))
 
         update_sm.start_reinserting(params['REQUEST_URI'],

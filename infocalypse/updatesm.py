@@ -971,14 +971,17 @@ class UpdateStateMachine(RequestQueue, StateMachine):
         self.transition(INVERTING_URI)
 
     def start_reinserting(self, request_uri, insert_uri=None, is_keypair=False):
-        """ """
+        """ Start reinserting the repository"""
         self.require_state(QUIESCENT)
         self.reset()
         self.ctx['REQUEST_URI'] = request_uri
         self.ctx['INSERT_URI'] = insert_uri
         self.ctx['IS_KEYPAIR'] = is_keypair
         self.ctx['REINSERT'] = 1
-        # REDFLAG: add hack code to InsertingUri to handle reinsert w/o insert uri?
+        # REDFLAG: added hack code to InsertingUri to handle
+        # reinsert w/o insert uri?
+        # Tradedoff: hacks in states vs. creating extra state
+        # instances just to be pedantic...
         self.transition(REQUESTING_URI_4_INSERT)
 
     # REDFLAG: UNTESTED

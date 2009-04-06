@@ -285,7 +285,8 @@ cmdtable = {
 
     "fn-reinsert": (infocalypse_reinsert,
                 [('', 'requesturi', '', 'request URI to re-insert data from'),
-                 ('', 'inserturi', '', 'insert URI (required to re-insert the top key)'), ]
+                 ('', 'inserturi', '',
+                  'insert URI (required to re-insert the top key)'), ]
                 + FCP_OPTS,
                 "[options]"),
 
