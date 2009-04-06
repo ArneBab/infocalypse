@@ -54,7 +54,7 @@ DEFAULT_PARAMS = {
 
     # Non-FCP stuff
     'N_CONCURRENT':4, # Maximum number of concurrent FCP requests.
-    'CANCEL_TIME_SECS': 15 * 60, # Bound request time.
+    'CANCEL_TIME_SECS': 5 * 60, # Bound request time.
     'POLL_SECS':0.25, # Time to sleep in the polling loop.
     }
 
