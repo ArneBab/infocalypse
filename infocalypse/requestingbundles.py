@@ -254,11 +254,11 @@ class RequestingBundles(RetryingRequestList):
             chks.remove(full_chk)
             candidate = [full_chk, 0, not one_full, None, None, None, False]
             one_full = True
-            candidate_list.append(candidate)
+            candidate_list.insert(0, candidate)
 
             for chk in chks:
                 candidate = [chk, 0, True, None, None, None, False]
-                candidate_list.append(candidate)
+                candidate_list.insert(0, candidate)
             last_queued = index
             if index > 1:
                 break
@@ -325,7 +325,9 @@ class RequestingBundles(RetryingRequestList):
             random.shuffle(chks)
             for chk in self.top_key_tuple[0]:
                 candidate = [chk, 0, False, None, None, None, True]
-                self.current_candidates.append(candidate)
+                # insert not append, because this should run AFTER
+                # initial single fetch update queued above.
+                self.current_candidates.insert(0, candidate)
                 if not parallel_graph_fetch:
                     break
 
@@ -420,6 +422,7 @@ class RequestingBundles(RetryingRequestList):
         if candidate[1] < max_retries + 1:
             #print "_should_retry -- returned False"
             #return False
+            # Append retries immediately. Hmmmm...
             self.current_candidates.append(candidate)
             return
 
@@ -475,6 +478,7 @@ class RequestingBundles(RetryingRequestList):
                         candidate = [chk, 0, False, None, None, None, True]
                         # Run next!
                         #print "QUEUEING OTHER GRAPH CHK"
+                        # append retries immediately. Hmmm...
                         self.current_candidates.append(candidate)
                         break
 
@@ -528,7 +532,7 @@ class RequestingBundles(RetryingRequestList):
                         # Make sure the candidate will re-run if the running
                         # request fails.
                         candidate[1] = 0
-                        self.next_candidates.append(candidate)
+                        self.next_candidates.insert(0, candidate)
                         #print "_handle_success -- already another running."
                         self.parent.ctx.ui_.status(("Other salted key is "
                                                     + "running. Didn't "
@@ -603,7 +607,7 @@ class RequestingBundles(RetryingRequestList):
                                % str(alternate_edge))
 
         # Order is important because this changes SaltingState.
-        self.next_candidates.append(candidate)
+        self.next_candidates.insert(0, candidate)
         self._queue_candidate(self.next_candidates, alternate_edge,
                              not SaltingState(self).needs_full_request(
             self.parent.ctx.graph, alternate_edge))
@@ -622,7 +626,7 @@ class RequestingBundles(RetryingRequestList):
             # Order important.  Allow should_retry to see previous msg.
             candidate[5] = msg
             if not self._queued_redundant_edge(candidate):
-                self.next_candidates.append(candidate)
+                self.next_candidates.insert(0, candidate)
         else:
             #print "_handle_failure -- abandoning..."
             candidate[5] = msg
