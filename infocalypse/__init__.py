@@ -75,8 +75,7 @@ you run from the same directory the fn-create
 was run in because the insert key -> dir
 mapping is saved in the config file.
 
-If you go to a different directory
-do an hg init and type:
+Go to a different directory do an hg init and type:
 
 hg fn-pull --uri <request uri from steps above>
 
@@ -85,6 +84,14 @@ to pull from the repository in Freenet.
 The request uri -> dir mapping is saved after
 the first pull, so you can ommit the --uri
 argument for subsequent fn-pull invocations.
+
+hg fn-reinsert
+
+will re-insert the bundles for the repository
+that was last pulled into the directory.  If
+you have the insert uri the top level key(s)
+will also be re-inserted.
+
 
 HINTS:
 The -q, -v and --debug verbosity options are
@@ -173,30 +180,24 @@ def infocalypse_copy(ui_, repo, **opts):
     execute_copy(ui_, repo, params, stored_cfg)
 
 def infocalypse_reinsert(ui_, repo, **opts):
-    """ Re-insert Infocalypse repository data. """
+    """ Reinsert the current version of an Infocalypse repository. """
     params, stored_cfg = get_config_info(ui_, opts)
 
-    request_uri = opts['requesturi']
-    if request_uri == '':
-        request_uri = stored_cfg.get_request_uri(repo.root)
-        if not request_uri:
-            ui_.warn("There is no stored request URI for this repo.\n"
-                     "Please set one with the --requesturi option.\n")
-            return
+    request_uri = stored_cfg.get_request_uri(repo.root)
+    if not request_uri:
+        ui_.warn("There is no stored request URI for this repo.\n"
+                 "Do a fn-pull from a repository USK and try again.\n")
+        return
 
-    insert_uri = opts['inserturi']
-    if insert_uri == '':
-        insert_uri = stored_cfg.get_dir_insert_uri(repo.root)
-        # REDFLAG: fix parameter definition so that it is required?
-        if not insert_uri:
-            ui_.status("No insert URI specified. Will skip re-insert "
-                       +"of top key.\n")
-            insert_uri = None
+    insert_uri = stored_cfg.get_dir_insert_uri(repo.root)
+    if not insert_uri:
+        ui_.status("No insert URI. Will skip re-insert "
+                   +"of top key.\n")
+        insert_uri = None
 
     params['INSERT_URI'] = insert_uri
     params['REQUEST_URI'] = request_uri
     execute_reinsert(ui_, repo, params, stored_cfg)
-
 
 def infocalypse_pull(ui_, repo, **opts):
     """ Pull from an Infocalypse repository in Freenet.
@@ -284,11 +285,8 @@ cmdtable = {
                 "[options]"),
 
     "fn-reinsert": (infocalypse_reinsert,
-                [('', 'requesturi', '', 'request URI to re-insert data from'),
-                 ('', 'inserturi', '',
-                  'insert URI (required to re-insert the top key)'), ]
-                + FCP_OPTS,
-                "[options]"),
+                    FCP_OPTS,
+                    "[options]"),
 
     "fn-setup": (infocalypse_setup,
                  [('', 'tmpdir', '~/infocalypse_tmp', 'temp directory'),]
