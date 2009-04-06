@@ -324,7 +324,7 @@ class RequestingBundles(RetryingRequestList):
             chks = list(self.top_key_tuple[0][:])
             random.shuffle(chks)
             #chks = [] # Hack to test bootstrapping w/o graph
-            for chk in self.top_key_tuple[0]:
+            for chk in chks:
                 candidate = [chk, 0, False, None, None, None, True]
                 # insert not append, because this should run AFTER
                 # initial single fetch update queued above.
