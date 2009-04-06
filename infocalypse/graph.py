@@ -512,7 +512,7 @@ class UpdateGraph:
                 edges.append(step)
 
         # 2 possibly redundant immediate update keys, and MAX_PATH_LEN
-        # canonical path keys. Actually one of the canonical keys
+        # canonical path keys. Actually at least one of the canonical keys
         # should already be in the immediate updates.
         assert len(edges) < 4 + MAX_PATH_LEN
         return edges
