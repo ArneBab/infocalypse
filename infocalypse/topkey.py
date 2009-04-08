@@ -124,6 +124,7 @@ def bytes_to_top_key_tuple(bytes):
     return (tuple(graph_chks), tuple(updates))
 
 def default_out(text):
+    """ Default output function for dump_top_key_tuple(). """
     if text.endswith('\n'):
         text = text[:-1]
     print text

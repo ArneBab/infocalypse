@@ -361,8 +361,9 @@ def do_key_setup(ui_, update_sm, params, stored_cfg):
             # Force the insert URI down to the version in the request URI.
             usks_equal(request_uri, params['INVERTED_INSERT_URI'])):
             params['INVERTED_INSERT_URI'] = request_uri
-            params['INSERT_URI'] = get_usk_for_usk_version(insert_uri,
-                                                           get_version(request_uri))
+            params['INSERT_URI'] = get_usk_for_usk_version(
+                insert_uri,
+                get_version(request_uri))
 
     # Skip key inversion if we already inverted the insert_uri.
     is_keypair = False

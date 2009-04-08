@@ -337,23 +337,23 @@ class UpdateGraph:
         edge_list[ordinal + 1] = chk
         self.edge_table[index_pair] = tuple(edge_list)
 
-    def insert_type_(self, edge_triple):
-        """ Return the kind of insert required to insert the CHK
-            for the edge.
+# def insert_type_(self, edge_triple):
+#         """ Return the kind of insert required to insert the CHK
+#             for the edge.
 
-            INSERT_NORMAL -> No modification to the bundle file.
-            INSERT_PADDED -> Add one trailing pad byte.
-            INSERT_SALTED_METADATA -> Copy and salt the Freenet
-            split file metadata for the normal insert. """
-        edge_info = self.edge_table[edge_triple[:2]]
-        #print "insert_type -- ", edge_triple, entry
-        if edge_info[edge_triple[2] + 1] == PENDING_INSERT:
-            return INSERT_NORMAL
-        if edge_info[edge_triple[2] + 1] != PENDING_INSERT1:
-            raise ValueError("CHK already set?")
-        if edge_info[0] <= FREENET_BLOCK_LEN:
-            return INSERT_PADDED
-        return INSERT_SALTED_METADATA
+#             INSERT_NORMAL -> No modification to the bundle file.
+#             INSERT_PADDED -> Add one trailing pad byte.
+#             INSERT_SALTED_METADATA -> Copy and salt the Freenet
+#             split file metadata for the normal insert. """
+#         edge_info = self.edge_table[edge_triple[:2]]
+#         #print "insert_type -- ", edge_triple, entry
+#         if edge_info[edge_triple[2] + 1] == PENDING_INSERT:
+#             return INSERT_NORMAL
+#         if edge_info[edge_triple[2] + 1] != PENDING_INSERT1:
+#             raise ValueError("CHK already set?")
+#         if edge_info[0] <= FREENET_BLOCK_LEN:
+#             return INSERT_PADDED
+#         return INSERT_SALTED_METADATA
 
     def insert_type(self, edge_triple):
         """ Return the kind of insert required to insert the CHK

@@ -1,3 +1,4 @@
+# REDFLAG: There are changes here that haven't been pushed back into main repo.
 """ Simplified client interface for common FCP request.
 
     Copyright (C) 2008 Darrell Karbott
@@ -794,3 +795,61 @@ def parse_rollup_filename(filename):
     end_index = int(fields[-5])
     human_readable = '_'.join(fields[:-6]) # REDFLAG: dci obo?
     return (human_readable, start_index, end_index, tip, parent, repo_id)
+
+
+############################################################
+# Stuff moved from updatesm.py, cleanup.
+############################################################
+
+# Hmmm... do better?
+# IIF ends with .R1 second ssk ends with .R0.
+# Makes it easy for paranoid people to disable redundant
+# top key fetching. ie. just request *R0 instead of *R1.
+# Also could intuitively be expanded to higher levels of
+# redundancy.
+def make_redundant_ssk(usk, version):
+    """ Returns a redundant ssk pair for the USK version IFF the file
+        part of usk ends with '.R1', otherwise a single
+        ssk for the usk specified version. """
+    ssk = get_ssk_for_usk_version(usk, version)
+    fields = ssk.split('-')
+    if not fields[-2].endswith('.R1'):
+        return (ssk, )
+    #print "make_redundant_ssk -- is redundant"
+    fields[-2] = fields[-2][:-2] + 'R0'
+    return (ssk, '-'.join(fields))
+
+# For search
+def make_search_uris(uri):
+    """ Returns a redundant USK pair if the file part of uri ends
+        with '.R1', a tuple containing only uri. """
+    if not is_usk_file(uri):
+        return (uri,)
+    fields = uri.split('/')
+    if not fields[-2].endswith('.R1'):
+        return (uri, )
+    #print "make_search_uris -- is redundant"
+    fields[-2] = fields[-2][:-2] + 'R0'
+    return (uri, '/'.join(fields))
+
+def make_frozen_uris(uri, increment=True):
+    """ Returns a possibly redundant SSK tuple for the 'frozen'
+        version of file USK uris, a tuple containing uri for other uris.
+
+        NOTE: This increments the version by 1 if uri is a USK
+              and increment is True.
+    """
+    if uri == 'CHK@':
+        return (uri,)
+    assert is_usk_file(uri)
+    version = get_version(uri)
+    return make_redundant_ssk(uri, version + int(bool(increment)))
+
+def ssk_to_usk(ssk):
+    """ Convert an SSK for a file USK back into a file USK. """
+    fields = ssk.split('-')
+    end = '/'.join(fields[-2:])
+    fields = fields[:-2] + [end, ]
+    return 'USK' + '-'.join(fields)[3:]
+
+
