@@ -40,7 +40,8 @@ from graph import INSERT_NORMAL, INSERT_PADDED, INSERT_SALTED_METADATA, \
      minimal_update_graph, graph_to_string, \
      FREENET_BLOCK_LEN, has_version, pull_bundle, parse_graph, hex_version
 
-from topkey import bytes_to_top_key_tuple, top_key_tuple_to_bytes
+from topkey import bytes_to_top_key_tuple, top_key_tuple_to_bytes, \
+     dump_top_key_tuple
 
 from statemachine import StatefulRequest, RequestQueueState, StateMachine, \
      Quiescent, Canceling, RetryingRequestList, CandidateRequest, \
@@ -526,6 +527,9 @@ class InsertingUri(StaticRequestList):
         assert not self.parent.ctx['INSERT_URI'] is None
 
         top_key_tuple = from_state.get_top_key_tuple()
+        if self.parent.params.get('DUMP_TOP_KEY', False):
+            dump_top_key_tuple(top_key_tuple,
+                               self.parent.ctx.ui_.status)
 
         salt = {0:0x00, 1:0xff} # grrr.... less code.
         insert_uris = make_frozen_uris(self.parent.ctx['INSERT_URI'],
@@ -623,6 +627,10 @@ class RequestingUri(StaticRequestList):
 
             # Allow pending requests to run to completion.
             self.parent.ctx.orphan_requests(self)
+            if self.parent.params.get('DUMP_TOP_KEY', False):
+                dump_top_key_tuple(self.get_top_key_tuple(),
+                                   self.parent.ctx.ui_.status)
+
 
     def get_top_key_tuple(self):
         """ Get the python rep of the data in the URI. """

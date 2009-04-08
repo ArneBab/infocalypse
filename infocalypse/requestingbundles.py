@@ -36,7 +36,7 @@ from choose import get_update_edges, dump_update_edges
 
 from statemachine import RetryingRequestList, CandidateRequest
 
-from topkey import dump_top_key_tuple
+#from topkey import dump_top_key_tuple
 from chk import clear_control_bytes
 
 # REDFLAG: Make sure that you are copying lists. eg. updates
@@ -296,8 +296,8 @@ class RequestingBundles(RetryingRequestList):
             if self.top_key_tuple is None:
                 raise Exception("No top key data.")
 
-            if self.parent.params.get('DUMP_TOP_KEY', False):
-                dump_top_key_tuple(top_key_tuple)
+            #if self.parent.params.get('DUMP_TOP_KEY', False):
+            #    dump_top_key_tuple(top_key_tuple)
 
             updates = self.top_key_tuple[1]
 

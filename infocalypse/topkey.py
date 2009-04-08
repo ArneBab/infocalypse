@@ -123,16 +123,21 @@ def bytes_to_top_key_tuple(bytes):
 
     return (tuple(graph_chks), tuple(updates))
 
-def dump_top_key_tuple(top_key_tuple):
+def default_out(text):
+    if text.endswith('\n'):
+        text = text[:-1]
+    print text
+
+def dump_top_key_tuple(top_key_tuple, out_func=default_out):
     """ Debugging function to print a top_key_tuple. """
-    print "---top key tuple---"
+    out_func("---top key tuple---\n")
     for index, chk in enumerate(top_key_tuple[0]):
-        print "graph_%s:%s" % (chr(ord('a') + index), chk)
+        out_func("graph_%s:%s\n" % (chr(ord('a') + index), chk))
     for index, update in enumerate(top_key_tuple[1]):
-        print "update[%i]" % index
-        print "   length    : %i" % update[0]
-        print "   parent_rev: %s" % update[1]
-        print "   latest_rev: %s" % update[2]
+        out_func("update[%i]\n" % index)
+        out_func("   length    : %i\n" % update[0])
+        out_func("   parent_rev: %s\n" % update[1])
+        out_func("   latest_rev: %s\n" % update[2])
         for index, chk in enumerate(update[3]):
-            print "   CHK[%i]:%s" % (index, chk)
-    print "---"
+            out_func("   CHK[%i]:%s\n" % (index, chk))
+    out_func("---\n")
