@@ -784,7 +784,10 @@ class RequestingBundles(RetryingRequestList):
             all_edges.remove(None)
 
         assert not None in all_edges
-
+        # BUG: What if an existing edge would be better?
+        #      i.e. how do you know to queue the new edges after
+        #      the better existing  ones?
+        #      Is this just a problem with edges queued before graph?
         # Find the edges we need to update.
         first, second = get_update_edges(graph, index, redundancy, True,
                                          all_edges)
