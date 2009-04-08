@@ -86,9 +86,10 @@ def make_search_uris(uri):
     fields[-2] = fields[-2][:-2] + 'R0'
     return (uri, '/'.join(fields))
 
-# For insert
-def make_insert_uris(uri, increment=True):
-    """ Returns a possibly redundant insert uri tuple.
+def make_frozen_uris(uri, increment=True):
+    """ Returns a possibly redundant SSK tuple for the 'frozen'
+        version of file USK uris, a tuple containing uri for other uris.
+
         NOTE: This increments the version by 1 if uri is a USK
               and increment is True.
     """
@@ -527,7 +528,7 @@ class InsertingUri(StaticRequestList):
         top_key_tuple = from_state.get_top_key_tuple()
 
         salt = {0:0x00, 1:0xff} # grrr.... less code.
-        insert_uris = make_insert_uris(self.parent.ctx['INSERT_URI'],
+        insert_uris = make_frozen_uris(self.parent.ctx['INSERT_URI'],
                                        self.parent.ctx.get('REINSERT', 0) < 1)
         assert len(insert_uris) < 3
         for index, uri in enumerate(insert_uris):
@@ -584,7 +585,12 @@ class RequestingUri(StaticRequestList):
             self.parent.params.get('AGGRESSIVE_SEARCH', False)):
             request_uri = get_negative_usk(request_uri)
 
-        request_uris = make_search_uris(request_uri)
+        if (is_usk(request_uri) and self.parent.params['NO_SEARCH']):
+            request_uris = make_frozen_uris(request_uri, False)
+            self.parent.ctx.ui_.status("Request URI index searching disabled.\n")
+        else:
+            request_uris = make_search_uris(request_uri)
+
         for uri in request_uris:
             #[uri, tries, is_insert, raw_data, mime_type, last_msg]
             if self.parent.params.get('DUMP_URIS', False):
@@ -632,6 +638,10 @@ class RequestingUri(StaticRequestList):
 
     def get_latest_uri(self):
         """ Returns the URI with the version part update if the URI is a USK."""
+        if (is_usk(self.parent.ctx['REQUEST_URI']) and
+            self.parent.params['NO_SEARCH']):
+            return self.parent.ctx['REQUEST_URI']
+
         max_version = None
         for candidate in self.ordered:
             result = candidate[5]

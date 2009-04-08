@@ -183,11 +183,13 @@ def infocalypse_reinsert(ui_, repo, **opts):
     """ Reinsert the current version of an Infocalypse repository. """
     params, stored_cfg = get_config_info(ui_, opts)
 
-    request_uri = stored_cfg.get_request_uri(repo.root)
-    if not request_uri:
-        ui_.warn("There is no stored request URI for this repo.\n"
-                 "Do a fn-pull from a repository USK and try again.\n")
-        return
+    request_uri = opts['uri']
+    if request_uri == '':
+        request_uri = stored_cfg.get_request_uri(repo.root)
+        if not request_uri:
+            ui_.warn("There is no stored request URI for this repo.\n"
+                     "Do a fn-pull from a repository USK and try again.\n")
+            return
 
     insert_uri = stored_cfg.get_dir_insert_uri(repo.root)
     if not insert_uri:
@@ -254,13 +256,14 @@ FCP_OPTS = [('', 'fcphost', '', 'fcp host'),
 
 AGGRESSIVE_OPT = [('', 'aggressive', None, 'aggressively search for the '
                    + 'latest USK index'),]
-
+NOSEARCH_OPT = [('', 'nosearch', None, 'use USK version in URI'),]
 # Allow mercurial naming convention for command table.
 # pylint: disable-msg=C0103
 cmdtable = {
     "fn-pull": (infocalypse_pull,
                 [('', 'uri', '', 'request URI to pull from'),]
                 + FCP_OPTS
+                + NOSEARCH_OPT
                 + AGGRESSIVE_OPT,
                 "[options]"),
 
@@ -285,7 +288,9 @@ cmdtable = {
                 "[options]"),
 
     "fn-reinsert": (infocalypse_reinsert,
-                    FCP_OPTS,
+                    [('', 'uri', '', 'request URI')]
+                    + FCP_OPTS
+                    + NOSEARCH_OPT,
                     "[options]"),
 
     "fn-setup": (infocalypse_setup,

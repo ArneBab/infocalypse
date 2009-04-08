@@ -32,6 +32,7 @@ from mercurial import util
 
 from fcpclient import parse_progress, is_usk, is_ssk, get_version, \
      get_usk_for_usk_version, FCPClient, is_usk_file, is_negative_usk
+
 from fcpconnection import FCPConnection, PolledSocket, CONNECTION_STATES, \
      get_code, FCPError
 from requestqueue import RequestRunner
@@ -190,7 +191,14 @@ def get_config_info(ui_, opts):
     params['FCP_PORT'] = cfg.defaults['PORT']
     params['TMP_DIR'] = cfg.defaults['TMP_DIR']
     params['VERBOSITY'] = get_verbosity(ui_)
-    params['AGGRESSIVE_SEARCH'] = bool(opts.get('aggressive'))
+    params['NO_SEARCH'] = (bool(opts.get('nosearch')) and opts.get('uri', None))
+    if bool(opts.get('nosearch')) and not opts.get('uri', None):
+        ui_.status('--nosearch ignored because --uri was not set.\n')
+    params['AGGRESSIVE_SEARCH'] = (bool(opts.get('aggressive')) and
+                                   not params['NO_SEARCH'])
+    if bool(opts.get('aggressive')) and params['NO_SEARCH']:
+        ui_.status('--aggressive ignored because --nosearch was set.\n')
+
     return (params, cfg)
 
 # Hmmmm USK@/style_keys/0
@@ -303,9 +311,10 @@ def cleanup(update_sm):
 
     update_sm.ctx.bundle_cache.remove_files()
 
+# This function needs cleanup.
 # REDFLAG: better name. 0) inverts 1) updates indices from cached state.
 # 2) key substitutions.
-def handle_key_inversion(ui_, update_sm, params, stored_cfg):
+def do_key_setup(ui_, update_sm, params, stored_cfg):
     """ INTERNAL:  Handle inverting/updating keys before running a command."""
     insert_uri = params.get('INSERT_URI')
     if not insert_uri is None and insert_uri.startswith('USK@/'):
@@ -339,13 +348,21 @@ def handle_key_inversion(ui_, update_sm, params, stored_cfg):
         inverted_uri,
         max_index)
 
-    # NO COUPLING
     # Update the index of the request uri using the stored config.
     request_uri = params.get('REQUEST_URI')
-    if not request_uri is None:
-        max_index = max(stored_cfg.get_index(request_uri),
-                        get_version(request_uri))
-        request_uri = get_usk_for_usk_version(request_uri, max_index)
+    if not request_uri is None and is_usk(request_uri):
+        assert not params['NO_SEARCH'] or not request_uri is None
+        if not request_uri is None and not params['NO_SEARCH']:
+            max_index = max(stored_cfg.get_index(request_uri),
+                            get_version(request_uri))
+            request_uri = get_usk_for_usk_version(request_uri, max_index)
+
+        if (params['NO_SEARCH'] and
+            # Force the insert URI down to the version in the request URI.
+            usks_equal(request_uri, params['INVERTED_INSERT_URI'])):
+            params['INVERTED_INSERT_URI'] = request_uri
+            params['INSERT_URI'] = get_usk_for_usk_version(insert_uri,
+                                                           get_version(request_uri))
 
     # Skip key inversion if we already inverted the insert_uri.
     is_keypair = False
@@ -422,7 +439,7 @@ def execute_create(ui_, repo, params, stored_cfg):
         # This call is not necessary, but I do it to set
         # 'INVERTED_INSERT_URI'. Write code to fish that
         # out of INSERTING_URI instead.
-        handle_key_inversion(ui_, update_sm, params, stored_cfg)
+        do_key_setup(ui_, update_sm, params, stored_cfg)
 
         ui_.status("%sInsert URI:\n%s\n" % (is_redundant(params['INSERT_URI']),
                                             params['INSERT_URI']))
@@ -451,7 +468,7 @@ def execute_copy(ui_, repo, params, stored_cfg):
     update_sm = None
     try:
         update_sm = setup(ui_, repo, params, stored_cfg)
-        handle_key_inversion(ui_, update_sm, params, stored_cfg)
+        do_key_setup(ui_, update_sm, params, stored_cfg)
 
         ui_.status("%sInsert URI:\n%s\n" % (is_redundant(params['INSERT_URI']),
                                             params['INSERT_URI']))
@@ -471,16 +488,27 @@ def execute_copy(ui_, repo, params, stored_cfg):
     finally:
         cleanup(update_sm)
 
+def usks_equal(usk_a, usk_b):
+    """ Returns True if the USKs are equal disregarding version. """
+    return (get_usk_for_usk_version(usk_a, 0)
+            == get_usk_for_usk_version(usk_b, 0))
+
 def execute_reinsert(ui_, repo, params, stored_cfg):
     """ Run the reinsert command. """
     update_sm = None
     try:
         update_sm = setup(ui_, repo, params, stored_cfg)
-        request_uri, is_keypair = handle_key_inversion(ui_, update_sm,
-                                                       params, stored_cfg)
+        request_uri, is_keypair = do_key_setup(ui_, update_sm,
+                                               params, stored_cfg)
         params['REQUEST_URI'] = request_uri
 
         if not params['INSERT_URI'] is None:
+            if (is_usk(params['INSERT_URI']) and
+                (not is_usk(params['REQUEST_URI'])) or
+                (not usks_equal(params['REQUEST_URI'],
+                                params['INVERTED_INSERT_URI']))):
+                raise util.Abort("Request URI doesn't match insert URI.")
+
             ui_.status("%sInsert URI:\n%s\n" % (is_redundant(params[
                 'INSERT_URI']),
                                                 params['INSERT_URI']))
@@ -518,8 +546,8 @@ def execute_push(ui_, repo, params, stored_cfg):
     update_sm = None
     try:
         update_sm = setup(ui_, repo, params, stored_cfg)
-        request_uri, is_keypair = handle_key_inversion(ui_, update_sm, params,
-                                                       stored_cfg)
+        request_uri, is_keypair = do_key_setup(ui_, update_sm, params,
+                                               stored_cfg)
 
         ui_.status("%sInsert URI:\n%s\n" % (is_redundant(params['INSERT_URI']),
                                             params['INSERT_URI']))
