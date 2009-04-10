@@ -55,7 +55,7 @@ DEFAULT_PARAMS = {
 
     # Non-FCP stuff
     'N_CONCURRENT':4, # Maximum number of concurrent FCP requests.
-    'CANCEL_TIME_SECS': 5 * 60, # Bound request time.
+    'CANCEL_TIME_SECS': 10 * 60, # Bound request time.
     'POLL_SECS':0.25, # Time to sleep in the polling loop.
     }
 
@@ -191,9 +191,18 @@ def get_config_info(ui_, opts):
     params['FCP_PORT'] = cfg.defaults['PORT']
     params['TMP_DIR'] = cfg.defaults['TMP_DIR']
     params['VERBOSITY'] = get_verbosity(ui_)
-    params['NO_SEARCH'] = (bool(opts.get('nosearch')) and opts.get('uri', None))
-    if bool(opts.get('nosearch')) and not opts.get('uri', None):
-        ui_.status('--nosearch ignored because --uri was not set.\n')
+    params['NO_SEARCH'] = (bool(opts.get('nosearch')) and
+                           (opts.get('uri', None) or opts.get('requesturi', None)))
+
+    request_uri = opts.get('uri') or opts.get('requesturi')
+    if bool(opts.get('nosearch')) and not request_uri:
+        if opts.get('uri'):
+            arg_name = 'uri'
+        else:
+            assert opts.get('requesturi')
+            arg_name = 'requesturi'
+
+        ui_.status('--nosearch ignored because --%s was not set.\n' % arg_name)
     params['AGGRESSIVE_SEARCH'] = (bool(opts.get('aggressive')) and
                                    not params['NO_SEARCH'])
     if bool(opts.get('aggressive')) and params['NO_SEARCH']:

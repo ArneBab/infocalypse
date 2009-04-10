@@ -175,6 +175,7 @@ def infocalypse_copy(ui_, repo, **opts):
             ui_.warn("There is no stored request URI for this repo.\n"
                      "Please set one with the --requesturi option.\n")
             return
+
     params['INSERT_URI'] = insert_uri
     params['REQUEST_URI'] = request_uri
     execute_copy(ui_, repo, params, stored_cfg)
@@ -284,7 +285,8 @@ cmdtable = {
     "fn-copy": (infocalypse_copy,
                 [('', 'requesturi', '', 'request URI to copy from'),
                  ('', 'inserturi', '', 'insert URI to copy to'), ]
-                + FCP_OPTS,
+                + FCP_OPTS
+                + NOSEARCH_OPT,
                 "[options]"),
 
     "fn-reinsert": (infocalypse_reinsert,

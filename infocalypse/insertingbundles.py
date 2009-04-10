@@ -67,6 +67,16 @@ class InsertingBundles(RequestQueueState):
             self.parent.ctx.ui_.status("--- Initial Graph ---\n")
             self.parent.ctx.ui_.status(graph_to_string(graph) +'\n')
 
+        latest_rev = graph.index_table[graph.latest_index][1]
+        self.parent.ctx.ui_.warn("Latest version in Freenet: %s\n"
+                                 % latest_rev[:12])
+        if not self.parent.ctx.has_version(latest_rev):
+            self.parent.ctx.ui_.warn("The latest version in Freenet isn't in "
+                                     "the local repository.\n"
+                                     "Try doing an fn-pull to update.\n")
+            self.parent.transition(FAILING) # Hmmm... hard coded state name
+            return
+
         # Update graph.
         try:
             self.set_new_edges(graph)
@@ -160,8 +170,11 @@ class InsertingBundles(RequestQueueState):
             if self.parent.ctx.get('REINSERT', 0) > 0:
                 self.parent.ctx.ui_.warn("Couldn't create an identical "
                                          + "bundle to re-insert.\n"
-                                         + "Maybe the repository was inserted "
-                                         + "with a different version of hg?\n")
+                                         + "Possible causes:\n"
+                                         + "0) Changes been locally commited "
+                                         + "but not fn-push'd yet.\n"
+                                         + "1) The repository was inserted "
+                                         + "with a different version of hg.\n")
                 self.parent.transition(FAILING)
             else:
                 # Dunno what's going on.
@@ -211,10 +224,7 @@ class InsertingBundles(RequestQueueState):
                     self.parent.ctx.ui_.status("Bad CHK: %s %s\n" %
                                                (str(edge), chk1))
                     self.parent.ctx.ui_.warn("CHK for reinserted edge doesn't "
-                                             + "match!\n"
-                                             + "Maybe the repository was "
-                                             + "inserted with a different "
-                                             + "version of hg?\n")
+                                             + "match!\n")
                     self.parent.transition(FAILING)
 
         else:
