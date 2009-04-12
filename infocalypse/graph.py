@@ -70,10 +70,14 @@ def has_version(repo, version):
     try:
         # Is there a faster way?
         repo.changectx(version)
-    except mercurial.repo.RepoError:
+    except:
+        # REDFLAG: Back to this. Hack for 1.2
+        # Mercurial 1.2 can't find RepoError???
         return False
-    except mercurial.revlog.LookupError:
-        return False
+#     except mercurial.repo.RepoError:
+#         return False
+#     except mercurial.revlog.LookupError:
+#         return False
     return True
 
 def pull_bundle(repo, ui_, bundle_file):
