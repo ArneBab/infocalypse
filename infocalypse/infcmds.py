@@ -292,7 +292,11 @@ def run_until_quiescent(update_sm, poll_secs, close_socket=True):
         while update_sm.current_state.name != QUIESCENT:
             # Poll the FCP Connection.
             try:
-                connection.socket.poll()
+                if not connection.socket.poll():
+                    print "run_until_quiescent -- poll returned False" 
+                    # REDFLAG: jam into quiesent state?,
+                    # CONNECTION_DROPPED state?
+                    break
                 # Indirectly nudge the state machine.
                 update_sm.runner.kick()
             except socket.error: # Not an IOError until 2.6.

@@ -194,7 +194,7 @@ class NonBlockingSocket(IAsyncSocket):
         """
         data = self.socket.recv(RECV_BLOCK)
         if not data:
-            self.close()
+            #self.close()
             #ret = False
             #break
             return None
@@ -763,9 +763,17 @@ class FCPConnection:
     def closed_handler(self):
         """ INTERNAL: Callback called by the IAsyncSocket delegate when the
             socket closes. """
+        # REDFLAG: DCI: Remove
+        def dropping(data):
+            print "DROPPING %i BYTES OF DATA AFTER CLOSE!" % len(data)
 
         self.node_hello = None
-
+        if not self.socket is None:
+            # REDFLAG: DCI: test!
+            # Ignore any subsequent data.
+            self.socket.recv_callback = lambda x:None
+            self.socket.recv_callback = dropping
+        
         # Hmmmm... other info, ok to share this?
         fake_msg = ('ProtocolError', {'CodeDescription':'Socket closed'})
         #print "NOTIFIED: CLOSED"

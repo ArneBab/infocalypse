@@ -40,6 +40,8 @@ from binascii import hexlify, unhexlify
 
 from chk import CHK_SIZE, bytes_to_chk, chk_to_bytes
 
+from fcpconnection import sha1_hexdigest
+
 MAJOR_VERSION = '1'
 MINOR_VERSION = '00'
 
@@ -141,4 +143,7 @@ def dump_top_key_tuple(top_key_tuple, out_func=default_out):
         out_func("   latest_rev: %s\n" % update[2])
         for index, chk in enumerate(update[3]):
             out_func("   CHK[%i]:%s\n" % (index, chk))
+    out_func("binary rep sha1:\n0x00:%s\n0xff:%s\n" %
+             (sha1_hexdigest(top_key_tuple_to_bytes(top_key_tuple, 0)),
+              sha1_hexdigest(top_key_tuple_to_bytes(top_key_tuple, 0xff))))
     out_func("---\n")

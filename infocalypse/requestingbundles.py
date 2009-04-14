@@ -165,6 +165,7 @@ class RequestingBundles(RetryingRequestList):
         # Catch state machine stalls.
         if (self.parent.current_state == self and
             self.is_stalled()):
+            print "STALLED, BAILING OUT!"
             self.parent.transition(self.failure_state)
 
     # DONT add to pending. Base clase does that.
@@ -597,6 +598,7 @@ class RequestingBundles(RetryingRequestList):
 
         if self.parent.ctx.has_version(latest_version):
             # Done and done!
+            print "DONE, UP TO DATE!"
             self.parent.transition(self.success_state)
             return
 

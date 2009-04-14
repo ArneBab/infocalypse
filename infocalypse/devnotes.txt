@@ -1,0 +1,12 @@
+djk20090414
+
+KNOWN LIMITATIONS:
+o Won't handle repositories with multiple heads correctly.
+  I am reworking the graph rep to fix this.
+
+FCP BUGS:
+o 1208 SSK reinserts of same data fail with code 9.
+  This breaks fn-reinsert.
+o 1208 RemoveRequest kills the FCP connection.
+  This can cause fn-pull to fail. 
+  It should work if you run it again.
