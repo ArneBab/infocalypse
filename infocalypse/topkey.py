@@ -177,6 +177,17 @@ def bytes_to_top_key_tuple(bytes):
     #print "bytes_to_top_key_data -- salt: ", dummy
     bytes = bytes[BASE_LEN:]
     if hdr != HDR_BYTES:
+        if hdr == HDR_V1:
+            print
+            print
+            print "NOTE:"
+            print "hg update -r f67283c92051"
+            print "Will get you back to a version of the"
+            print "infocalypse source that can read this format."
+            print
+            print
+            raise ValueError("Format version mismatch. "
+                             + "That repo is in an obsolete format!")
         if hdr[5] != MAJOR_VERSION:
             # DOH! should have done this in initial release.
             raise ValueError("Format version mismatch. "
