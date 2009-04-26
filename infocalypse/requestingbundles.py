@@ -28,15 +28,14 @@ import random # Hmmm... good enough?
 from fcpmessage import GET_DEF
 
 from bundlecache import make_temp_file
-from graph import parse_graph, latest_index, \
+from graph import latest_index, \
      FREENET_BLOCK_LEN, chk_to_edge_triple_map, \
-     dump_paths, MAX_PATH_LEN
-
-from choose import get_update_edges, dump_update_edges
+     dump_paths, MAX_PATH_LEN, get_heads, canonical_path_itr
+from graphutil import parse_graph
+from choose import get_update_edges, dump_update_edges, SaltingState
 
 from statemachine import RetryingRequestList, CandidateRequest
 
-#from topkey import dump_top_key_tuple
 from chk import clear_control_bytes
 
 # REDFLAG: Make sure that you are copying lists. eg. updates
@@ -45,7 +44,7 @@ from chk import clear_control_bytes
 # 1) Single block fetch alternate keys.
 # 2) Choose between primary and alternate keys "fairly"
 # 3) transition from no graph to graph case.
-# 4) deal with padding hack
+# 4) deal with padding hacks
 # 5) Optionally disable alternate single block fetching?
 # ?6) serialize? Easier to write from scratch?
 
@@ -56,58 +55,7 @@ from chk import clear_control_bytes
 # Can unwind padding hack w/o graph
 # len < 32K done
 # len == 32K re-request DONE
-#
-# REDFLAG: get rid of pending_candidates by subclassing  StatefulRequest
-# to include a .candidate attribute. ???
 
-def build_salting_table(target):
-    """ INTERNAL: Build table used to keep track of metadata salting. """
-    def traverse_candidates(candidate_list, table):
-        """ INTERNAL: Helper function to traverse a single candidate list. """
-        for candidate in candidate_list:
-            if candidate[6]:
-                continue
-            edge = candidate[3]
-            value = table.get(edge, [])
-            value.append(candidate[2])
-            table[edge] = value
-    ret = {}
-    traverse_candidates(target.pending_candidates(), ret)
-    traverse_candidates(target.current_candidates, ret)
-    traverse_candidates(target.next_candidates, ret)
-    return ret
-
-# REDFLAG: get rid of unused methods.
-# Hmmm... feels like coding my way out of a design problem.
-class SaltingState:
-    """ INTERNAL: Helper class to keep track of metadata salting state.
-    """
-    def __init__(self, target):
-        self.table = build_salting_table(target)
-
-    def full_request(self, edge):
-        """ Return True if a full request is scheduled for the edge. """
-        if not edge in self.table:
-            return False
-
-        for value in self.table[edge]:
-            if not value:
-                return True
-        return False
-
-    def add(self, edge, is_partial):
-        """ Add an entry to the table. """
-        value = self.table.get(edge, [])
-        value.append(is_partial)
-        self.table[edge] = value
-
-    def needs_full_request(self, graph, edge):
-        """ Returns True if a full request is required. """
-        assert len(edge) == 3
-        if not graph.is_redundant(edge):
-            return False
-        return not (self.full_request(edge) or
-                    self.full_request((edge[0], edge[1], int(not edge[2]))))
 # What this does:
 # 0) Fetches graph(s)
 # 1) Fetches early bundles in parallel with graphs
@@ -126,6 +74,7 @@ class RequestingBundles(RetryingRequestList):
         self.success_state = success_state
         self.failure_state = failure_state
         self.top_key_tuple = None # FNA sskdata
+        self.freenet_heads = None
 
     ############################################################
     # State implementation
@@ -165,7 +114,8 @@ class RequestingBundles(RetryingRequestList):
         # Catch state machine stalls.
         if (self.parent.current_state == self and
             self.is_stalled()):
-            print "STALLED, BAILING OUT!"
+            self.parent.ctx.ui_.warn("Giving up because the state "
+                                     + "machine stalled.\n")
             self.parent.transition(self.failure_state)
 
     # DONT add to pending. Base clase does that.
@@ -209,6 +159,9 @@ class RequestingBundles(RetryingRequestList):
 
     ############################################################
 
+
+    # DEALING: With partial heads, partial bases?
+
     # REDFLAG: deal with optional request serialization?
     # REDFLAG: Move
     # ASSUMPTION: Keys are in descenting order of latest_rev.
@@ -229,6 +182,12 @@ class RequestingBundles(RetryingRequestList):
             if index < start_index:
                 # REDFLAG: do better?
                 continue
+            if not update[4] or not update[5]:
+                # Don't attempt to queue updates if we don't know
+                # full parent/head info.
+                # REDFLAG: remove test code
+                print "_queue_from_updates -- bailing out", update[4], update[5]
+                break
 
             if only_latest and update[0] > 5 * FREENET_BLOCK_LEN:
                 # Short circuit (-1, top_index) rollup case.
@@ -238,7 +197,7 @@ class RequestingBundles(RetryingRequestList):
                 # Only full updates.
                 break
 
-            if not self.parent.ctx.has_version(update[1]):
+            if not self.parent.ctx.has_versions(update[1]):
                 # Only updates we can pull.
                 if only_latest:
                     # Don't want big bundles from the canonical path.
@@ -246,7 +205,7 @@ class RequestingBundles(RetryingRequestList):
                 else:
                     continue
 
-            if self.parent.ctx.has_version(update[2]):
+            if self.parent.ctx.has_versions(update[2]):
                 # Only updates we need.
                 continue
 
@@ -266,6 +225,42 @@ class RequestingBundles(RetryingRequestList):
 
         return last_queued
 
+
+    def _handle_testing_hacks(self):
+        """ INTERNAL: Helper function to implement TEST_DISABLE_UPDATES
+            and TEST_DISABLE_GRAPH testing params. """
+        if self.top_key_tuple is None:
+            return
+        if self.parent.params.get("TEST_DISABLE_UPDATES", False):
+            updates = list(self.top_key_tuple[1])
+            for index in range(0, len(updates)):
+                update = list(updates[index])
+                update[4] = False
+                update[5] = False
+                updates[index] = tuple(update)
+            top = list(self.top_key_tuple)
+            top[1] = tuple(updates)
+            self.top_key_tuple = tuple(top)
+            self.parent.ctx.ui_.warn("TEST_DISABLE_UPDATES == True\n"
+                                     + "Disabled updating w/o graph\n")
+
+        if self.parent.params.get("TEST_DISABLE_GRAPH", False):
+            top = list(self.top_key_tuple)
+            # REDFLAG: Fix post 1208
+            #          Using bad keys is a more realistic test but there's
+            #          an FCP bug in 1208 that kills the connection on
+            #          cancel.  Go back to this when 1209 comes out.
+            top[0] = ('CHK@badroutingkeyA55JblbGup0yNSpoDJgVPnL8E5WXoc,'
+                      +'KZ6azHOwEm4ga6dLy6UfbdSzVhJEz3OvIbSS4o5BMKU,AAIC--8',
+                      'CHK@badroutingkeyB55JblbGup0yNSpoDJgVPnL8E5WXoc,'
+                      +'KZ6azHOwEm4ga6dLy6UfbdSzVhJEz3OvIbSS4o5BMKU,AAIC--8',
+                      )
+            top[0] = ()
+            self.top_key_tuple = tuple(top)
+            self.parent.ctx.ui_.warn("TEST_DISABLE_GRAPH == True\n"
+                                     + "Disabled graph by removing graph "
+                                     + "chks.\n")
+
     # Hack special case code to add the graph.
     def _initialize(self, top_key_tuple=None):
         """ INTERNAL: Initialize.
@@ -279,6 +274,7 @@ class RequestingBundles(RetryingRequestList):
         """
         self.top_key_tuple = top_key_tuple
 
+        self._handle_testing_hacks()
         ############################################################
         # Hack used to test graph request failure.
         #bad_chk = ('CHK@badroutingkeyA55JblbGup0yNSpoDJgVPnL8E5WXoc,'
@@ -297,28 +293,41 @@ class RequestingBundles(RetryingRequestList):
             if self.top_key_tuple is None:
                 raise Exception("No top key data.")
 
-            #if self.parent.params.get('DUMP_TOP_KEY', False):
-            #    dump_top_key_tuple(top_key_tuple)
-
             updates = self.top_key_tuple[1]
+            if updates[0][5]:
+                self.freenet_heads = updates[0][2]
+                self.parent.ctx.ui_.status('Freenet heads: %s\n' %
+                                           ' '.join([ver[:12] for ver in
+                                                     updates[0][2]]))
 
-            if self.parent.ctx.has_version(updates[0][2]):
-                self.parent.ctx.ui_.warn(("Version: %s is already in the "
-                                          + "local repo.\n")
-                                         % updates[0][2][:12])
-                self.parent.transition(self.success_state)
-                return
+                if self.parent.ctx.has_versions(updates[0][2]):
+                    self.parent.ctx.ui_.warn("All remote heads are already "
+                                             + "in the local repo.\n")
+                    self.parent.transition(self.success_state)
+                    return
 
-            # INTENT: Improve throughput for most common update case.
-            # If it is possible to update fully in one fetch, queue the
-            # (possibly redundant) key(s) BEFORE graph requests.
-            latest_queued = self._queue_from_updates(self.current_candidates,
-                                                    -1, False, True)
+                # INTENT: Improve throughput for most common update case.
+                # If it is possible to update fully in one fetch, queue the
+                # (possibly redundant) key(s) BEFORE graph requests.
+                latest_queued = self._queue_from_updates(self.
+                                                         current_candidates,
+                                                         -1, False, True)
 
-            if latest_queued != -1:
-                self.parent.ctx.ui_.status("Full update is possible in a "
-                                           + "single FCP fetch. :-)\n")
+                if latest_queued != -1:
+                    self.parent.ctx.ui_.status("Full update is possible in a "
+                                               + "single FCP fetch. :-)\n")
 
+            else:
+                self.parent.ctx.ui_.warn("Couldn't read all Freenet heads from "
+                                         + "top key.\n"
+                                         + "Dunno if you're up to date :-(\n"
+                                         + "Waiting for graph...\n")
+
+                if len(self.top_key_tuple[0]) == 0:
+                    self.parent.ctx.ui_.warn("No graph CHKs in top key! "
+                                             + "Giving up...\n")
+                    self.parent.transition(self.failure_state)
+                    return
             # Kick off the fetch(es) for the full update graph.
             # REDFLAG: make a parameter
             parallel_graph_fetch = True
@@ -332,6 +341,11 @@ class RequestingBundles(RetryingRequestList):
                 self.current_candidates.insert(0, candidate)
                 if not parallel_graph_fetch:
                     break
+
+
+            if self.freenet_heads is None:
+                # Need to wait for the graph.
+                return
 
             # Queue remaining fetchable keys in the NEXT pass.
             # INTENT:
@@ -392,7 +406,11 @@ class RequestingBundles(RetryingRequestList):
                         text += "   BAD TOP KEY DATA!" + ":" + chk + "\n"
             self.parent.ctx.ui_.status(text)
 
+        all_heads = get_heads(graph)
 
+        assert (self.freenet_heads is None or
+                self.freenet_heads == all_heads)
+        self.freenet_heads = all_heads
         self.parent.ctx.graph = graph
 
         self.rep_invariant()
@@ -404,6 +422,7 @@ class RequestingBundles(RetryingRequestList):
         #break_edges(graph, kill_prob, skip_chks)
 
         # "fix" (i.e. break) pending good chks.
+        # REDFLAG: comment this out too?
         for candidate in self.current_candidates + self.next_candidates:
             if candidate[6]:
                 continue
@@ -435,6 +454,25 @@ class RequestingBundles(RetryingRequestList):
             self.parent.ctx.ui_.warn("Couldn't read graph from Freenet!\n")
             self.parent.transition(self.failure_state)
 
+    def _handle_dump_canonical_paths(self, graph):
+        """ INTERNAL: Dump the top 20 canonical paths. """
+        if not self.parent.params.get('DUMP_CANONICAL_PATHS', False):
+            return
+
+        paths = canonical_path_itr(graph, 0, graph.latest_index,
+                                               MAX_PATH_LEN)
+        first_paths = []
+        # REDFLAG: Magick number
+        while len(first_paths) < 20:
+            try:
+                first_paths.append(paths.next())
+            except StopIteration:
+                break
+
+        dump_paths(graph,
+                   first_paths,
+                   "Canonical paths")
+
     def _graph_request_done(self, client, msg, candidate):
         """ INTERNAL: Handle requests for the graph. """
         #print "CANDIDATE:", candidate
@@ -456,13 +494,7 @@ class RequestingBundles(RetryingRequestList):
                     self.parent.ctx.ui_.status(data)
                     self.parent.ctx.ui_.status("\n---\n")
                 graph = parse_graph(data)
-                if self.parent.params.get('DUMP_CANONICAL_PATHS', False):
-                    paths = graph.canonical_paths(graph.latest_index,
-                                                  MAX_PATH_LEN)[-20:]
-                    paths.reverse()
-                    dump_paths(graph,
-                               paths,
-                               "Canonical paths")
+                self._handle_dump_canonical_paths(graph)
                 self._set_graph(graph)
                 self._reevaluate()
             finally:
@@ -582,23 +614,20 @@ class RequestingBundles(RetryingRequestList):
         candidate[5] = msg
         self.finished_candidates.append(candidate)
         #print "_handle_success -- pulling!"
+        name = str(candidate[3])
+        if name == 'None':
+            name = "%s:%s" % (','.join([ver[:12] for ver in candidate[4][1]]),
+                              ','.join([ver[:12] for ver in candidate[4][2]]))
+
+        #print "Trying to pull: ", name
         self._pull_bundle(client, msg, candidate)
         #print "_handle_success -- pulled bundle ", candidate[3]
 
-        name = str(candidate[3])
-        if name == 'None':
-            name = "%s:%s" % (candidate[4][1][:12], candidate[4][2][:12])
         self.parent.ctx.ui_.status("Pulled bundle: %s\n" % name)
 
-        graph = self.parent.ctx.graph
-        if graph is None:
-            latest_version = self.top_key_tuple[1][0][2]
-        else:
-            latest_version = graph.index_table[graph.latest_index][1]
-
-        if self.parent.ctx.has_version(latest_version):
+        if self.parent.ctx.has_versions(self.freenet_heads):
             # Done and done!
-            print "DONE, UP TO DATE!"
+            #print "SUCCEEDED!"
             self.parent.transition(self.success_state)
             return
 
@@ -691,11 +720,11 @@ class RequestingBundles(RetryingRequestList):
             could be pulled and contains changes that we don't already have. """
         versions = self._get_versions(candidate)
         #print "_needs_bundle -- ", versions
-        if not self.parent.ctx.has_version(versions[0]):
+        if not self.parent.ctx.has_versions(versions[0]):
             #print "Doesn't have parent ", versions
             return False # Doesn't have parent.
 
-        return not self.parent.ctx.has_version(versions[1])
+        return not self.parent.ctx.has_versions(versions[1])
 
     # REDFLAGE: remove msg arg?
     def _pull_bundle(self, client, dummy_msg, candidate):
@@ -730,11 +759,14 @@ class RequestingBundles(RetryingRequestList):
         all_chks = pending.union(current).union(next).union(finished)
 
         for update in self.top_key_tuple[1]:
-            if not self.parent.ctx.has_version(update[1]):
+            if not self.parent.ctx.has_versions(update[1]):
+                # Still works with incomplete base.
                 continue # Don't have parent.
 
-            if self.parent.ctx.has_version(update[2]):
+            if self.parent.ctx.has_versions(update[2]):
+                # Not guaranteed to work with incomplete heads.
                 continue # Already have the update's changes.
+
 
             new_chks = []
             for chk in update[3]:
@@ -849,14 +881,14 @@ class RequestingBundles(RetryingRequestList):
             if candidate[6]:
                 continue # Skip graph requests.
             versions = self._get_versions(candidate)
-            if self.parent.ctx.has_version(versions[1]):
+            if self.parent.ctx.has_versions(versions[1]):
                 self.parent.runner.cancel_request(client)
 
         # "finish" requests which are no longer required.
         victims = []
         for candidate in self.current_candidates:
             versions = self._get_versions(candidate)
-            if self.parent.ctx.has_version(versions[1]):
+            if self.parent.ctx.has_versions(versions[1]):
                 victims.append(candidate)
         for victim in victims:
             self.current_candidates.remove(victim)
@@ -866,7 +898,7 @@ class RequestingBundles(RetryingRequestList):
         victims = []
         for candidate in self.next_candidates:
             versions = self._get_versions(candidate)
-            if self.parent.ctx.has_version(versions[1]):
+            if self.parent.ctx.has_versions(versions[1]):
                 victims.append(candidate)
         for victim in victims:
             self.next_candidates.remove(victim)
@@ -875,7 +907,7 @@ class RequestingBundles(RetryingRequestList):
 
     def _get_versions(self, candidate):
         """ Return the mercurial 40 digit hex version strings for the
-            parent version and latest version of the candidate's edge. """
+            parent versions and latest versions of the candidate's edge. """
         assert not candidate[6] # graph request!
         graph = self.parent.ctx.graph
         if graph is None:
@@ -891,7 +923,7 @@ class RequestingBundles(RetryingRequestList):
 
         #print "_get_versions -- ", step, graph.index_table[step[0]][1], \
         #   graph.index_table[step[1]][2]
-        return (graph.index_table[step[0]][1],
+        return (graph.index_table[step[0] + 1][0],
                 graph.index_table[step[1]][1])
 
     def _known_chks(self):
@@ -958,6 +990,3 @@ class RequestingBundles(RetryingRequestList):
         print_list("pending_candidates", self.pending_candidates())
         print_list("current_candidates", self.current_candidates)
         print_list("next_candidates", self.next_candidates)
-
-
-#  LocalWords:  requeueing

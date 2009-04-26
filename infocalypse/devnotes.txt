@@ -1,3 +1,14 @@
+djk20090425
+I reworked the graph representation to handle multiple
+heads correctly.  
+
+Repositories inserted with the previous code won't work
+with the new code because I had to change the 
+top key format.
+
+djk20090422
+pylint -fparseable --include-ids=y *.py
+
 djk20090414
 
 KNOWN LIMITATIONS:
@@ -10,3 +21,4 @@ o 1208 SSK reinserts of same data fail with code 9.
 o 1208 RemoveRequest kills the FCP connection.
   This can cause fn-pull to fail. 
   It should work if you run it again.
+

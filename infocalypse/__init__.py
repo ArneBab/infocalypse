@@ -125,6 +125,7 @@ Post to freenet group on FMS.
 
 import os
 
+from binascii import hexlify
 from mercurial import commands, util
 
 from infcmds import get_config_info, execute_create, execute_pull, \
@@ -135,13 +136,16 @@ def set_target_version(ui_, repo, opts, params, msg_fmt):
 
     revs = opts.get('rev') or None
     if not revs is None:
-        if len(revs) > 1:
-            raise util.Abort("Only a single -r version is supported. ")
-        rev = revs[0]
-        ctx = repo[rev] # Fail if we don't have the rev.
-        params['TO_VERSION'] = rev
-        if ctx != repo['tip']:
-            ui_.status(msg_fmt % rev)
+        for rev in revs:
+            repo.changectx(rev) # Fail if we don't have the rev.
+
+        params['TO_VERSIONS'] = tuple(revs)
+        ui_.status(msg_fmt % ' '.join([ver[:12] for ver in revs]))
+    else:
+        # REDFLAG: get rid of default versions arguments?
+        params['TO_VERSIONS'] = tuple([hexlify(head) for head in repo.heads()])
+        #print "set_target_version -- using all head"
+        #print params['TO_VERSIONS']
 
 def infocalypse_create(ui_, repo, **opts):
     """ Create a new Infocalypse repository in Freenet. """
@@ -154,7 +158,7 @@ def infocalypse_create(ui_, repo, **opts):
         return
 
     set_target_version(ui_, repo, opts, params,
-                       "Only inserting to version: %s\n")
+                       "Only inserting to version(s): %s\n")
     params['INSERT_URI'] = insert_uri
     execute_create(ui_, repo, params, stored_cfg)
 
@@ -230,7 +234,7 @@ def infocalypse_push(ui_, repo, **opts):
             return
 
     set_target_version(ui_, repo, opts, params,
-                       "Only pushing to version: %s\n")
+                       "Only pushing to version(s): %s\n")
     params['INSERT_URI'] = insert_uri
     #if opts['requesturi'] != '':
     #    # DOESN'T search the insert uri index.
@@ -260,6 +264,7 @@ AGGRESSIVE_OPT = [('', 'aggressive', None, 'aggressively search for the '
 NOSEARCH_OPT = [('', 'nosearch', None, 'use USK version in URI'), ]
 # Allow mercurial naming convention for command table.
 # pylint: disable-msg=C0103
+
 cmdtable = {
     "fn-pull": (infocalypse_pull,
                 [('', 'uri', '', 'request URI to pull from'),]

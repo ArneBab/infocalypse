@@ -26,7 +26,10 @@ import random
 
 from mercurial import commands
 
+from fcpconnection import sha1_hexdigest
+
 from graph import FIRST_INDEX, FREENET_BLOCK_LEN, MAX_REDUNDANT_LENGTH
+from graphutil import get_rollup_bounds
 
 def make_temp_file(temp_dir):
     """ Make a temporary file name. """
@@ -71,10 +74,17 @@ class BundleCache:
 
     def get_bundle_path(self, index_pair):
         """ INTERNAL: Get the full path to a bundle file for the given edge. """
-        start_info = self.graph.index_table[index_pair[0]]
-        end_info = self.graph.index_table[index_pair[1]]
-        return os.path.join(self.base_dir, "_tmp_%s_%s.hg"
-                            % (start_info[1], end_info[1]))
+        bundle_id = sha1_hexdigest(
+            ''.join(self.graph.index_table[index_pair[0]][0])
+            + '|' # hmmm really needed?
+            +''.join(self.graph.index_table[index_pair[0]][1])
+
+            +''.join(self.graph.index_table[index_pair[1]][0])
+            + '|' # hmmm really needed?
+            +''.join(self.graph.index_table[index_pair[1]][1])
+            )
+
+        return os.path.join(self.base_dir, "_tmp_%s.hg" % bundle_id)
 
     def get_cached_bundle(self, index_pair, out_file):
         """ INTERNAL: Copy the cached bundle file for the edge to out_file. """
@@ -110,7 +120,7 @@ class BundleCache:
             if raised and os.path.exists(out_file):
                 os.remove(out_file)
 
-    def make_bundle(self, graph, index_pair, out_file=None):
+    def make_bundle(self, graph, version_table, index_pair, out_file=None):
         """ Create an hg bundle file corresponding to the edge in graph. """
         #print "INDEX_PAIR:", index_pair
         assert not index_pair is None
@@ -125,14 +135,20 @@ class BundleCache:
         if out_file is None:
             out_file = make_temp_file(self.base_dir)
         try:
-            start_info = self.graph.index_table[index_pair[0]]
-            end_info = self.graph.index_table[index_pair[1]]
+
+            parents, heads = get_rollup_bounds(self.graph, self.repo,
+                                               index_pair[0] + 1, # INCLUSIVE
+                                               index_pair[1],
+                                               version_table)
 
             # Hmmm... ok to suppress mercurial noise here.
             self.ui_.pushbuffer()
             try:
+                #print 'PARENTS:', list(parents)
+                #print 'HEADS:', list(heads)
                 commands.bundle(self.ui_, self.repo, out_file,
-                                None, base=[start_info[1]], rev=[end_info[1]])
+                                None, base=list(parents),
+                                rev=list(heads))
             finally:
                 self.ui_.popbuffer()
 
@@ -149,7 +165,8 @@ class BundleCache:
     # INTENT: Freenet stores data in 32K blocks.  If we can stuff
     # extra changes into the bundle file under the block boundry
     # we get extra redundancy for free.
-    def make_redundant_bundle(self, graph, last_index, out_file=None):
+    def make_redundant_bundle(self, graph, version_table, last_index,
+                              out_file=None):
         """ Make an hg bundle file including the changes in the edge and
             other earlier changes if it is possible to fit them under
             the 32K block size boundry. """
@@ -167,6 +184,7 @@ class BundleCache:
             pair = (earliest_index, last_index)
             #print "PAIR:", pair
             bundle = self.make_bundle(graph,
+                                      version_table,
                                       pair,
                                       out_file)
 

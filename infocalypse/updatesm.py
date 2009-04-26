@@ -36,11 +36,13 @@ from requestqueue import RequestQueue
 from chk import clear_control_bytes
 from bundlecache import make_temp_file, BundleException
 from graph import INSERT_NORMAL, INSERT_PADDED, INSERT_SALTED_METADATA, \
-     minimal_update_graph, graph_to_string, \
-     FREENET_BLOCK_LEN, has_version, pull_bundle, parse_graph, hex_version
-
+     FREENET_BLOCK_LEN, has_version, \
+     pull_bundle, hex_version
+from graphutil import minimal_graph, graph_to_string, parse_graph
+from choose import get_top_key_updates
 from topkey import bytes_to_top_key_tuple, top_key_tuple_to_bytes, \
      dump_top_key_tuple
+
 
 from statemachine import StatefulRequest, RequestQueueState, StateMachine, \
      Quiescent, Canceling, RetryingRequestList, CandidateRequest, \
@@ -54,6 +56,8 @@ HG_MIME_TYPE_FMT = HG_MIME_TYPE + ';%i'
 
 METADATA_MARKER = HG_MIME_TYPE + ';'
 PAD_BYTE = '\xff'
+
+MAX_SSK_LEN = 1024
 
 class UpdateContext(dict):
     """ A class to hold inter-state data used while the state machine is
@@ -80,14 +84,23 @@ class UpdateContext(dict):
         # public key to update the private key.
         self['IS_KEYPAIR'] = False
 
-        self['TARGET_VERSION'] = None
+        self['TARGET_VERSIONS'] = None
         self['INSERT_URI'] = 'CHK@'
         self['REQUEST_URI'] = None
 
-    def has_version(self, version):
-        """ Returns True if version is already in the hg repository,
+    def has_versions(self, versions):
+        """ Returns True if all versions are already in the hg repository,
             False otherwise. """
-        return has_version(self.repo, version)
+        if versions is None:
+            return False # Allowed.
+
+        assert (type(versions) == type((0, )) or
+                type(versions) == type([0, ]))
+        assert len(versions) > 0
+        for version in versions:
+            if not has_version(self.repo, version):
+                return False
+        return True
 
     def pull(self, file_name):
         """ Pulls an hg bundle file into the local repository. """
@@ -177,8 +190,10 @@ class UpdateContext(dict):
         raised = False
         try:
             bundle = self.parent.ctx.bundle_cache.make_bundle(self.graph,
-                                                          edge[:2],
-                                                          tmp_file)
+                                                              self.parent.ctx.
+                                                              version_table,
+                                                              edge[:2],
+                                                              tmp_file)
 
             if bundle[0] != original_len:
                 raise BundleException("Wrong size. Expected: %i. Got: %i"
@@ -376,14 +391,16 @@ class InsertingGraph(StaticRequestList):
                                    + '\n')
 
         # Create minimal graph that will fit in a 32k block.
-        self.working_graph = minimal_update_graph(self.parent.ctx.graph,
-                                                  31 * 1024, graph_to_string)
 
+        assert not self.parent.ctx.version_table is None
+        self.working_graph = minimal_graph(self.parent.ctx.graph,
+                                           self.parent.ctx.repo,
+                                           self.parent.ctx.version_table,
+                                           31*1024)
         if self.parent.params.get('DUMP_GRAPH', False):
             self.parent.ctx.ui_.status("--- Minimal Graph ---\n")
-            self.parent.ctx.ui_.status(graph_to_string(minimal_update_graph(
-                self.working_graph,
-                31 * 1024, graph_to_string)) + '\n---\n')
+            self.parent.ctx.ui_.status(graph_to_string(self.working_graph)
+                                       + '\n---\n')
 
         # Make sure the string rep is small enough!
         graph_bytes = graph_to_string(self.working_graph)
@@ -408,46 +425,42 @@ class InsertingGraph(StaticRequestList):
         StaticRequestList.reset(self)
         self.working_graph = None
 
+    # REDFLAG: cache value? not cheap
     def get_top_key_tuple(self):
         """ Get the python rep of the data required to insert a new URI
             with the updated graph CHK(s). """
         graph = self.parent.ctx.graph
         assert not graph is None
-        return ((self.get_result(0)[1]['URI'],
-                 self.get_result(1)[1]['URI']),
-                get_top_key_updates(graph))
 
-def get_top_key_updates(graph):
-    """ Returns the update tuples needed to build the top key."""
+        # REDFLAG: graph redundancy hard coded to 2.
+        chks = (self.get_result(0)[1]['URI'], self.get_result(1)[1]['URI'])
 
-    graph.rep_invariant()
+        # Slow.
+        updates = get_top_key_updates(graph, self.parent.ctx.repo)
 
-    edges = graph.get_top_key_edges()
+        # Head revs are more important because they allow us to
+        # check whether the local repo is up to date.
 
-    coalesced_edges = []
-    ordinals = {}
-    for edge in edges:
-        assert edge[2] >= 0 and edge[2] < 2
-        assert edge[2] == 0 or (edge[0], edge[1], 0) in edges
-        ordinal = ordinals.get(edge[:2])
-        if ordinal is None:
-            ordinal = 0
-            coalesced_edges.append(edge[:2])
-        ordinals[edge[:2]] = max(ordinal,  edge[2])
+        # Walk from the oldest to the newest update discarding
+        # base revs, then head revs until the binary rep will
+        # fit in an ssk.
+        index = len(updates) - 1
+        zorch_base = True
+        while (len(top_key_tuple_to_bytes((chks, updates))) >= MAX_SSK_LEN
+               and index >= 0):
+            victim = list(updates[index])
+            victim[1] = victim[1 + int(zorch_base)][:1] # Discard versions
+            victim[4 + int(zorch_base)] = False
+            updates[index] = tuple(victim)
+            if not zorch_base:
+                zorch_base = True
+                index -= 1
+                continue
+            zorch_base = False
 
-    ret = []
-    for edge in coalesced_edges:
-        parent_rev = graph.index_table[edge[0]][1]
-        latest_rev = graph.index_table[edge[1]][1]
-        length = graph.get_length(edge)
-        assert len(graph.edge_table[edge][1:]) > 0
+        assert len(top_key_tuple_to_bytes((chks, updates))) < MAX_SSK_LEN
 
-        #(length, parent_rev, latest_rev, (CHK, ...))
-        update = (length, parent_rev, latest_rev,
-                  graph.edge_table[edge][1:])
-        ret.append(update)
-
-    return ret
+        return (chks, updates)
 
 class InsertingUri(StaticRequestList):
     """ A state to insert the top level URI for an Infocalypse repository
@@ -579,7 +592,6 @@ class RequestingUri(StaticRequestList):
                 dump_top_key_tuple(self.get_top_key_tuple(),
                                    self.parent.ctx.ui_.status)
 
-
     def get_top_key_tuple(self):
         """ Get the python rep of the data in the URI. """
         top_key_tuple = None
@@ -587,7 +599,7 @@ class RequestingUri(StaticRequestList):
             result = candidate[5]
             if result is None or result[0] != 'AllData':
                 continue
-            top_key_tuple = bytes_to_top_key_tuple(result[2])
+            top_key_tuple = bytes_to_top_key_tuple(result[2])[0]
             break
         assert not top_key_tuple is None
         return top_key_tuple
@@ -700,26 +712,13 @@ class RequestingGraph(StaticRequestList):
         StaticRequestList.__init__(self, parent, name, success_state,
                                    failure_state)
 
-    # REDFLAG: remove this? why aren't I just calling get_top_key_tuple
-    # on REQUESTING_URI_4_INSERT???
-    def get_top_key_tuple(self):
-        """ Returns the Python rep of the data in the request uri. """
-        results = [candidate[5] for candidate in
-                   self.parent.get_state(REQUESTING_URI_4_INSERT).ordered]
-        top_key_tuple = None
-        for result in results:
-            if result is None or result[0] != 'AllData':
-                continue
-            top_key_tuple = bytes_to_top_key_tuple(result[2])
-            break
-        assert not top_key_tuple is None
-        return top_key_tuple
-
     def enter(self, from_state):
         """ Implementation of State virtual. """
         require_state(from_state, REQUESTING_URI_4_INSERT)
+        top_key_tuple = (self.parent.get_state(REQUESTING_URI_4_INSERT).
+                         get_top_key_tuple())
 
-        top_key_tuple = self.get_top_key_tuple()
+        #top_key_tuple = self.get_top_key_tuple() REDFLAG: remove
         #print "TOP_KEY_TUPLE", top_key_tuple
         #[uri, tries, is_insert, raw_data, mime_type, last_msg]
         for uri in top_key_tuple[0]:
@@ -736,7 +735,7 @@ class RequestingGraph(StaticRequestList):
                 result = candidate[5]
                 if not result is None and result[0] == 'AllData':
                     graph = parse_graph(result[2])
-                    break
+
             assert not graph is None
 
             self.parent.ctx.graph = graph
@@ -868,19 +867,19 @@ class UpdateStateMachine(RequestQueue, StateMachine):
 
         self.ctx = ctx
 
-    def start_inserting(self, graph, to_version, insert_uri='CHK@'):
+    def start_inserting(self, graph, to_versions, insert_uri='CHK@'):
         """ Start and insert of the graph and any required new edge CHKs
             to the insert URI. """
         self.require_state(QUIESCENT)
         self.reset()
         self.ctx.graph = graph
-        self.ctx['TARGET_VERSION'] = to_version
+        self.ctx['TARGET_VERSIONS'] = to_versions
         self.ctx['INSERT_URI'] = insert_uri
         self.transition(INSERTING_BUNDLES)
 
     # Update a repo USK.
     # REDFLAG: later, keys_match=False arg
-    def start_pushing(self, insert_uri, to_version='tip', request_uri=None,
+    def start_pushing(self, insert_uri, to_versions=('tip',), request_uri=None,
                       is_keypair=False):
 
         """ Start pushing local changes up to to_version to an existing
@@ -892,7 +891,8 @@ class UpdateStateMachine(RequestQueue, StateMachine):
         self.ctx['INSERT_URI'] = insert_uri
         self.ctx['REQUEST_URI'] = request_uri
         # Hmmmm... better exception if to_version isn't in the repo?
-        self.ctx['TARGET_VERSION'] = hex_version(self.ctx.repo, to_version)
+        self.ctx['TARGET_VERSIONS'] = tuple([hex_version(self.ctx.repo, ver)
+                                             for ver in to_versions])
         if request_uri is None:
             self.ctx['IS_KEYPAIR'] = True
             self.transition(INVERTING_URI_4_INSERT)

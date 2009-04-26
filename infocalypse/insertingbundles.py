@@ -20,8 +20,9 @@
     Author: djk@isFiaD04zgAgnrEC5XJt1i4IE7AkNPqhBG5bONi6Yks
 """
 
-from graph import graph_to_string, UpToDate, INSERT_SALTED_METADATA, \
-     FREENET_BLOCK_LEN
+from graph import UpToDate, INSERT_SALTED_METADATA, \
+     FREENET_BLOCK_LEN, build_version_table, get_heads
+from graphutil import graph_to_string
 from bundlecache import BundleException
 
 from statemachine import RequestQueueState
@@ -67,13 +68,16 @@ class InsertingBundles(RequestQueueState):
             self.parent.ctx.ui_.status("--- Initial Graph ---\n")
             self.parent.ctx.ui_.status(graph_to_string(graph) +'\n')
 
-        latest_rev = graph.index_table[graph.latest_index][1]
-        self.parent.ctx.ui_.warn("Latest version in Freenet: %s\n"
-                                 % latest_rev[:12])
-        if not self.parent.ctx.has_version(latest_rev):
-            self.parent.ctx.ui_.warn("The latest version in Freenet isn't in "
-                                     "the local repository.\n"
-                                     "Try doing an fn-pull to update.\n")
+
+        latest_revs = get_heads(graph)
+
+        self.parent.ctx.ui_.status("Latest heads(s) in Freenet: %s\n"
+                                 % ' '.join([ver[:12] for ver in latest_revs]))
+
+        if not self.parent.ctx.has_versions(latest_revs):
+            self.parent.ctx.ui_.warn("The local repository isn't up "
+                                     + "to date.\n"
+                                     + "Try doing an fn-pull.\n")
             self.parent.transition(FAILING) # Hmmm... hard coded state name
             return
 
@@ -240,11 +244,17 @@ class InsertingBundles(RequestQueueState):
 
     def set_new_edges(self, graph):
         """ INTERNAL: Set the list of new edges to insert. """
+
+        # REDFLAG: Think this through.
+        self.parent.ctx.version_table = build_version_table(graph,
+                                                            self.parent.ctx.
+                                                            repo)
         if self.parent.ctx.get('REINSERT', 0) == 0:
             self.new_edges = graph.update(self.parent.ctx.repo,
                                           self.parent.ctx.ui_,
-                                          self.parent.ctx['TARGET_VERSION'],
+                                          self.parent.ctx['TARGET_VERSIONS'],
                                           self.parent.ctx.bundle_cache)
+
             return
 
         # Hmmmm... later support different int values of REINSERT?

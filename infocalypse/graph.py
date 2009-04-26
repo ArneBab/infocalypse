@@ -23,9 +23,9 @@
 # REDFLAG: Document how pruning works.
 # REDFLAG: Remove unused crap from this file
 # REDFLAG: push MAX_PATH_LEN into graph class -> max_cannonical_len
-
+# REDFLAG: stash version map info in the graph?
+# REDFLAG: DOCUMENT version sorting assumptions/requirements
 import copy
-import mercurial
 import os
 import random
 
@@ -37,6 +37,9 @@ FIRST_INDEX = -1
 NULL_REV = '0000000000000000000000000000000000000000'
 PENDING_INSERT = 'pending'
 PENDING_INSERT1 = 'pending1'
+
+# Values greater than 4  won't work without fixing the implementation
+# of canonical_paths().
 MAX_PATH_LEN = 4
 
 INSERT_NORMAL = 1 # Don't transform inserted data.
@@ -105,31 +108,132 @@ def pull_bundle(repo, ui_, bundle_file):
 
 ############################################################
 
-def cmp_age_weight(path_a, path_b):
-    """ Comparison function used to sort paths in ascending order
-        of 'canonicalness'. """
-    # Only works for equivalent paths!
-    assert path_a[0][0] == path_b[0][0]
-    assert path_b[-1][1] == path_b[-1][1]
+def edges_containing(graph, index):
+    """ INTERNAL: Returns a list of edges containing index in order of
+        ascending 'canonicalness'.
+    """
+    def cmp_edge(edge_a, edge_b):
+        """ INTERNAL: Comparison function. """
+        # First, ascending final index. == Most recent.
+        diff = edge_a[1] - edge_b[1]
+        if diff == 0:
+            # Then, descending  initial index. == Most redundant
+            diff = edge_b[0] - edge_a[0]
+            if diff == 0:
+                # Finally, descending 'canonicalness'
+                diff = edge_b[2] - edge_a[2]
+        return diff
 
-    # NO! path step tuples contain a third entry which keeps this
-    # from working.
-    # if path_a == path_b:
-    #    return 0
+    edges = graph.contain(index)
+    edges.sort(cmp_edge) # Best last so you can pop
+    #print "--- dumping edges_containing ---"
+    #print '\n'.join([str(edge) for edge in edges])
+    #print "---"
+    return edges
 
-    index = 0
-    while index < len(path_a) and index < len(path_b):
-        if path_a[index][1] == path_b[index][1]:
-            if path_a[index][2] == path_b[index][2]:
-                index += 1
-                continue
-            # If the edges are the same age prefer the one
-            # the the lower (i.e. older) CHK ordinal.
-            return path_b[index][2] - path_a[index][2]
-        return path_a[index][1] - path_b[index][1]
+def tail(list_value):
+    """ Returns the tail of a list. """
+    return list_value[len(list_value) - 1]
 
-    #print "CMP == ", path_a, path_b
-    return 0
+def canonical_path_itr(graph, from_index, to_index, max_search_len):
+    """ A generator which returns a sequence of canonical paths in
+        descending order of 'canonicalness'. """
+
+    returned = set([])
+    min_search_len = -1
+    while min_search_len <= max_search_len:
+        visited = set([]) # Retraverse for each length! REDFLAG: Do better?
+        steps = [edges_containing(graph, from_index), ]
+        current_search_len = max_search_len
+        while len(steps) > 0:
+            while len(tail(steps)) > 0:
+                #candidate = [tail(paths) for paths in steps]
+                #print "candidate: ", candidate
+                #print "end: ", tail(tail(steps))
+                if tail(tail(steps))[1] >= to_index:
+                    # The edge at the bottom of every list.
+                    value = [tail(step) for step in steps]
+                    #print "HIT:"
+                    #print value
+
+                    if min_search_len == -1:
+                        min_search_len = len(steps)
+
+                    current_search_len = max(len(steps), min_search_len)
+                    tag = str(value)
+                    if not tag in returned:
+                        returned.add(tag)
+
+                        # Shorter paths should already be in returned.
+                        assert len(value) >= min_search_len
+                        assert len(value) <= max_search_len
+                        yield value
+                    tail(steps).pop()
+                elif len(steps) < current_search_len:
+                    tag = str([tail(step) for step in steps])
+                    if not tag in visited:
+                        # Follow the path one more step.
+                        visited.add(tag)
+                        steps.append(edges_containing(graph,
+                                                      tail(tail(steps))[1] + 1))
+                    else:
+                        tail(steps).pop()
+                else:
+                    # Abandon the path because it's too long.
+                    tail(steps).pop()
+
+            # Get rid of the empty list
+            assert len(tail(steps)) == 0
+            steps.pop()
+        if min_search_len == -1:
+            #print "No such path."
+            return
+        min_search_len += 1
+
+    #print "exiting"
+    # Done iterating.
+
+def get_changes(repo, version_map, versions):
+    """ INTERNAL: Helper function used by UpdateGraph.update()
+        to determine which changes need to be added. """
+    if versions == None:
+        versions = [hexlify(head) for head in repo.heads()]
+    else:
+        versions = list(versions) # Hmmmm...
+        # Normalize all versions to 40 digit hex strings.
+        for index, version in enumerate(versions):
+            versions[index] = hex_version(repo, version)
+
+    if NULL_REV in versions:
+        versions.remove(NULL_REV)
+
+    new_heads = []
+    for version in versions:
+        if not version in version_map:
+            new_heads.append(version)
+
+    if len(new_heads) == 0:
+        if len(versions) > 0:
+            versions.sort()
+            raise UpToDate("Already in repo: " + ' '.join([ver[:12] for
+                                                           ver in versions]))
+        else:
+            raise UpToDate("Empty repository. Nothing to add.")
+
+    if len(version_map) == 1:
+        return ((NULL_REV,), new_heads)
+
+    #print "VERSION MAP:"
+    #print version_map
+    # Determine base revs.
+    base_revs = set([])
+    traversed = set([])
+    for head in new_heads:
+        find_latest_bases(repo, head, version_map, traversed, base_revs)
+
+    return (base_revs, new_heads)
+
+############################################################
 
 def block_cost(length):
     """ Return the number of Freenet blocks required to store
@@ -138,79 +242,6 @@ def block_cost(length):
     if (length % FREENET_BLOCK_LEN) != 0:
         blocks += 1
     return blocks
-
-############################################################
-# Doesn't dump FIRST_INDEX entry.
-def graph_to_string(graph):
-    """ Returns a human readable representation of the graph. """
-    lines = []
-    # Indices
-    indices = graph.index_table.keys()
-    indices.sort()
-    for index in indices:
-        if index == FIRST_INDEX:
-            continue
-
-        entry = graph.index_table[index]
-        #print entry
-        lines.append("I:%i:%s:%s" % (index, entry[0], entry[1]))
-
-    # Edges
-    index_pairs = graph.edge_table.keys()
-    for index_pair in index_pairs:
-        edge_info = graph.edge_table[index_pair]
-        as_str = ':'.join(edge_info[1:])
-        if as_str != '':
-            as_str = ':' + as_str
-        lines.append("E:%i:%i:%i%s" % (index_pair[0], index_pair[1],
-                                       edge_info[0],
-                                       as_str))
-
-    return '\n'.join(lines) + '\n'
-
-def parse_graph(text):
-    """ Returns a graph parsed from text.
-        text must be in the format used by graph_to_string().
-        Lines starting with '#' are ignored.
-    """
-
-    graph = UpdateGraph()
-    lines = text.split('\n')
-    for line in lines:
-        fields = line.split(':')
-        if fields[0] == 'I':
-            if len(fields) != 4:
-                raise ValueError("Exception parsing index values.")
-            index = int(fields[1])
-            if index in graph.index_table:
-                print "OVERWRITING INDEX: " , index
-            if len(tuple(fields[2:])) != 2:
-                raise ValueError("Error parsing index value: %i" % index)
-            graph.index_table[index] = tuple(fields[2:])
-        elif fields[0] == 'E':
-            #print fields
-            if len(fields) < 5:
-                raise ValueError("Exception parsing edge values.")
-            index_pair = (int(fields[1]), int(fields[2]))
-            length = int(fields[3])
-            chk_list = []
-            for chk in fields[4:]:
-                chk_list.append(chk)
-            graph.edge_table[index_pair] = tuple([length, ] + chk_list)
-        #else:
-        #    print "SKIPPED LINE:"
-        #    print line
-    indices = graph.index_table.keys()
-    if len(indices) == 0:
-        raise ValueError("No indices?")
-    indices.sort()
-    graph.latest_index = indices[-1]
-
-    graph.rep_invariant()
-
-    return graph
-
-############################################################
 
 class UpdateGraphException(Exception):
     """ Base class for UpdateGraph exceptions. """
@@ -225,12 +256,16 @@ class UpToDate(UpdateGraphException):
 
 class UpdateGraph:
     """ A digraph representing an Infocalypse Freenet
-        hg repository. """
+        hg repository. """ # REDFLAG: digraph of what dude?
 
     def __init__(self):
         # Vertices in the update digraph.
-        # index_ordinal -> (start_rev, end_rev)
-        self.index_table = {FIRST_INDEX:(NULL_REV, NULL_REV)}
+        #
+        # An indice is an encapsulation of the parameters that you
+        # need to bundle a collection of changes.
+        #
+        # index_ordinal -> ((base_revs, ), (tip_revs, ))
+        self.index_table = {FIRST_INDEX:((), (NULL_REV,))}
 
         # These are edges in the update digraph.
         # There can be multiple redundant edges.
@@ -240,9 +275,6 @@ class UpdateGraph:
         # start_index + 1 to end_index, but not for start_index.
         # (start_index, end_index) -> (length, chk@, chk@,  ...)
         self.edge_table = {}
-
-        # Bound path search length.
-        self.max_search_path = 10
 
         self.latest_index = -1
 
@@ -270,27 +302,6 @@ class UpdateGraph:
         self.edge_table[index_pair] = edge_info
         return (index_pair[0], index_pair[1],
                 len(self.edge_table[index_pair]) - 2)
-
-    def subgraph(self, containing_paths):
-        """ Return a subgraph which contains the vertices and
-            edges in containing_paths. """
-        self.rep_invariant()
-        graph = UpdateGraph()
-        max_index = -1
-
-        for path in containing_paths:
-            for step in path:
-                pair = step[:2]
-                # REDFLAG: copies ALL redundant paths
-                graph.edge_table[pair] = self.edge_table[pair][:]
-                for index in pair:
-                    if index not in graph.index_table:
-                        graph.index_table[index] = self.index_table[index][:]
-                    max_index = max(max_index, index)
-
-        graph.latest_index = max_index
-        graph.rep_invariant()
-        return graph
 
     ############################################################
     # Helper functions used when inserting / requesting
@@ -375,7 +386,7 @@ class UpdateGraph:
 
         length = self.edge_table[edge_triple[:2]][0]
 
-        # REDFLAG: DCI. MUST DEAL WITH ==32k case
+        # REDFLAG: MUST DEAL WITH ==32k case, djk20080425 -- I think this is ok
         if length <= FREENET_BLOCK_LEN:
             # Made redundant path by padding.
             return  INSERT_PADDED
@@ -403,10 +414,24 @@ class UpdateGraph:
 
     ############################################################
 
+    def add_index(self, base_revs, new_heads):
+        """ Add changes to the graph. """
+        assert not NULL_REV in new_heads
+        assert len(base_revs) > 0
+        assert len(new_heads) > 0
+        base_revs.sort()
+        new_heads.sort()
+        if self.latest_index != FIRST_INDEX and NULL_REV in base_revs:
+            print "add_index -- base=null in base_revs. Really do that?"
+        self.latest_index += 1
+        self.index_table[self.latest_index] = (tuple(base_revs),
+                                               tuple(new_heads))
+        return self.latest_index
+
     # REDFLAG: really no need for ui? if so, remove arg
     # Index and edges to insert
     # Returns index triples with new edges that need to be inserted.
-    def update(self, repo, dummy, version, cache):
+    def update(self, repo, dummy, versions, cache):
         """ Update the graph to include versions up to version
             in repo.
 
@@ -416,49 +441,50 @@ class UpdateGraph:
 
             The client code is responsible for setting their CHKs!"""
 
-        if self.latest_index > FIRST_INDEX:
-            if (repo.changectx(version).rev() <=
-                repo.changectx(self.index_table[self.latest_index][1]).rev()):
-                raise UpToDate("Version: %s is already in the repo." %
-                               hex_version(repo, version)[:12])
+        version_map = build_version_table(self, repo)
 
+        base_revs, new_heads = get_changes(repo, version_map, versions)
+
+        # IMPORTANT: Order matters. Must be after find_latest_bases above.
+        # Update the map. REDFLAG: required?
+        #for version in new_heads:
+        #    version_map[version] = self.latest_index + 1
+
+        index = self.add_index(list(base_revs), new_heads)
         new_edges = []
 
-        # Add changes to graph.
-        prev_changes = self.index_table[self.latest_index]
-        parent_rev = prev_changes[1]
-        # REDFLAG: Think. What are the implicit assumptions here?
-        first_rev = hex_version(repo, prev_changes[1], 1)
-        latest_rev = hex_version(repo, version)
-
-        index = self._add_changes(parent_rev, first_rev, latest_rev)
         #print "ADDED INDEX: ", index
         #print self.index_table
         # Insert index w/ rollup if possible.
-        first_bundle = cache.make_redundant_bundle(self, index)
+        first_bundle = cache.make_redundant_bundle(self, version_map, index)
 
         new_edges.append(self.add_edge(first_bundle[2],
                                        (first_bundle[0], PENDING_INSERT)))
         #print "ADDED EDGE: ", new_edges[-1]
-
-        canonical_path = self.canonical_path(index, MAX_PATH_LEN + 1)
-        assert len(canonical_path) <= MAX_PATH_LEN + 1
-
         bundle = None
-        if len(canonical_path) > MAX_PATH_LEN:
-            print "CANNONICAL LEN: ", len(canonical_path)
+        try:
+            canonical_path = self.canonical_path(index, MAX_PATH_LEN)
+            assert len(canonical_path) <= MAX_PATH_LEN
+        except UpdateGraphException:
+            # We need to compress the path.
             short_cut = self._compress_canonical_path(index, MAX_PATH_LEN + 1)
-            bundle = cache.make_bundle(self, short_cut)
+
+            bundle = cache.make_bundle(self, version_map, short_cut)
+
             new_edges.append(self.add_edge(bundle[2],
                                            (bundle[0], PENDING_INSERT)))
+            # MAX_PATH_LEN + 1 search can be very slow.
             canonical_path = self.canonical_path(index, MAX_PATH_LEN + 1)
+
             assert len(canonical_path) <= MAX_PATH_LEN
 
         if bundle == None:
             if (first_bundle[0] <= FREENET_BLOCK_LEN and
                 first_bundle[2][0] < index - 1):
                 # This gives us redundancy at the cost of one 32K block.
+
                 bundle = cache.make_bundle(self,
+                                           version_map,
                                            (first_bundle[2][0] + 1,
                                             index))
                 new_edges.append(self.add_edge(bundle[2],
@@ -564,21 +590,11 @@ class UpdateGraph:
             to latest_index.
 
             This is what you would use to bootstrap from hg rev -1. """
-
-        return self.canonical_paths(to_index, max_search_len)[-1]
-
-    def canonical_paths(self, to_index, max_search_len):
-        """ Returns a list of paths from no updates to to_index in
-            ascending order of 'canonicalness'. i.e. so you
-            can pop() the candidates off the list. """
-
-        paths = self.enumerate_update_paths(0, to_index, max_search_len)
-        if len(paths) == 0:
+        try:
+            return canonical_path_itr(self, 0, to_index, max_search_len).next()
+        except StopIteration:
             raise UpdateGraphException("No such path: %s"
                                        % str((0, to_index)))
-
-        paths.sort(cmp_age_weight)
-        return paths
 
     def path_cost(self, path, blocks=False):
         """ The sum of the lengths of the hg bundles required to update
@@ -627,15 +643,6 @@ class UpdateGraph:
 
         # descending initial update. i.e. Most recent first.
         return step_b[1] - step_a[1]
-
-    # REDFLAG: add_index instead ???
-    # REDFLAG: rethink parent_rev
-    def _add_changes(self, parent_rev, first_rev, last_rev):
-        """ Add changes to the graph. """
-        assert parent_rev == self.index_table[self.latest_index][1]
-        self.latest_index += 1
-        self.index_table[self.latest_index] = (first_rev, last_rev)
-        return self.latest_index
 
     def _cmp_block_cost(self, path_a, path_b):
         """ INTERNAL: A comparison function for sorting single edge paths
@@ -720,17 +727,80 @@ class UpdateGraph:
             ret.append(edge)
         return ret
 
-    def rep_invariant(self):
+    def rep_invariant(self, repo=None, full=True):
         """ Debugging function to check invariants. """
         max_index = -1
+        min_index = -1
         for index in self.index_table.keys():
             max_index = max(index, max_index)
-
+            min_index = min(index, min_index)
         assert self.latest_index == max_index
+        assert min_index == FIRST_INDEX
 
+        assert self.index_table[FIRST_INDEX][0] == ()
+        assert self.index_table[FIRST_INDEX][1] == (NULL_REV, )
+        for index in range(0, self.latest_index + 1):
+            # Indices must be contiguous.
+            assert index in self.index_table
+
+            # Each index except for the empty graph sentinel
+            # must have at least one base and head rev.
+            assert len(self.index_table[index][0]) > 0
+            assert len(self.index_table[index][1]) > 0
+
+        # All edges must be resolvable.
         for edge in self.edge_table.keys():
             assert edge[0] in self.index_table
             assert edge[1] in self.index_table
+            assert edge[0] < edge[1]
+
+
+        if repo is None:
+            return
+
+        # Slow
+        version_map = build_version_table(self, repo)
+
+        values = set(version_map.values())
+        values = list(values)
+        values.sort()
+        assert values[-1] == max_index
+        assert values[0] == FIRST_INDEX
+        # Indices contiguous
+        assert values == range(FIRST_INDEX, max_index + 1)
+
+        if full:
+            # Verify that version map is complete.
+            copied = version_map.copy()
+            for rev in range(-1, repo['tip'].rev() + 1):
+                version = hex_version(repo, rev)
+                assert version in copied
+                del copied[version]
+
+            assert len(copied) == 0
+
+        every_head = set([])
+        for index in range(FIRST_INDEX, max_index + 1):
+            versions = set([])
+            for version in (self.index_table[index][0]
+                            + self.index_table[index][0]):
+                assert version in version_map
+                if version in versions:
+                    continue
+
+                assert has_version(repo, version)
+                versions.add(version)
+
+            # Base versions must have a lower index.
+            for version in self.index_table[index][0]:
+                assert version_map[version] < index
+
+            # Heads must have index == index.
+            for version in self.index_table[index][1]:
+                assert version_map[version] == index
+                # Each head should appear in one and only one index.
+                assert not version in every_head
+                every_head.add(version)
 
 # REDFLAG: O(n), has_index().
 def latest_index(graph, repo):
@@ -740,61 +810,18 @@ def latest_index(graph, repo):
     for index in range(graph.latest_index, FIRST_INDEX - 1, -1):
         if not index in graph.index_table:
             continue
-        if has_version(repo, graph.index_table[index][1]):
-            return index
+        # BUG: Dog slow for big repos? cache index -> heads map
+        skip = False
+        for head in get_heads(graph, index):
+            if not has_version(repo, head):
+                skip = True
+                break # Inner loop... grrr named continue?
+
+        if skip:
+            continue
+        return index
+
     return FIRST_INDEX
-
-# REDFLAG: fix this so that it always includes pending edges.
-def minimal_update_graph(graph, max_size=32*1024,
-                         formatter_func=graph_to_string):
-    """ Returns a subgraph that can be formatted to <= max_size
-        bytes with formatter_func. """
-
-    index = graph.latest_index
-    assert index > FIRST_INDEX
-
-    # All the edges that would be included in the top key.
-    # This includes the canonical bootstrap path and the
-    # two cheapest updates from the previous index.
-    paths = [[edge, ] for edge in graph.get_top_key_edges()]
-
-    minimal = graph.subgraph(paths)
-    if len(formatter_func(minimal)) > max_size:
-        raise UpdateGraphException("Too big with only required paths.")
-
-    # REDFLAG: read up on clone()
-    prev_minimal = minimal.clone()
-
-    # Then add all other full bootstrap paths.
-    canonical_paths = graph.canonical_paths(index, MAX_PATH_LEN)
-
-    while len(canonical_paths):
-        if minimal.copy_path(graph, canonical_paths.pop()):
-            size = len(formatter_func(minimal))
-            #print "minimal_update_graph -- size: %i " % size
-            if size > max_size:
-                return prev_minimal
-            else:
-                prev_minimal = minimal.clone()
-
-    if index == 0:
-        return prev_minimal
-
-    # Favors older edges
-    # Then add bootstrap paths back to previous indices
-    for upper_index in range(index - 1, FIRST_INDEX, - 1):
-        canonical_paths = graph.canonical_paths(upper_index, MAX_PATH_LEN)
-        while len(canonical_paths):
-            if minimal.copy_path(graph, canonical_paths.pop()):
-                size = len(formatter_func(minimal))
-                #print "minimal_update_graph -- size(1): %i" % size
-                if size > max_size:
-                    return prev_minimal
-                else:
-                    prev_minimal = minimal.clone()
-
-    return prev_minimal
-
 
 def chk_to_edge_triple_map(graph):
     """ Returns a CHK -> edge triple map. """
@@ -862,4 +889,77 @@ def print_list(msg, values):
         print "   ", value
     if len(values) == 0:
         print
+# REDFLAG: is it a version_map or a version_table? decide an fix all names
+# REDFLAG: Scales to what? 10k nodes?
+# Returns version -> index mapping
+# REQUIRES: Every version is in an index!
+def build_version_table(graph, repo):
+    """ INTERNAL: Build a version -> index ordinal map for all changesets
+        in the graph. """
+    table = {NULL_REV:-1}
+    for index in range(0, graph.latest_index + 1):
+        assert index in graph.index_table
+        dummy, heads = graph.index_table[index]
+        for head in heads:
+            if not head in table:
+                assert not head in table
+                table[head] = index
+
+            ancestors = repo[head].ancestors()
+            for ancestor in ancestors:
+                version = hexlify(ancestor.node())
+                if version in table:
+                    continue
+                table[version] = index
+    return table
+
+# Find most recent ancestors for version which are already in
+# the version map. REDFLAG: fix. don't make reference to time
+
+def find_latest_bases(repo, version, version_map, traversed, base_revs):
+    """ INTERNAL: Add latest known base revs for version to base_revs. """
+    #print "find_latest_bases -- called: ", version[:12]
+    assert version_map != {NULL_REV:FIRST_INDEX}
+    if version in traversed:
+        return
+    traversed.add(version)
+    if version in version_map:
+        #print "   find_latest_bases -- adding: ", version[:12]
+        base_revs.add(version)
+        return
+    parents = [hexlify(parent.node()) for parent in repo[version].parents()]
+    for parent in parents:
+        find_latest_bases(repo, parent, version_map, traversed, base_revs)
+
+
+# REDFLAG: correct?  I can't come up with a counter example.
+def get_heads(graph, to_index=None):
+    """ Returns the 40 digit hex changeset ids of the heads. """
+    if to_index is None:
+        to_index = graph.latest_index
+
+    heads = set([])
+    bases = set([])
+    for index in range(FIRST_INDEX, to_index + 1):
+        for base in graph.index_table[index][0]:
+            bases.add(base)
+        for head in graph.index_table[index][1]:
+            heads.add(head)
+    heads = list(heads - bases)
+    heads.sort()
+    return tuple(heads)
+
+# ASSUMPTIONS:
+# 0) head which don't appear in bases are tip heads. True?
+
+# INVARIANTS:
+# o every changeset must exist "in" one and only one index
+#   -> contiguousness
+# o the parent revs for all the changesets in every index
+#   must exist in a previous index (though not necessarily the
+#   immediate predecessor)
+# o indices referenced by edges must exist
+# o latest index must be set correctly
+# o inices must be contiguous
+# o FIRST_INDEX in index_table
 

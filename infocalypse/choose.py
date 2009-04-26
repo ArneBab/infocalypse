@@ -21,8 +21,10 @@
 
 import random
 
-from graph import MAX_PATH_LEN, block_cost, print_list
+from graph import MAX_PATH_LEN, block_cost, print_list, canonical_path_itr, \
+     build_version_table
 
+from graphutil import get_rollup_bounds
 # This is the maximum allowed ratio of allowed path block cost
 # to minimum full update block cost.
 # It is used in low_block_cost_edges() to determine when a
@@ -167,7 +169,10 @@ def low_block_cost_edges(graph, known_edges, from_index, allowed):
 def canonical_path_edges(graph, known_edges, from_index, allowed):
     """ INTERNAL: Returns edges containing from_index from canonical paths. """
     # Steps from canonical paths
-    paths = graph.canonical_paths(graph.latest_index, MAX_PATH_LEN)
+    # REDFLAG: fix, efficiency, bound number of path, add alternate edges
+    #paths = graph.canonical_paths(graph.latest_index, MAX_PATH_LEN)
+    paths = canonical_path_itr(graph, 0, graph.latest_index, MAX_PATH_LEN)
+
     second = []
     #print "get_update_edges -- after"
     for path in paths:
@@ -191,7 +196,6 @@ def canonical_path_edges(graph, known_edges, from_index, allowed):
                 return second
 
     return second
-
 
 # STEP BACK:
 # This function answers two questions:
@@ -277,3 +281,109 @@ def dump_update_edges(first, second, all_edges):
     print_list("second choice:", second)
     print "---"
 
+def get_top_key_updates(graph, repo, version_table=None):
+    """ Returns the update tuples needed to build the top key."""
+
+    graph.rep_invariant()
+
+    edges = graph.get_top_key_edges()
+
+    coalesced_edges = []
+    ordinals = {}
+    for edge in edges:
+        assert edge[2] >= 0 and edge[2] < 2
+        assert edge[2] == 0 or (edge[0], edge[1], 0) in edges
+        ordinal = ordinals.get(edge[:2])
+        if ordinal is None:
+            ordinal = 0
+            coalesced_edges.append(edge[:2])
+        ordinals[edge[:2]] = max(ordinal,  edge[2])
+
+    if version_table is None:
+        version_table = build_version_table(graph, repo)
+    ret = []
+    for edge in coalesced_edges:
+        parents, latest = get_rollup_bounds(graph, repo,
+                                             edge[0] + 1, edge[1],
+                                             version_table)
+
+        length = graph.get_length(edge)
+        assert len(graph.edge_table[edge][1:]) > 0
+
+        #(length, parent_rev, latest_rev, (CHK, ...))
+        update = (length, parents, latest,
+                  graph.edge_table[edge][1:],
+                  True, True)
+        ret.append(update)
+
+
+    # Stuff additional remote heads into first update.
+    result = get_rollup_bounds(graph,
+                               repo,
+                               0,
+                               graph.latest_index,
+                               version_table)
+
+    for head in ret[0][2]:
+        if not head in result[1]:
+            print "Expected head not in all_heads!", head[:12]
+            assert False
+
+    #top_update = list(ret[0])
+    #top_update[2] = tuple(all_heads)
+    #ret[0] = tuple(top_update)
+
+    ret[0] = list(ret[0])
+    ret[0][2] = tuple(result[1])
+    ret[0] = tuple(ret[0])
+
+    return ret
+
+def build_salting_table(target):
+    """ INTERNAL: Build table used to keep track of metadata salting. """
+    def traverse_candidates(candidate_list, table):
+        """ INTERNAL: Helper function to traverse a single candidate list. """
+        for candidate in candidate_list:
+            if candidate[6]:
+                continue
+            edge = candidate[3]
+            value = table.get(edge, [])
+            value.append(candidate[2])
+            table[edge] = value
+    ret = {}
+    traverse_candidates(target.pending_candidates(), ret)
+    traverse_candidates(target.current_candidates, ret)
+    traverse_candidates(target.next_candidates, ret)
+    return ret
+
+# REDFLAG: get rid of unused methods.
+# Hmmm... feels like coding my way out of a design problem.
+class SaltingState:
+    """ INTERNAL: Helper class to keep track of metadata salting state.
+    """
+    def __init__(self, target):
+        self.table = build_salting_table(target)
+
+    def full_request(self, edge):
+        """ Return True if a full request is scheduled for the edge. """
+        if not edge in self.table:
+            return False
+
+        for value in self.table[edge]:
+            if not value:
+                return True
+        return False
+
+    def add(self, edge, is_partial):
+        """ Add an entry to the table. """
+        value = self.table.get(edge, [])
+        value.append(is_partial)
+        self.table[edge] = value
+
+    def needs_full_request(self, graph, edge):
+        """ Returns True if a full request is required. """
+        assert len(edge) == 3
+        if not graph.is_redundant(edge):
+            return False
+        return not (self.full_request(edge) or
+                    self.full_request((edge[0], edge[1], int(not edge[2]))))

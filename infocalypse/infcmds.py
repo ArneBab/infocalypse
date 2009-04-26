@@ -37,12 +37,12 @@ from fcpconnection import FCPConnection, PolledSocket, CONNECTION_STATES, \
      get_code, FCPError
 from requestqueue import RequestRunner
 
-from graph import UpdateGraph, hex_version
+from graph import UpdateGraph
 from bundlecache import BundleCache, is_writable
 from updatesm import UpdateStateMachine, QUIESCENT, FINISHING, REQUESTING_URI, \
      REQUESTING_GRAPH, REQUESTING_BUNDLES, INVERTING_URI, \
      REQUESTING_URI_4_INSERT, INSERTING_BUNDLES, INSERTING_GRAPH, \
-     INSERTING_URI, FAILING, REQUESTING_URI_4_COPY
+     INSERTING_URI, FAILING, REQUESTING_URI_4_COPY, CANCELING, CleaningUp
 
 from config import Config, DEFAULT_CFG_PATH
 
@@ -52,13 +52,15 @@ DEFAULT_PARAMS = {
     'PriorityClass':1,
     'DontCompress':True, # hg bundles are already compressed.
     'Verbosity':1023, # MUST set this to get progress messages.
+    #'GetCHKOnly':True, # REDFLAG: DCI! remove
 
     # Non-FCP stuff
     'N_CONCURRENT':4, # Maximum number of concurrent FCP requests.
     'CANCEL_TIME_SECS': 10 * 60, # Bound request time.
     'POLL_SECS':0.25, # Time to sleep in the polling loop.
+    #'TEST_DISABLE_GRAPH': True, # Disable reading the graph.
+    #'TEST_DISABLE_UPDATES': True, # Don't update info in the top key.
     }
-
 
 MSG_TABLE = {(QUIESCENT, REQUESTING_URI_4_INSERT)
              :"Requesting previous URI...",
@@ -115,6 +117,14 @@ class UICallbacks:
 
     def monitor_callback(self, update_sm, client, msg):
         """ FCP message status callback which writes to a ui. """
+        # REDFLAG: remove when 1209 comes out.
+        if (msg[0] == 'PutFailed' and get_code(msg) == 9 and
+            update_sm.params['FREENET_BUILD'] == '1208' and
+            update_sm.ctx.get('REINSERT', 0) > 0):
+            self.ui_.warn('There is a KNOWN BUG in 1208 which '
+                          + 'causes code==9 failures for re-inserts.\n'
+                          + 'The re-insert might actually have succeeded.\n'
+                          + 'Who knows???\n')
         if self.verbosity < 2:
             return
 
@@ -152,13 +162,10 @@ class UICallbacks:
         self.ui_.status("%s%s:%s\n" % (prefix, str(client.tag), text))
         # REDFLAG: re-add full dumping of FCP errors at debug level?
         #if msg[0].find('Failed') != -1 or msg[0].find('Error') != -1:
-        #    print  client.in_params.pretty()
-        #    print msg
-        #    print "FINISHED:" , client.is_finished(),
-        #bool(client.is_finished())
+            #print  client.in_params.pretty()
+            #print msg
+            #print "FINISHED:" , bool(client.is_finished())
 
-
-# Paranoia? Just stat? I'm afraid of problems/differences w/ Windoze.
 # Hmmmm... SUSPECT. Abuse of mercurial ui design intent.
 # ISSUE: I don't just want to suppress/include output.
 # I use this value to keep from running code which isn't
@@ -192,7 +199,8 @@ def get_config_info(ui_, opts):
     params['TMP_DIR'] = cfg.defaults['TMP_DIR']
     params['VERBOSITY'] = get_verbosity(ui_)
     params['NO_SEARCH'] = (bool(opts.get('nosearch')) and
-                           (opts.get('uri', None) or opts.get('requesturi', None)))
+                           (opts.get('uri', None) or
+                            opts.get('requesturi', None)))
 
     request_uri = opts.get('uri') or opts.get('requesturi')
     if bool(opts.get('nosearch')) and not request_uri:
@@ -227,6 +235,31 @@ def check_uri(ui_, uri):
             ui_.status("Negative USK index values are not allowed."
                        + "\nUse --aggressive instead. \n")
             raise util.Abort("Negative USK %s\n" % uri)
+
+
+def disable_cancel(updatesm, disable=True):
+    """ INTERNAL: Hack to work around 1208 cancel kills FCP connection bug. """
+    if disable:
+        if not hasattr(updatesm.runner, 'old_cancel_request'):
+            updatesm.runner.old_cancel_request = updatesm.runner.cancel_request
+        msg = ("RequestRunner.cancel_request() disabled to work around "
+               + "1208 bug\n")
+        updatesm.runner.cancel_request = (
+            lambda dummy : updatesm.ctx.ui_.status(msg))
+    else:
+        if hasattr(updatesm.runner, 'old_cancel_request'):
+            updatesm.runner.cancel_request = updatesm.runner.old_cancel_request
+            updatesm.ctx.ui_.status("Re-enabled canceling so that "
+                                    + "shutdown works.\n")
+class PatchedCleaningUp(CleaningUp):
+    """ INTERNAL: 1208 bug work around to re-enable canceling. """
+    def __init__(self, parent, name, finished_state):
+        CleaningUp.__init__(self, parent, name, finished_state)
+
+    def enter(self, from_state):
+        """ Override to back out 1208 cancel hack. """
+        disable_cancel(self.parent, False)
+        CleaningUp.enter(self, from_state)
 
 # REDFLAG: remove store_cfg
 def setup(ui_, repo, params, stored_cfg):
@@ -273,11 +306,30 @@ def setup(ui_, repo, params, stored_cfg):
         raise err
 
     runner = RequestRunner(connection, params['N_CONCURRENT'])
-
     update_sm = UpdateStateMachine(runner, repo, ui_, cache)
     update_sm.params = params.copy()
     update_sm.transition_callback = callbacks.transition_callback
     update_sm.monitor_callback = callbacks.monitor_callback
+
+    # Modify only after copy.
+    update_sm.params['FREENET_BUILD'] = runner.connection.node_hello[1]['Build']
+
+    # REDFLAG: Hack to work around 1208 cancel bug. Remove.
+    if update_sm.params['FREENET_BUILD'] == '1208':
+        ui_.warn("DISABLING request canceling to work around 1208 FCP bug.\n"
+                 "This may cause requests to hang. :-(\n")
+        disable_cancel(update_sm)
+
+        # Patch state machine to re-enable canceling on shutdown.
+        #CANCELING:CleaningUp(self, CANCELING, QUIESCENT),
+        #FAILING:CleaningUp(self, FAILING, QUIESCENT),
+        #FINISHING:CleaningUp(self, FINISHING, QUIESCENT),
+        update_sm.states[CANCELING] = PatchedCleaningUp(update_sm,
+                                                        CANCELING, QUIESCENT)
+        update_sm.states[FAILING] = PatchedCleaningUp(update_sm,
+                                                      FAILING, QUIESCENT)
+        update_sm.states[FINISHING] = PatchedCleaningUp(update_sm,
+                                                        FINISHING, QUIESCENT)
 
     return update_sm
 
@@ -300,12 +352,12 @@ def run_until_quiescent(update_sm, poll_secs, close_socket=True):
                 # Indirectly nudge the state machine.
                 update_sm.runner.kick()
             except socket.error: # Not an IOError until 2.6.
-                update_sm.ui_.warn("Exiting because of an error on "
-                                   + "the FCP socket.\n")
+                update_sm.ctx.ui_.warn("Exiting because of an error on "
+                                       + "the FCP socket.\n")
                 raise
             except IOError:
                 # REDLAG: better message.
-                update_sm.ui_.warn("Exiting because of an IO error.\n")
+                update_sm.ctx.ui_.warn("Exiting because of an IO error.\n")
                 raise
             # Rest :-)
             time.sleep(poll_secs)
@@ -460,7 +512,7 @@ def execute_create(ui_, repo, params, stored_cfg):
         #ui_.status("Current tip: %s\n" % hex_version(repo)[:12])
 
         update_sm.start_inserting(UpdateGraph(),
-                                  params.get('TO_VERSION', 'tip'),
+                                  params.get('TO_VERSIONS', ('tip',)),
                                   params['INSERT_URI'])
 
         run_until_quiescent(update_sm, params['POLL_SECS'])
@@ -568,7 +620,7 @@ def execute_push(ui_, repo, params, stored_cfg):
         #ui_.status("Current tip: %s\n" % hex_version(repo)[:12])
 
         update_sm.start_pushing(params['INSERT_URI'],
-                                params.get('TO_VERSION', 'tip'),
+                                params.get('TO_VERSIONS', ('tip',)),
                                 request_uri, # None is allowed
                                 is_keypair)
         run_until_quiescent(update_sm, params['POLL_SECS'])
@@ -601,7 +653,7 @@ def execute_pull(ui_, repo, params, stored_cfg):
             ui_.status("Pulled from:\n%s\n" %
                        update_sm.get_state('REQUESTING_URI').
                        get_latest_uri())
-            ui_.status("New tip: %s\n" % hex_version(repo)[:12])
+            #ui_.status("New tip: %s\n" % hex_version(repo)[:12])
         else:
             ui_.status("Pull failed.\n")
 

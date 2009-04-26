@@ -194,9 +194,6 @@ class NonBlockingSocket(IAsyncSocket):
         """
         data = self.socket.recv(RECV_BLOCK)
         if not data:
-            #self.close()
-            #ret = False
-            #break
             return None
 
         #print "FROM_WIRE:"
@@ -432,8 +429,6 @@ class FileDataSource(IDataSource):
         assert self.file
         return self.file.read(READ_BLOCK)
 
-
-
 # MESSAGE LEVEL
 
 class FCPConnection:
@@ -605,8 +600,7 @@ class FCPConnection:
                 break
             time.sleep(POLL_TIME_SECS)
 
-        # Doh saw this trip 20080124. Regression from
-        # NonBlockingSocket changes?
+        # Doh saw this trip 20080124. Regression from NonBlockingSocket changes?
         # assert client.response
         if not client.response:
             raise IOError("No response. Maybe the socket dropped?")
@@ -727,9 +721,8 @@ class FCPConnection:
                 # Copy metadata into final message
                 msg[1]['Metadata.ContentType'] = client.context.metadata
 
-                # Add a third entry to the msg tuple containing
-                # the raw data, or a comment saying where it was
-                # written.
+                # Add a third entry to the msg tuple containing the raw data,
+                # or a comment saying where it was written.
                 assert len(msg) == 2
                 msg = list(msg)
                 if client.context.data_sink.file_name:
@@ -763,17 +756,15 @@ class FCPConnection:
     def closed_handler(self):
         """ INTERNAL: Callback called by the IAsyncSocket delegate when the
             socket closes. """
-        # REDFLAG: DCI: Remove
-        def dropping(data):
+        def dropping(data): # REDFLAG: Harmless but remove eventually.
+            """ INTERNAL: Print warning when data is dropped after close. """
             print "DROPPING %i BYTES OF DATA AFTER CLOSE!" % len(data)
 
         self.node_hello = None
         if not self.socket is None:
-            # REDFLAG: DCI: test!
-            # Ignore any subsequent data.
             self.socket.recv_callback = lambda x:None
-            self.socket.recv_callback = dropping
-        
+            self.socket.recv_callback = dropping # Ignore any subsequent data.
+
         # Hmmmm... other info, ok to share this?
         fake_msg = ('ProtocolError', {'CodeDescription':'Socket closed'})
         #print "NOTIFIED: CLOSED"
