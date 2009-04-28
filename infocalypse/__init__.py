@@ -154,7 +154,8 @@ from binascii import hexlify
 from mercurial import commands, util
 
 from infcmds import get_config_info, execute_create, execute_pull, \
-     execute_push, execute_setup, execute_copy, execute_reinsert
+     execute_push, execute_setup, execute_copy, execute_reinsert, \
+     execute_info
 
 def set_target_version(ui_, repo, opts, params, msg_fmt):
     """ INTERNAL: Update TARGET_VERSION in params. """
@@ -282,6 +283,24 @@ def infocalypse_push(ui_, repo, **opts):
 
     execute_push(ui_, repo, params, stored_cfg)
 
+def infocalypse_info(ui_, repo, **opts):
+    """ Display information about an Infocalypse repository.
+     """
+    # FCP not required. Hmmm... Hack
+    opts['fcphost'] = ''
+    opts['fcpport'] = 0
+    params, stored_cfg = get_config_info(ui_, opts)
+    request_uri = opts['uri']
+    if request_uri == '':
+        request_uri = stored_cfg.get_request_uri(repo.root)
+        if not request_uri:
+            ui_.warn("There is no stored request URI for this repo.\n"
+                     "Please set one with the --uri option.\n")
+            return
+
+    params['REQUEST_URI'] = request_uri
+    execute_info(ui_, repo, params, stored_cfg)
+
 def infocalypse_setup(ui_, **opts):
     """ Setup the extension for use for the first time. """
 
@@ -337,6 +356,10 @@ cmdtable = {
                     + NOSEARCH_OPT,
                     "[options]"),
 
+    "fn-info": (infocalypse_info,
+                 [('', 'uri', '', 'request URI'),],
+                "[options]"),
+ 
     "fn-setup": (infocalypse_setup,
                  [('', 'tmpdir', '~/infocalypse_tmp', 'temp directory'),]
                  + FCP_OPTS,

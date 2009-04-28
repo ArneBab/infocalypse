@@ -44,7 +44,7 @@ from updatesm import UpdateStateMachine, QUIESCENT, FINISHING, REQUESTING_URI, \
      REQUESTING_URI_4_INSERT, INSERTING_BUNDLES, INSERTING_GRAPH, \
      INSERTING_URI, FAILING, REQUESTING_URI_4_COPY, CANCELING, CleaningUp
 
-from config import Config, DEFAULT_CFG_PATH
+from config import Config, DEFAULT_CFG_PATH, normalize
 
 DEFAULT_PARAMS = {
     # FCP params
@@ -670,6 +670,39 @@ def execute_pull(ui_, repo, params, stored_cfg):
         handle_updating_config(repo, update_sm, params, stored_cfg, True)
     finally:
         cleanup(update_sm)
+
+NO_INFO_FMT = """There's no stored information about that USK.
+USK hash: %s
+"""
+
+INFO_FMT ="""USK hash: %s
+index   : %i
+
+Request URI:
+%s
+Insert URI:
+%s
+"""
+
+def execute_info(ui_, repo, params, stored_cfg):
+    request_uri = params['REQUEST_URI']
+    if request_uri is None or not is_usk_file(request_uri):
+        ui_.status("Only works with USK file URIs.\n")
+        return
+
+    usk_hash = normalize(request_uri)
+    max_index = stored_cfg.get_index(request_uri)
+    if max_index is None:
+        ui_.status(NO_INFO_FMT % usk_hash)
+        return
+
+    insert_uri = str(stored_cfg.get_insert_uri(usk_hash))
+
+    # fix index
+    request_uri = get_usk_for_usk_version(request_uri, max_index)
+
+    ui_.status(INFO_FMT %
+               (usk_hash, max_index or -1, request_uri, insert_uri))
 
 def setup_tmp_dir(ui_, tmp):
     """ INTERNAL: Setup the temp directory. """
