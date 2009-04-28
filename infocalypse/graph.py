@@ -45,6 +45,7 @@ MAX_PATH_LEN = 4
 INSERT_NORMAL = 1 # Don't transform inserted data.
 INSERT_PADDED = 2 # Add one trailing byte.
 INSERT_SALTED_METADATA = 3 # Salt Freenet splitfile metadata.
+INSERT_HUGE = 4 # Full re-insert with alternate metadata.
 
 # The size of Freenet data blocks.
 FREENET_BLOCK_LEN = 32 * 1024
@@ -377,7 +378,10 @@ class UpdateGraph:
             INSERT_NORMAL -> No modification to the bundle file.
             INSERT_PADDED -> Add one trailing pad byte.
             INSERT_SALTED_METADATA -> Copy and salt the Freenet
-            split file metadata for the normal insert. """
+            split file metadata for the normal insert.
+            INSERT_HUGE -> Full re-insert of data that's too big
+            for metadata salting.
+            """
 
         if edge_triple[2] == 0:
             return INSERT_NORMAL
@@ -394,9 +398,9 @@ class UpdateGraph:
         if length <= MAX_METADATA_HACK_LEN:
             return INSERT_SALTED_METADATA
 
-        print "insert_type called for edge that's too big to salt???"
+        print "insert_type -- called for edge that's too big to salt???"
         print edge_triple
-        assert False
+        return INSERT_HUGE
 
     def insert_length(self, step):
         """ Returns the actual length of the data inserted into
@@ -949,6 +953,33 @@ def get_heads(graph, to_index=None):
     heads.sort()
     return tuple(heads)
 
+def get_huge_top_key_edges(graph, extant=False):
+    """ Get the list of edges in the top key edges (and
+        alternates) that are too big to salt.
+
+        If extant is True, return existing edges.
+        If extent is False, return edges that could be added. """
+    ret = []
+    edges = graph.get_top_key_edges()
+    for edge in edges:
+        if graph.get_length(edge) > MAX_METADATA_HACK_LEN:
+            if edge[2] == 1:
+                assert graph.insert_type(edge) == INSERT_HUGE
+                if extant and (not alternate in ret):
+                    ret.append(edge)
+            else:
+                assert edge[2] == 0
+                assert graph.insert_type(edge) == INSERT_NORMAL
+                alternate = (edge[0], edge[1], 1)
+                if graph.is_redundant(edge):
+                    assert graph.insert_type(alternate) == INSERT_HUGE
+                    if extant and (not alternate in ret):
+                        ret.append(alternate)
+                else:
+                    if (not extant) and (not alternate in ret):
+                        ret.append(alternate)
+
+    return ret
 # ASSUMPTIONS:
 # 0) head which don't appear in bases are tip heads. True?
 

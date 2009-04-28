@@ -559,6 +559,14 @@ def usks_equal(usk_a, usk_b):
     return (get_usk_for_usk_version(usk_a, 0)
             == get_usk_for_usk_version(usk_b, 0))
 
+LEVEL_MSGS = {
+    1:"Re-inserting top key(s) and graph(s).",
+    2:"Re-inserting top key(s) if possible, graph(s), latest update.",
+    3:"Re-inserting top key(s) if possible, graph(s), all bootstrap CHKs.",
+    4:"Inserting redundant keys for > 7Mb updates.",
+    5:"Re-inserting redundant updates > 7Mb.",
+    }
+
 def execute_reinsert(ui_, repo, params, stored_cfg):
     """ Run the reinsert command. """
     update_sm = None
@@ -582,9 +590,11 @@ def execute_reinsert(ui_, repo, params, stored_cfg):
             'REQUEST_URI']),
                                              params['REQUEST_URI']))
 
+        ui_.status(LEVEL_MSGS[params['REINSERT_LEVEL']] + '\n')
         update_sm.start_reinserting(params['REQUEST_URI'],
                                     params['INSERT_URI'],
-                                    is_keypair)
+                                    is_keypair,
+                                    params['REINSERT_LEVEL'])
 
         run_until_quiescent(update_sm, params['POLL_SECS'])
 

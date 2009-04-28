@@ -36,13 +36,12 @@ from requestqueue import RequestQueue
 from chk import clear_control_bytes
 from bundlecache import make_temp_file, BundleException
 from graph import INSERT_NORMAL, INSERT_PADDED, INSERT_SALTED_METADATA, \
-     FREENET_BLOCK_LEN, has_version, \
+     INSERT_HUGE, FREENET_BLOCK_LEN, has_version, \
      pull_bundle, hex_version
 from graphutil import minimal_graph, graph_to_string, parse_graph
 from choose import get_top_key_updates
 from topkey import bytes_to_top_key_tuple, top_key_tuple_to_bytes, \
      dump_top_key_tuple
-
 
 from statemachine import StatefulRequest, RequestQueueState, StateMachine, \
      Quiescent, Canceling, RetryingRequestList, CandidateRequest, \
@@ -166,7 +165,8 @@ class UpdateContext(dict):
             self.set_cancel_time(request)
             return request
 
-        assert kind == INSERT_NORMAL or kind == INSERT_PADDED
+        assert (kind == INSERT_NORMAL or kind == INSERT_PADDED or
+                kind == INSERT_HUGE)
         pad = (kind == INSERT_PADDED)
         #print "make_edge_insert_request -- from disk: pad"
 
@@ -391,7 +391,6 @@ class InsertingGraph(StaticRequestList):
                                    + '\n')
 
         # Create minimal graph that will fit in a 32k block.
-
         assert not self.parent.ctx.version_table is None
         self.working_graph = minimal_graph(self.parent.ctx.graph,
                                            self.parent.ctx.repo,
@@ -462,6 +461,13 @@ class InsertingGraph(StaticRequestList):
 
         return (chks, updates)
 
+def should_increment(state):
+    """ INTERNAL: Returns True if the insert uri should be incremented,
+        False otherwise. """
+    level = state.parent.ctx.get('REINSERT', 0)
+    assert level >= 0 and level <= 5
+    return (level < 1 or level > 3) and level != 5
+
 class InsertingUri(StaticRequestList):
     """ A state to insert the top level URI for an Infocalypse repository
         into Freenet."""
@@ -493,7 +499,7 @@ class InsertingUri(StaticRequestList):
 
         salt = {0:0x00, 1:0xff} # grrr.... less code.
         insert_uris = make_frozen_uris(self.parent.ctx['INSERT_URI'],
-                                       self.parent.ctx.get('REINSERT', 0) < 1)
+                                       should_increment(self))
         assert len(insert_uris) < 3
         for index, uri in enumerate(insert_uris):
             if self.parent.params.get('DUMP_URIS', False):
@@ -508,7 +514,7 @@ class InsertingUri(StaticRequestList):
         if to_state.name == self.success_state:
             # Hmmm... what about chks?
             # Update the index in the insert_uri on success
-            if (self.parent.ctx.get('REINSERT', 0) < 1 and
+            if (should_increment(self) and
                 is_usk(self.parent.ctx['INSERT_URI'])):
                 version = get_version(self.parent.ctx['INSERT_URI']) + 1
                 self.parent.ctx['INSERT_URI'] = (
@@ -540,7 +546,6 @@ class RequestingUri(StaticRequestList):
     def enter(self, dummy):
         """ Implementation of State virtual. """
         #require_state(from_state, QUIESCENT)
-
         #print "REQUEST_URI:"
         #print self.parent.ctx['REQUEST_URI']
 
@@ -652,7 +657,6 @@ class InvertingUri(RequestQueueState):
         if self.insert_uri == None:
             self.insert_uri = self.parent.ctx['INSERT_URI']
         assert not self.insert_uri is None
-        #print "INVERTING: ", self.insert_uri
 
     def leave(self, to_state):
         """ Implementation of State virtual.
@@ -698,10 +702,8 @@ class InvertingUri(RequestQueueState):
 
     def request_done(self, dummy_client, msg):
         """ Implementation of RequestQueueState virtual. """
-        #print "INVERTING DONE:", msg
         self.msg = msg
         if msg[0] == 'PutSuccessful':
-            #print "REQUEST_URI: ", self.get_request_uri()
             self.parent.transition(self.success_state)
             return
         self.parent.transition(self.failure_state)
@@ -936,14 +938,15 @@ class UpdateStateMachine(RequestQueue, StateMachine):
         self.get_state(INVERTING_URI).insert_uri = insert_uri
         self.transition(INVERTING_URI)
 
-    def start_reinserting(self, request_uri, insert_uri=None, is_keypair=False):
+    def start_reinserting(self, request_uri, insert_uri=None, is_keypair=False,
+                          level = 3):
         """ Start reinserting the repository"""
         self.require_state(QUIESCENT)
         self.reset()
         self.ctx['REQUEST_URI'] = request_uri
         self.ctx['INSERT_URI'] = insert_uri
         self.ctx['IS_KEYPAIR'] = is_keypair
-        self.ctx['REINSERT'] = 1
+        self.ctx['REINSERT'] = level
         # REDFLAG: added hack code to InsertingUri to handle
         # reinsert w/o insert uri?
         # Tradedoff: hacks in states vs. creating extra state
@@ -991,7 +994,6 @@ class UpdateStateMachine(RequestQueue, StateMachine):
             # Clean up all upload and download files.
             delete_client_file(client)
 
-# REDFLAG: fix orphan handling to use special state iff it is the current state.
 # REDFLAG: rationalize. writing updated state into ctx vs.
 # leaving it in state instances
 # REDFLAG: audit. is_usk vs. is_usk_file

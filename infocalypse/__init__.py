@@ -85,13 +85,38 @@ The request uri -> dir mapping is saved after
 the first pull, so you can ommit the --uri
 argument for subsequent fn-pull invocations.
 
+
+RE-REINSERTING AND "SPONSORING" REPOS:
+
 hg fn-reinsert
 
 will re-insert the bundles for the repository
-that was last pulled into the directory.  If
-you have the insert uri the top level key(s)
-will also be re-inserted.
+that was last pulled into the directory.
 
+The exact behavior is determined by the
+level argument.
+
+level:
+1 - re-inserts the top key(s)
+2 - re-inserts the top keys(s), graphs(s) and
+    the most recent update.
+3 - re-inserts the top keys(3), graphs(s) and
+    all keys required to bootstrap the repo.
+    This is the default level.
+4 - adds redundancy for big (>7Mb) updates.
+5 - re-inserts existing redundant big updates.
+
+Levels 1 and 4 require that you have the private
+key for the repository. For other levels, the
+top key insert is skipped if you don't have
+the private key.
+
+WARNING:
+DO NOT use fn-reinsert if you're concerned about
+correlation attacks. The risk is on the order
+of re-inserting a freesite, but may be
+worse if you use redundant
+(i.e. USK@<line noise>/name.R1/0) top keys.
 
 HINTS:
 The -q, -v and --debug verbosity options are
@@ -196,14 +221,25 @@ def infocalypse_reinsert(ui_, repo, **opts):
                      "Do a fn-pull from a repository USK and try again.\n")
             return
 
+    level = opts['level']
+    if level < 1 or level > 5:
+        ui_.warn("level must be 1,2,3,4 or 5.\n")
+        return
+
     insert_uri = stored_cfg.get_dir_insert_uri(repo.root)
     if not insert_uri:
+        if level == 1 or level == 4:
+            ui_.warn(("You can't re-insert at level %i without the "
+                     + "insert URI.\n") % level)
+            return
+
         ui_.status("No insert URI. Will skip re-insert "
                    +"of top key.\n")
         insert_uri = None
 
     params['INSERT_URI'] = insert_uri
     params['REQUEST_URI'] = request_uri
+    params['REINSERT_LEVEL'] = level
     execute_reinsert(ui_, repo, params, stored_cfg)
 
 def infocalypse_pull(ui_, repo, **opts):
@@ -295,7 +331,8 @@ cmdtable = {
                 "[options]"),
 
     "fn-reinsert": (infocalypse_reinsert,
-                    [('', 'uri', '', 'request URI')]
+                    [('', 'uri', '', 'request URI'),
+                     ('', 'level', 3, 'how much to re-insert')]
                     + FCP_OPTS
                     + NOSEARCH_OPT,
                     "[options]"),

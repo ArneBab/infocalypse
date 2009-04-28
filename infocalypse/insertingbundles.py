@@ -20,8 +20,9 @@
     Author: djk@isFiaD04zgAgnrEC5XJt1i4IE7AkNPqhBG5bONi6Yks
 """
 
-from graph import UpToDate, INSERT_SALTED_METADATA, \
-     FREENET_BLOCK_LEN, build_version_table, get_heads
+from graph import UpToDate, INSERT_SALTED_METADATA, INSERT_HUGE, \
+     FREENET_BLOCK_LEN, build_version_table, get_heads, \
+     PENDING_INSERT1, get_huge_top_key_edges
 from graphutil import graph_to_string
 from bundlecache import BundleException
 
@@ -68,11 +69,20 @@ class InsertingBundles(RequestQueueState):
             self.parent.ctx.ui_.status("--- Initial Graph ---\n")
             self.parent.ctx.ui_.status(graph_to_string(graph) +'\n')
 
-
         latest_revs = get_heads(graph)
 
         self.parent.ctx.ui_.status("Latest heads(s) in Freenet: %s\n"
                                  % ' '.join([ver[:12] for ver in latest_revs]))
+
+        if self.parent.ctx.get('REINSERT', 0) == 1:
+            self.parent.ctx.ui_.status("No bundles to reinsert.\n")
+            # REDFLAG: Think this through. Crappy code, but expedient.
+            # Hmmmm.... need version table to build minimal graph
+            self.parent.ctx.version_table = build_version_table(graph,
+                                                                self.parent.ctx.
+                                                                repo)
+            self.parent.transition(INSERTING_GRAPH)
+            return
 
         if not self.parent.ctx.has_versions(latest_revs):
             self.parent.ctx.ui_.warn("The local repository isn't up "
@@ -105,8 +115,7 @@ class InsertingBundles(RequestQueueState):
         #dump_top_key_tuple((('CHK@', 'CHK@'),
         #                    get_top_key_updates(graph)))
 
-        if len(self.new_edges) == 0:
-            raise Exception("Up to date")
+        self._check_new_edges("Up to date")
 
         self.parent.ctx.graph = graph
 
@@ -224,6 +233,12 @@ class InsertingBundles(RequestQueueState):
                               graph.get_length(edge),
                               chk1)
             else:
+                if (graph.insert_type(edge) == INSERT_HUGE and
+                    graph.get_chk(edge) == PENDING_INSERT1):
+                    assert edge[2] == 1
+                    graph.set_chk(edge[:2], edge[2],
+                              graph.get_length(edge),
+                              chk1)
                 if chk1 != graph.get_chk(edge):
                     self.parent.ctx.ui_.status("Bad CHK: %s %s\n" %
                                                (str(edge), chk1))
@@ -242,6 +257,11 @@ class InsertingBundles(RequestQueueState):
             len(self.required_edges) == 0):
             self.parent.transition(INSERTING_GRAPH)
 
+    def _check_new_edges(self, msg):
+        """ INTERNAL: Helper function to raise if new_edges is empty. """
+        if len(self.new_edges) == 0:
+            raise UpToDate(msg)
+
     def set_new_edges(self, graph):
         """ INTERNAL: Set the list of new edges to insert. """
 
@@ -249,20 +269,37 @@ class InsertingBundles(RequestQueueState):
         self.parent.ctx.version_table = build_version_table(graph,
                                                             self.parent.ctx.
                                                             repo)
-        if self.parent.ctx.get('REINSERT', 0) == 0:
+        # Hmmmm level == 1 handled elsewhere...
+        level = self.parent.ctx.get('REINSERT', 0)
+        if level == 0: # Insert update, don't re-insert
             self.new_edges = graph.update(self.parent.ctx.repo,
                                           self.parent.ctx.ui_,
                                           self.parent.ctx['TARGET_VERSIONS'],
                                           self.parent.ctx.bundle_cache)
+        elif level ==  2 or level == 3: # Topkey(s), graphs(s), updates
+            # Hmmmm... later support different values of REINSERT?
+            self.new_edges = graph.get_top_key_edges()
+            if level == 2: # 3 == All top key updates.
+                # Only the latest update.
+                self.new_edges = self.new_edges[:1]
 
-            return
+            redundant = []
+            for edge in  self.new_edges:
+                if graph.is_redundant(edge):
+                    alternate_edge = (edge[0], edge[1], int(not edge[2]))
+                    if not alternate_edge in self.new_edges:
+                        redundant.append(alternate_edge)
+            self.new_edges += redundant
+            for edge in self.new_edges[:]: # Deep copy!
+                if graph.insert_type(edge) == INSERT_HUGE:
+                    # User can do this with level == 5
+                    self.parent.ctx.ui_.status("Skipping unsalted re-insert of "
+                                               + "big edge: %s\n" % edge)
+                    self.new_edges.remove(edge)
+        elif level == 4: # Add redundancy for big updates.
+            self.new_edges = get_huge_top_key_edges(graph, False)
+            self._check_new_edges("There are no big edges to add.")
 
-        # Hmmmm... later support different int values of REINSERT?
-        self.new_edges = graph.get_top_key_edges()
-        redundant = []
-        for edge in  self.new_edges:
-            if graph.is_redundant(edge):
-                alternate_edge = (edge[0], edge[1], int(not edge[2]))
-                if not alternate_edge in self.new_edges:
-                    redundant.append(alternate_edge)
-        self.new_edges += redundant
+        elif level == 5: # Reinsert big updates.
+            self.new_edges =  get_huge_top_key_edges(graph, True)
+            self._check_new_edges("There are no big edges to re-insert.")
