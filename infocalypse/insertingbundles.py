@@ -294,7 +294,7 @@ class InsertingBundles(RequestQueueState):
                 if graph.insert_type(edge) == INSERT_HUGE:
                     # User can do this with level == 5
                     self.parent.ctx.ui_.status("Skipping unsalted re-insert of "
-                                               + "big edge: %s\n" % edge)
+                                               + "big edge: %s\n" % str(edge))
                     self.new_edges.remove(edge)
         elif level == 4: # Add redundancy for big updates.
             self.new_edges = get_huge_top_key_edges(graph, False)
