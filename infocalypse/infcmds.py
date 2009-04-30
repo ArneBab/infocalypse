@@ -20,7 +20,6 @@
 """
 
 
-# infcmds.py has actual implementation
 # REDFLAG: cleanup exception handling
 #          by converting socket.error to IOError in fcpconnection?
 # REDFLAG: returning vs aborting. set system exit code.
@@ -612,15 +611,12 @@ def execute_reinsert(ui_, repo, params, stored_cfg):
         cleanup(update_sm)
 
 
-
 # REDFLAG: move into fcpclient?
 #def usks_equal(usk_a, usk_b):
 #    assert is_usk(usk_a) and and is_usk(usk_b)
 #    return (get_usk_for_usk_version(usk_a, 0) ==
 #            get_usk_for_usk_version(usk_b, 0))
 
-# REDFLAG: reading from on uri and inserting to another isn't
-#          fully working yet
 def execute_push(ui_, repo, params, stored_cfg):
     """ Run the push command. """
     update_sm = None
@@ -709,21 +705,15 @@ def execute_info(ui_, params, stored_cfg):
     ui_.status(INFO_FMT %
                (usk_hash, max_index or -1, request_uri, insert_uri))
 
-def execute_fmsread(ui_, params, stored_cfg):
-    """ Run the fmsread command. """
-    action = params['FMSREAD']
-    if params['VERBOSITY'] >= 2:
-        ui_.status(('Connecting to fms on %s:%i\n'
-                    + 'Searching groups: %s\n') %
-                   (stored_cfg.defaults['FMS_HOST'],
-                    stored_cfg.defaults['FMS_PORT'],
-                    ' '.join(stored_cfg.fmsread_groups)))
+def handled_listall(ui_, params, stored_cfg):
+    """ INTERNAL: Helper function to simplify execute_fmsread. """
+    if params['FMSREAD'] != 'list' and params['FMSREAD'] != 'listall':
+        return False
 
-    if action == 'list' or action == 'listall':
-        if action == 'listall':
-            parser = USKAnnouncementParser()
-            if params['VERBOSITY'] >= 2:
-                ui_.status('Listing all repo USKs.\n')
+    if params['FMSREAD'] == 'listall':
+        parser = USKAnnouncementParser()
+        if params['VERBOSITY'] >= 2:
+            ui_.status('Listing all repo USKs.\n')
         else:
             trust_map = stored_cfg.fmsread_trust_map.copy() # paranoid copy
             if params['VERBOSITY'] >= 2:
@@ -732,54 +722,74 @@ def execute_fmsread(ui_, params, stored_cfg):
                 ui_.status(("Only listing repo USKs from trusted "
                             + "fms IDs:\n%s\n\n") % '\n'.join(fms_ids))
             parser = USKAnnouncementParser(trust_map)
+
         recv_msgs(stored_cfg.defaults['FMS_HOST'],
                   stored_cfg.defaults['FMS_PORT'],
                   parser,
                   stored_cfg.fmsread_groups)
+
         if len(parser.usks) == 0:
             ui_.status("No USKs found.\n")
-            return
+            return True
+
         ui_.status("\n")
         for usk in parser.usks:
             usk_entry = parser.usks[usk]
             ui_.status("USK Hash: %s\n%s\n%s\n\n" %
                        (get_usk_hash(usk), usk,
                         '\n'.join(usk_entry)))
-    else:
-        trust_map = stored_cfg.fmsread_trust_map.copy() # paranoid copy
-        if params['VERBOSITY'] >= 2:
-            fms_ids = trust_map.keys()
-            fms_ids.sort()
-            ui_.status("Update Trust Map:\n")
-            for fms_id in fms_ids:
-                ui_.status("   %s: %s\n" % (fms_id,
-                                            ' '.join(trust_map[fms_id])))
-            ui_.status("\n")
-        parser = USKIndexUpdateParser(trust_map)
-        recv_msgs(stored_cfg.defaults['FMS_HOST'],
-                  stored_cfg.defaults['FMS_PORT'],
-                  parser,
-                  stored_cfg.fmsread_groups)
-        changed = parser.updated(stored_cfg.version_table)
-        if len(changed) == 0:
-            ui_.status('No updates found.\n')
-            return
 
-        for usk_hash in changed:
-            ui_.status('%s:%i\n' % (usk_hash, changed[usk_hash]))
+        return True
 
-        if params['DRYRUN']:
-            ui_.status('Exiting without saving because --dryrun was set.\n')
-            return
+def execute_fmsread(ui_, params, stored_cfg):
+    """ Run the fmsread command. """
+    if params['VERBOSITY'] >= 2:
+        ui_.status(('Connecting to fms on %s:%i\n'
+                    + 'Searching groups: %s\n') %
+                   (stored_cfg.defaults['FMS_HOST'],
+                    stored_cfg.defaults['FMS_PORT'],
+                    ' '.join(stored_cfg.fmsread_groups)))
 
-        for usk_hash in changed:
-            stored_cfg.update_index(usk_hash, changed[usk_hash])
+    # Listing announced Repo USKs
+    if handled_listall(ui_, params, stored_cfg):
+        return
 
-        Config.to_file(stored_cfg)
-        ui_.status('Saved updated indices.\n')
-        # Back map to uris and print
-        # show message if current repo was updated
-        # support dry run
+    # Updating Repo USK indices for repos which are
+    # listed int the fmsread_trust_map section of the
+    # config file.
+    trust_map = stored_cfg.fmsread_trust_map.copy() # paranoid copy
+    if params['VERBOSITY'] >= 2:
+        fms_ids = trust_map.keys()
+        fms_ids.sort()
+        ui_.status("Update Trust Map:\n")
+        for fms_id in fms_ids:
+            ui_.status("   %s: %s\n" % (fms_id,
+                                        ' '.join(trust_map[fms_id])))
+        ui_.status("\n")
+    parser = USKIndexUpdateParser(trust_map)
+    recv_msgs(stored_cfg.defaults['FMS_HOST'],
+              stored_cfg.defaults['FMS_PORT'],
+              parser,
+              stored_cfg.fmsread_groups)
+    changed = parser.updated(stored_cfg.version_table)
+    if len(changed) == 0:
+        ui_.status('No updates found.\n')
+        return
+
+    # Back map to uris ?
+    for usk_hash in changed:
+        ui_.status('%s:%i\n' % (usk_hash, changed[usk_hash]))
+
+    if params['DRYRUN']:
+        ui_.status('Exiting without saving because --dryrun was set.\n')
+        return
+
+    for usk_hash in changed:
+        stored_cfg.update_index(usk_hash, changed[usk_hash])
+
+    Config.to_file(stored_cfg)
+    ui_.status('Saved updated indices.\n')
+
 
 # REDFLAG: Catch this in config when depersisting?
 def is_none(value):
