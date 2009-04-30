@@ -143,6 +143,35 @@ class Config:
     #    pass
 
     @classmethod
+    def update_defaults(cls, parser, cfg):
+        """ INTERNAL: Helper function to simplify from_file. """
+        if parser.has_section('default'):
+            if parser.has_option('default','host'):
+                cfg.defaults['HOST'] = parser.get('default','host')
+            if parser.has_option('default','port'):
+                cfg.defaults['PORT'] = parser.getint('default','port')
+            if parser.has_option('default','tmp_dir'):
+                cfg.defaults['TMP_DIR'] = parser.get('default', 'tmp_dir')
+            if parser.has_option('default','default_private_key'):
+                cfg.defaults['DEFAULT_PRIVATE_KEY'] = (
+                    parser.get('default','default_private_key'))
+
+            if parser.has_option('default','fms_host'):
+                cfg.defaults['FMS_HOST'] = parser.get('default','fms_host')
+            if parser.has_option('default','fms_port'):
+                cfg.defaults['FMS_PORT'] = parser.getint('default','fms_port')
+            if parser.has_option('default','fms_id'):
+                cfg.defaults['FMS_ID'] = parser.get('default','fms_id')
+            if parser.has_option('default','fmsnotify_group'):
+                cfg.defaults['FMSNOTIFY_GROUP'] = parser.get('default',
+                                                             'fmsnotify_group')
+            if parser.has_option('default','fmsread_groups'):
+                cfg.fmsread_groups = (parser.get('default','fmsread_groups').
+                                      strip().split('|'))
+            else:
+                cfg.fmsread_groups = DEFAULT_GROUPS
+
+    @classmethod
     def from_file(cls, file_name):
         """ Make a Config from a file. """
         file_name = os.path.expanduser(file_name)
@@ -177,31 +206,7 @@ class Config:
         else:
             cfg.fmsread_trust_map = DEFAULT_TRUST
 
-        if parser.has_section('default'):
-            if parser.has_option('default','host'):
-                cfg.defaults['HOST'] = parser.get('default','host')
-            if parser.has_option('default','port'):
-                cfg.defaults['PORT'] = parser.getint('default','port')
-            if parser.has_option('default','tmp_dir'):
-                cfg.defaults['TMP_DIR'] = parser.get('default', 'tmp_dir')
-            if parser.has_option('default','default_private_key'):
-                cfg.defaults['DEFAULT_PRIVATE_KEY'] = (
-                    parser.get('default','default_private_key'))
-
-            if parser.has_option('default','fms_host'):
-                cfg.defaults['FMS_HOST'] = parser.get('default','fms_host')
-            if parser.has_option('default','fms_port'):
-                cfg.defaults['FMS_PORT'] = parser.getint('default','fms_port')
-            if parser.has_option('default','fms_id'):
-                cfg.defaults['FMS_ID'] = parser.get('default','fms_id')
-            if parser.has_option('default','fmsnotify_group'):
-                cfg.defaults['FMSNOTIFY_GROUP'] = parser.get('default',
-                                                             'fmsnotify_group')
-            if parser.has_option('default','fmsread_groups'):
-                cfg.fmsread_groups = (parser.get('default','fmsread_groups').
-                                      strip().split('|'))
-            else:
-                cfg.fmsread_groups = DEFAULT_GROUPS
+        Config.update_defaults(parser, cfg)
 
         cfg.file_name = file_name
         return cfg
