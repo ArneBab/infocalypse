@@ -800,18 +800,16 @@ def execute_fmsnotify(ui_, repo, params, stored_cfg):
     """ Run fmsnotify command. """
     update_sm = None
     try:
-        # REDFLAG: dci, test non uri keys
+        # Insert URI MUST be stored.
         update_sm = setup(ui_, repo, params, stored_cfg)
         request_uri, dummy = do_key_setup(ui_, update_sm,
                                           params, stored_cfg)
-        if request_uri is None:
+        if request_uri is None: # Just assert?
             ui_.warn("Only works for USK file URIs.\n")
             return
 
         usk_hash = get_usk_hash(request_uri)
         index = stored_cfg.get_index(usk_hash)
-        # REDFLAG: DCI. Needed?
-        request_uri = get_usk_for_usk_version(request_uri, index)
         if index is None:
             ui_.warn("Can't notify because there's no stored index "
                      + "for %s.\n" % usk_hash)
