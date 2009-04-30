@@ -843,8 +843,9 @@ def execute_fmsnotify(ui_, repo, params, stored_cfg):
                        (stored_cfg.defaults['FMS_HOST'],
                         stored_cfg.defaults['FMS_PORT']))
 
-        ui_.status('Group: %s\nSubject: %s\n%s\n' %
-                   (stored_cfg.defaults['FMSNOTIFY_GROUP'],
+        ui_.status('Sender : %s\nGroup  : %s\nSubject: %s\n%s\n' %
+                   (stored_cfg.defaults['FMS_ID'],
+                    stored_cfg.defaults['FMSNOTIFY_GROUP'],
                     subject, text))
 
         if params['VERBOSITY'] >= 5:

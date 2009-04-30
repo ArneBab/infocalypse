@@ -49,9 +49,9 @@ def send_msgs(fms_host, fms_port, msg_tuples):
                                       msg_tuple[2],
                                       msg_tuple[3])
             in_file = StringIO.StringIO(raw_msg)
-            print raw_msg
+            #print raw_msg
             try:
-                #server.post(in_file)
+                server.post(in_file)
                 pass
             finally:
                 in_file.close()

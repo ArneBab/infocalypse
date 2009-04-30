@@ -36,4 +36,5 @@ DEFAULT_TRUST = {
     ('be68e8feccdd', ),
     }
 
-DEFAULT_GROUPS = ('test', )
+DEFAULT_GROUPS = ('infocalypse.notify', )
+DEFAULT_NOTIFICATION_GROUP = 'infocalypse.notify'

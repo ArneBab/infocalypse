@@ -26,7 +26,8 @@ import sys
 
 from fcpclient import get_usk_hash, is_usk_file, get_version, \
      get_usk_for_usk_version
-from knownrepos import DEFAULT_TRUST, DEFAULT_GROUPS
+from knownrepos import DEFAULT_TRUST, DEFAULT_GROUPS, \
+     DEFAULT_NOTIFICATION_GROUP
 from mercurial import util
 from ConfigParser import ConfigParser
 
@@ -78,8 +79,8 @@ class Config:
 
         self.defaults['FMS_HOST'] = '127.0.0.1'
         self.defaults['FMS_PORT'] = 1119
-        self.defaults['FMS_ID'] = None # REDFLAG?
-        self.defaults['FMSNOTIFY_GROUP'] = None # REDFLAG?
+        self.defaults['FMS_ID'] = None # User must set this in config.
+        self.defaults['FMSNOTIFY_GROUP'] = DEFAULT_NOTIFICATION_GROUP
 
     def get_index(self, usk_or_id):
         """ Returns the highest known USK version for a USK or None. """
