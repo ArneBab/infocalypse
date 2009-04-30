@@ -299,7 +299,11 @@ class InsertingBundles(RequestQueueState):
         elif level == 4: # Add redundancy for big updates.
             self.new_edges = get_huge_top_key_edges(graph, False)
             self._check_new_edges("There are no big edges to add.")
-
+            for edge in self.new_edges:
+                assert edge[2] == 1
+                # MUST add the edges to the graph since they are new.
+                graph.add_edge(edge[:2],
+                               (graph.get_length(edge), PENDING_INSERT1))
         elif level == 5: # Reinsert big updates.
             self.new_edges =  get_huge_top_key_edges(graph, True)
             self._check_new_edges("There are no big edges to re-insert.")
