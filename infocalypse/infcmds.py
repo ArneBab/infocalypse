@@ -31,7 +31,8 @@ import time
 from mercurial import util
 
 from fcpclient import parse_progress, is_usk, is_ssk, get_version, \
-     get_usk_for_usk_version, FCPClient, is_usk_file, is_negative_usk
+     get_usk_for_usk_version, FCPClient, is_usk_file, is_negative_usk, \
+     get_usk_hash
 
 from fcpconnection import FCPConnection, PolledSocket, CONNECTION_STATES, \
      get_code, FCPError
@@ -45,6 +46,9 @@ from updatesm import UpdateStateMachine, QUIESCENT, FINISHING, REQUESTING_URI, \
      INSERTING_URI, FAILING, REQUESTING_URI_4_COPY, CANCELING, CleaningUp
 
 from config import Config, DEFAULT_CFG_PATH, normalize
+
+from fms import USKAnnouncementParser, USKIndexUpdateParser, recv_msgs, \
+     to_msg_string, MSG_TEMPLATE, send_msgs
 
 DEFAULT_PARAMS = {
     # FCP params
@@ -317,7 +321,7 @@ def setup(ui_, repo, params, stored_cfg):
     # REDFLAG: Hack to work around 1208 cancel bug. Remove.
     if update_sm.params['FREENET_BUILD'] == '1208':
         ui_.warn("DISABLING request canceling to work around 1208 FCP bug.\n"
-                 "This may cause requests to hang. :-(\n")
+                 "This may cause requests to hang. :-(\n\n")
         disable_cancel(update_sm)
 
         # Patch state machine to re-enable canceling on shutdown.
@@ -410,8 +414,8 @@ def do_key_setup(ui_, update_sm, params, stored_cfg):
 
         # Update the inverted insert URI to the latest known version.
         params['INVERTED_INSERT_URI'] = get_usk_for_usk_version(
-        inverted_uri,
-        max_index)
+            inverted_uri,
+            max_index)
 
     # Update the index of the request uri using the stored config.
     request_uri = params.get('REQUEST_URI')
@@ -675,7 +679,7 @@ NO_INFO_FMT = """There's no stored information about that USK.
 USK hash: %s
 """
 
-INFO_FMT ="""USK hash: %s
+INFO_FMT = """USK hash: %s
 index   : %i
 
 Request URI:
@@ -703,6 +707,152 @@ def execute_info(ui_, repo, params, stored_cfg):
 
     ui_.status(INFO_FMT %
                (usk_hash, max_index or -1, request_uri, insert_uri))
+
+def execute_fmsread(ui_, repo, params, stored_cfg):
+    action = params['FMSREAD']
+    if params['VERBOSITY'] >= 2:
+        ui_.status(('Connecting to fms on %s:%i\n'
+                    + 'Searching groups: %s\n') %
+                   (stored_cfg.defaults['FMS_HOST'],
+                    stored_cfg.defaults['FMS_PORT'],
+                    ' '.join(stored_cfg.fmsread_groups)))
+
+    if action == 'list' or action == 'listall':
+        if action == 'listall':
+            parser = USKAnnouncementParser()
+            if params['VERBOSITY'] >= 2:
+                ui_.status('Listing all repo USKs.\n')
+        else:
+            trust_map = stored_cfg.fmsread_trust_map.copy() # paranoid copy
+            if params['VERBOSITY'] >= 2:
+                fms_ids = trust_map.keys()
+                fms_ids.sort()
+                ui_.status(("Only listing repo USKs from trusted "
+                            + "fms IDs:\n%s\n\n") % '\n'.join(fms_ids))
+            parser = USKAnnouncementParser(trust_map)
+        recv_msgs(stored_cfg.defaults['FMS_HOST'],
+                  stored_cfg.defaults['FMS_PORT'],
+                  parser,
+                  stored_cfg.fmsread_groups)
+        if len(parser.usks) == 0:
+            ui_.status("No USKs found.\n")
+            return
+        ui_.status("\n")
+        for usk in parser.usks:
+            usk_entry = parser.usks[usk]
+            ui_.status("USK Hash: %s\n%s\n%s\n\n" %
+                       (get_usk_hash(usk), usk,
+                        '\n'.join(usk_entry)))
+    else:
+        trust_map = stored_cfg.fmsread_trust_map.copy() # paranoid copy
+        if params['VERBOSITY'] >= 2:
+            fms_ids = trust_map.keys()
+            fms_ids.sort()
+            ui_.status("Update Trust Map:\n")
+            for fms_id in fms_ids:
+                ui_.status("   %s: %s\n" % (fms_id,
+                                            ' '.join(trust_map[fms_id])))
+            ui_.status("\n")
+        parser = USKIndexUpdateParser(trust_map)
+        recv_msgs(stored_cfg.defaults['FMS_HOST'],
+                  stored_cfg.defaults['FMS_PORT'],
+                  parser,
+                  stored_cfg.fmsread_groups)
+        changed = parser.updated(stored_cfg.version_table)
+        if len(changed) == 0:
+            ui_.status('No updates found.\n')
+            return
+
+        for usk_hash in changed:
+            ui_.status('%s:%i\n' % (usk_hash, changed[usk_hash]))
+
+        if params['DRYRUN']:
+            ui_.status('Exiting without saving because --dryrun was set.\n')
+            return
+
+        for usk_hash in changed:
+            stored_cfg.update_index(usk_hash, changed[usk_hash])
+
+        Config.to_file(stored_cfg)
+        ui_.status('Saved updated indices.\n')
+        # Back map to uris and print
+        # show message if current repo was updated
+        # support dry run
+
+# REDFLAG: Catch this in config when depersisting?
+def is_none(value):
+    return value is None or value == 'None'
+
+def execute_fmsnotify(ui_, repo, params, stored_cfg):
+    update_sm = None
+    try:
+        # REDFLAG: dci, test non uri keys
+        update_sm = setup(ui_, repo, params, stored_cfg)
+        request_uri, dummy = do_key_setup(ui_, update_sm,
+                                          params, stored_cfg)
+        if request_uri is None:
+            ui_.warn("Only works for USK file URIs.\n")
+            return
+
+        usk_hash = get_usk_hash(request_uri)
+        index = stored_cfg.get_index(usk_hash)
+        # REDFLAG: DCI. Needed?
+        request_uri = get_usk_for_usk_version(request_uri, index)
+        if index is None:
+            ui_.warn("Can't notify because there's no stored index "
+                     + "for %s.\n" % usk_hash)
+            return
+
+        if is_none(stored_cfg.defaults['FMS_ID']):
+            ui_.warn("Can't notify because the fms ID isn't set in the "
+                     + "config file.\n")
+            ui_.status("Update the fms_id = line and try again.\n")
+            return
+
+        if is_none(stored_cfg.defaults['FMSNOTIFY_GROUP']):
+            ui_.warn("Can't notify because fms group isn't set in the "
+                     + "config file.\n")
+            ui_.status("Update the fmsnotify_group = line and try again.\n")
+            return
+
+        if params['ANNOUNCE']:
+            text = to_msg_string(None, (request_uri, ))
+        else:
+            text = to_msg_string(((usk_hash, index), ))
+
+        subject = 'Update:' + '/'.join(request_uri.split('/')[1:])
+        msg_tuple = (stored_cfg.defaults['FMS_ID'],
+                     stored_cfg.defaults['FMSNOTIFY_GROUP'],
+                     subject,
+                     text)
+
+        if params['VERBOSITY'] >= 2:
+            ui_.status('Connecting to fms on %s:%i\n' %
+                       (stored_cfg.defaults['FMS_HOST'],
+                        stored_cfg.defaults['FMS_PORT']))
+
+        ui_.status('Group: %s\nSubject: %s\n%s\n' %
+                   (stored_cfg.defaults['FMSNOTIFY_GROUP'],
+                    subject, text))
+
+        if params['VERBOSITY'] >= 5:
+            raw_msg = MSG_TEMPLATE % (msg_tuple[0],
+                                      msg_tuple[1],
+                                      msg_tuple[2],
+                                      msg_tuple[3])
+            ui_.status('--- Raw Message ---\n%s\n---\n' % raw_msg)
+
+        if params['DRYRUN']:
+            ui_.status('Exiting without sending because --dryrun was set.\n')
+            return
+
+        send_msgs(stored_cfg.defaults['FMS_HOST'],
+                  stored_cfg.defaults['FMS_PORT'],
+                  (msg_tuple, ))
+
+        ui_.status('Notification message sent.\n')
+    finally:
+        cleanup(update_sm)
 
 def setup_tmp_dir(ui_, tmp):
     """ INTERNAL: Setup the temp directory. """

@@ -155,7 +155,7 @@ from mercurial import commands, util
 
 from infcmds import get_config_info, execute_create, execute_pull, \
      execute_push, execute_setup, execute_copy, execute_reinsert, \
-     execute_info
+     execute_info, execute_fmsread, execute_fmsnotify
 
 def set_target_version(ui_, repo, opts, params, msg_fmt):
     """ INTERNAL: Update TARGET_VERSION in params. """
@@ -301,6 +301,47 @@ def infocalypse_info(ui_, repo, **opts):
     params['REQUEST_URI'] = request_uri
     execute_info(ui_, repo, params, stored_cfg)
 
+def infocalypse_fmsread(ui_, repo, **opts):
+    """ Read repository update information from fms.
+    """
+    # FCP not required. Hmmm... Hack
+    opts['fcphost'] = ''
+    opts['fcpport'] = 0
+    params, stored_cfg = get_config_info(ui_, opts)
+    request_uri = opts['uri']
+    if request_uri == '':
+        request_uri = stored_cfg.get_request_uri(repo.root)
+        if not request_uri:
+            ui_.status("There is no stored request URI for this repo.\n")
+            request_uri = None
+
+    if opts['listall']:
+        params['FMSREAD'] = 'listall'
+    elif opts['list']:
+        params['FMSREAD'] = 'list'
+    else:
+        params['FMSREAD'] = 'update'
+    params['DRYRUN'] = opts['dryrun']
+    params['REQUEST_URI'] = request_uri
+    execute_fmsread(ui_, repo, params, stored_cfg)
+
+def infocalypse_fmsnotify(ui_, repo, **opts):
+    """ Post an update with the current repository USK
+        index to fms.
+    """
+    params, stored_cfg = get_config_info(ui_, opts)
+    insert_uri = stored_cfg.get_dir_insert_uri(repo.root)
+    if not insert_uri:
+        ui_.warn("You can't notify because there's no stored "
+                 + "insert URI for this repo.\n"
+                 + "Run from the directory you inserted from.\n")
+        return
+
+    params['ANNOUNCE'] = opts['announce']
+    params['DRYRUN'] = opts['dryrun']
+    params['INSERT_URI'] = insert_uri
+    execute_fmsnotify(ui_, repo, params, stored_cfg)
+
 def infocalypse_setup(ui_, **opts):
     """ Setup the extension for use for the first time. """
 
@@ -359,7 +400,21 @@ cmdtable = {
     "fn-info": (infocalypse_info,
                  [('', 'uri', '', 'request URI'),],
                 "[options]"),
- 
+
+
+    "fn-fmsread": (infocalypse_fmsread,
+                   [('', 'uri', '', 'request URI'),
+                    ('', 'list', None, 'show repo USKs from trusted fms identities'),
+                    ('', 'listall', None, 'show all repo USKs'),
+                    ('', 'dryrun', None, "don't update the index cache"),],
+                   "[options]"),
+
+    "fn-fmsnotify": (infocalypse_fmsnotify,
+                     [('', 'dryrun', None, "don't send fms message"),
+                     ('', 'announce', None, "include full URI update"), ]
+                     + FCP_OPTS, # Needs to invert the insert uri
+                     "[options]"),
+
     "fn-setup": (infocalypse_setup,
                  [('', 'tmpdir', '~/infocalypse_tmp', 'temp directory'),]
                  + FCP_OPTS,

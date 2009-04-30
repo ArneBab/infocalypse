@@ -26,6 +26,7 @@ import sys
 
 from fcpclient import get_usk_hash, is_usk_file, get_version, \
      get_usk_for_usk_version
+from knownrepos import DEFAULT_TRUST, DEFAULT_GROUPS
 from mercurial import util
 from ConfigParser import ConfigParser
 
@@ -62,6 +63,10 @@ class Config:
         self.request_usks = {}
         # repo_id -> insert uri map
         self.insert_usks = {}
+        # fms_id -> (usk_hash, ...) map
+        self.fmsread_trust_map = {}
+        self.fmsread_groups = ()
+
         self.file_name = None
 
         # Use a dict instead of members to avoid pylint R0902.
@@ -70,6 +75,11 @@ class Config:
         self.defaults['PORT'] = 9481
         self.defaults['TMP_DIR'] = None
         self.defaults['DEFAULT_PRIVATE_KEY'] = None
+
+        self.defaults['FMS_HOST'] = '127.0.0.1'
+        self.defaults['FMS_PORT'] = 1119
+        self.defaults['FMS_ID'] = None # REDFLAG?
+        self.defaults['FMSNOTIFY_GROUP'] = None # REDFLAG?
 
     def get_index(self, usk_or_id):
         """ Returns the highest known USK version for a USK or None. """
@@ -150,6 +160,23 @@ class Config:
         if parser.has_section('insert_usks'):
             for repo_id in parser.options('insert_usks'):
                 cfg.insert_usks[repo_id] = parser.get('insert_usks', repo_id)
+
+        # ignored = fms_id|usk_hash|usk_hash|...
+        if parser.has_section('fmsread_trust_map'):
+            for ordinal in parser.options('fmsread_trust_map'):
+                fields = parser.get('fmsread_trust_map',
+                                    ordinal).strip().split('|')
+                # REDFLAG: better validation for fms_id, hashes?
+                if fields[0].find('@') == -1:
+                    raise ValueError("%s doesn't look like an fms id." %
+                                     fields[0])
+                if len(fields) < 2:
+                    raise ValueError("No USK hashes for fms id: %s?" %
+                                     fields[0])
+                cfg.fmsread_trust_map[fields[0]] = tuple(fields[1:])
+        else:
+            cfg.fmsread_trust_map = DEFAULT_TRUST
+
         if parser.has_section('default'):
             if parser.has_option('default','host'):
                 cfg.defaults['HOST'] = parser.get('default','host')
@@ -160,6 +187,21 @@ class Config:
             if parser.has_option('default','default_private_key'):
                 cfg.defaults['DEFAULT_PRIVATE_KEY'] = (
                     parser.get('default','default_private_key'))
+
+            if parser.has_option('default','fms_host'):
+                cfg.defaults['FMS_HOST'] = parser.get('default','fms_host')
+            if parser.has_option('default','fms_port'):
+                cfg.defaults['FMS_PORT'] = parser.getint('default','fms_port')
+            if parser.has_option('default','fms_id'):
+                cfg.defaults['FMS_ID'] = parser.get('default','fms_id')
+            if parser.has_option('default','fmsnotify_group'):
+                cfg.defaults['FMSNOTIFY_GROUP'] = parser.get('default',
+                                                             'fmsnotify_group')
+            if parser.has_option('default','fmsread_groups'):
+                cfg.fmsread_groups = (parser.get('default','fmsread_groups').
+                                      strip().split('|'))
+            else:
+                cfg.fmsread_groups = DEFAULT_GROUPS
 
         cfg.file_name = file_name
         return cfg
@@ -199,6 +241,14 @@ class Config:
         parser.set('default', 'tmp_dir', cfg.defaults['TMP_DIR'])
         parser.set('default', 'default_private_key',
                    cfg.defaults['DEFAULT_PRIVATE_KEY'])
+
+        parser.set('default', 'fms_host', cfg.defaults['FMS_HOST'])
+        parser.set('default', 'fms_port', cfg.defaults['FMS_PORT'])
+        parser.set('default', 'fms_id', cfg.defaults['FMS_ID'])
+        parser.set('default', 'fmsnotify_group',
+                   cfg.defaults['FMSNOTIFY_GROUP'])
+        parser.set('default', 'fmsread_groups', '|'.join(cfg.fmsread_groups))
+
         parser.add_section('index_values')
         for repo_id in cfg.version_table:
             parser.set('index_values', repo_id, cfg.version_table[repo_id])
@@ -208,6 +258,12 @@ class Config:
         parser.add_section('insert_usks')
         for repo_id in cfg.insert_usks:
             parser.set('insert_usks', repo_id, cfg.insert_usks[repo_id])
+        parser.add_section('fmsread_trust_map')
+        for index, fms_id in enumerate(cfg.fmsread_trust_map):
+            entry = cfg.fmsread_trust_map[fms_id]
+            assert len(entry) > 0
+            parser.set('fmsread_trust_map', str(index),
+                       fms_id + '|' + '|'.join(entry))
 
         out_file = open(file_name, 'wb')
         try:
