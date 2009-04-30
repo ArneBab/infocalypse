@@ -14,6 +14,14 @@ in order to use this extension.
 For more information on Freenet see:
 http://freenetproject.org/
 
+To use the (optional) fn-fmsread and fn-fmsnotify commands
+you must be able to connect to a running FMS
+server.
+
+For more information on FMS see:
+USK@0npnMrqZNKRCRoGojZV93UNHCMN-6UU3rRSAmP6jNLE,
+   ~BG-edFtdCC1cSH4O3BWdeIYa8Sw5DfyrSV-TKdO5ec,AQACAAE/fms/98/
+
 ADDING THE EXTENSION:
 Add the following to your .hgrc/mercurial.ini file.
 
@@ -56,7 +64,8 @@ what repositories you insert/retrieve.
 It's a good idea to keep it on
 a removable drive for maximum security.
 
-EXAMPLES:
+
+USAGE EXAMPLES:
 
 hg fn-create --uri USK@/test.R1/0
 
@@ -100,7 +109,7 @@ level:
 1 - re-inserts the top key(s)
 2 - re-inserts the top keys(s), graphs(s) and
     the most recent update.
-3 - re-inserts the top keys(3), graphs(s) and
+3 - re-inserts the top keys(s), graphs(s) and
     all keys required to bootstrap the repo.
     This is the default level.
 4 - adds redundancy for big (>7Mb) updates.
@@ -118,11 +127,82 @@ of re-inserting a freesite, but may be
 worse if you use redundant
 (i.e. USK@<line noise>/name.R1/0) top keys.
 
+REPOSITORY UPDATE NOTIFICATIONS VIA FMS:
+hg fn-fmsread
+
+with no arguments reads the latest repo USK indexes from
+fms and updates the locally cached values.
+
+There's a trust map in the config file which
+determines which fms ids can update which repositories.
+
+The format is:
+<number> = <fms_id>|<usk_hash0>|<usk_hash1>| ... |<usk_hashn>
+
+You can get the repository hash for a repo by running
+fn-info in the directory where you have fn-pull'ed it.
+
+You MUST manually update the trust map to enable
+index updating for repos other than the one
+this code lives in (be68e8feccdd).
+
+# Example .infocalypse snippet
+[fmsread_trust_map]
+1 = test0@adnT6a9yUSEWe5p8J-O1i8rJCDPqccY~dVvAmtMuC9Q|55833b3e6419
+0 = djk@isFiaD04zgAgnrEC5XJt1i4IE7AkNPqhBG5bONi6Yks|be68e8feccdd|5582404a9124
+2 = test1@SH1BCHw-47oD9~B56SkijxfE35M9XUvqXLX1aYyZNyA|fab7c8bd2fc3
+
+hg fn-fmsread --list
+
+Displays announced repositories from fms ids that appear in
+the trust map.
+
+hg fn-fmsread --listall
+
+Displays all announced repositories including ones from unknown
+fms ids.
+
+hg fn-fmsnotify
+
+Posts update notifications to fms.
+
+You MUST set the fms_id value in the config file
+to your fms id for this to work. You only need the
+part before the '@'.
+
+# Example .infocalypse snippet
+fms_id = djk
+
+Use --dryrun to double check before sending the actual
+fms message.
+
+Use --announce at least once if you want your USK to
+show up in the fmsread --listall list.
+
+By default notifications are written to and read
+from the infocalypse.notify fms group.
+
+The read and write groups can be changed by editing
+the following variables in the config file:
+
+fmsnotify_group = <group>
+fmsread_groups = <group0>[|<group1>|...]
+
+The fms_host and fms_port variables allow you
+to specify the fms host and port if you run
+fms on a non-standard host/port.
+
+fms can have pretty high latency. Be patient. It may
+take hours (sometimes a day!) for your notification
+to appear.  Don't send lots of redundant notifications.
+
 HINTS:
 The -q, -v and --debug verbosity options are
 supported.
 
 Top level URIs ending in '.R1' are inserted redundantly.
+Don't use this if you are worried about correlation
+attacks.
 
 CONTACT:
 djk@isFiaD04zgAgnrEC5XJt1i4IE7AkNPqhBG5bONi6Yks
@@ -326,8 +406,7 @@ def infocalypse_fmsread(ui_, repo, **opts):
     execute_fmsread(ui_, params, stored_cfg)
 
 def infocalypse_fmsnotify(ui_, repo, **opts):
-    """ Post an update with the current repository USK
-        index to fms.
+    """ Post a msg with the current repository USK index to fms.
     """
     params, stored_cfg = get_config_info(ui_, opts)
     insert_uri = stored_cfg.get_dir_insert_uri(repo.root)

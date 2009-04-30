@@ -863,7 +863,8 @@ def execute_fmsnotify(ui_, repo, params, stored_cfg):
                   stored_cfg.defaults['FMS_PORT'],
                   (msg_tuple, ))
 
-        ui_.status('Notification message sent.\n')
+        ui_.status('Notification message sent.\n'
+                   'Be patient.  It may take up to a day to show up.\n')
     finally:
         cleanup(update_sm)
 
