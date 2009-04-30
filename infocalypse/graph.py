@@ -501,7 +501,7 @@ class UpdateGraph:
                 new_edges.append(self.add_edge(bundle[2], (bundle[0],
                                                            PENDING_INSERT1)))
             else:
-                print "update -- Bundle too big to add redundant CHK: %i" \
+                print "update -- Bundle too big to salt! CHK: %i" \
                       % first_bundle[0]
 
         new_edges = new_edges + self._add_canonical_path_redundancy()
