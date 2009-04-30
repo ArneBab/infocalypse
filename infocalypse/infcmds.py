@@ -711,7 +711,7 @@ def handled_listall(ui_, params, stored_cfg):
         return False
 
     if params['FMSREAD'] == 'listall':
-        parser = USKAnnouncementParser()
+        parser = USKAnnouncementParser(None, True)
         if params['VERBOSITY'] >= 2:
             ui_.status('Listing all repo USKs.\n')
     else:
@@ -721,7 +721,7 @@ def handled_listall(ui_, params, stored_cfg):
             fms_ids.sort()
             ui_.status(("Only listing repo USKs from trusted "
                             + "fms IDs:\n%s\n\n") % '\n'.join(fms_ids))
-        parser = USKAnnouncementParser(trust_map)
+        parser = USKAnnouncementParser(trust_map, True)
 
     recv_msgs(stored_cfg.defaults['FMS_HOST'],
               stored_cfg.defaults['FMS_PORT'],

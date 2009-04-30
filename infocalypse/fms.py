@@ -25,6 +25,8 @@ import StringIO
 from fcpclient import get_usk_hash, get_version, is_usk_file, \
      get_usk_for_usk_version
 
+# Hmmm... This dependency doesn't really belong here.
+from knownrepos import KNOWN_REPOS
 
 MSG_TEMPLATE = """From: %s
 Newsgroups: %s
@@ -259,12 +261,18 @@ class USKAnnouncementParser(IFmsMessageSink):
     """ Class which accumulates USK announcement notifications
         from fms messages. """
     # None means accept all announcements.
-    def __init__(self, trust_map = None):
+    def __init__(self, trust_map = None, include_defaults=False):
         IFmsMessageSink.__init__(self)
         if not trust_map is None:
             trust_map = strip_names(trust_map)
         self.trust_map = trust_map
         self.usks = {}
+        if include_defaults:
+            for owner, usk in KNOWN_REPOS:
+                if ((not trust_map is None) and
+                    (not clean_nym(owner) in trust_map)):
+                    continue
+                self.handle_announcement(owner, usk)
 
     def wants_msg(self, dummy, items):
         """ IFmsMessageSink implementation. """
