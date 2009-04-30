@@ -714,32 +714,32 @@ def handled_listall(ui_, params, stored_cfg):
         parser = USKAnnouncementParser()
         if params['VERBOSITY'] >= 2:
             ui_.status('Listing all repo USKs.\n')
-        else:
-            trust_map = stored_cfg.fmsread_trust_map.copy() # paranoid copy
-            if params['VERBOSITY'] >= 2:
-                fms_ids = trust_map.keys()
-                fms_ids.sort()
-                ui_.status(("Only listing repo USKs from trusted "
+    else:
+        trust_map = stored_cfg.fmsread_trust_map.copy() # paranoid copy
+        if params['VERBOSITY'] >= 2:
+            fms_ids = trust_map.keys()
+            fms_ids.sort()
+            ui_.status(("Only listing repo USKs from trusted "
                             + "fms IDs:\n%s\n\n") % '\n'.join(fms_ids))
-            parser = USKAnnouncementParser(trust_map)
+        parser = USKAnnouncementParser(trust_map)
 
-        recv_msgs(stored_cfg.defaults['FMS_HOST'],
-                  stored_cfg.defaults['FMS_PORT'],
-                  parser,
-                  stored_cfg.fmsread_groups)
+    recv_msgs(stored_cfg.defaults['FMS_HOST'],
+              stored_cfg.defaults['FMS_PORT'],
+              parser,
+              stored_cfg.fmsread_groups)
 
-        if len(parser.usks) == 0:
-            ui_.status("No USKs found.\n")
-            return True
-
-        ui_.status("\n")
-        for usk in parser.usks:
-            usk_entry = parser.usks[usk]
-            ui_.status("USK Hash: %s\n%s\n%s\n\n" %
-                       (get_usk_hash(usk), usk,
-                        '\n'.join(usk_entry)))
-
+    if len(parser.usks) == 0:
+        ui_.status("No USKs found.\n")
         return True
+
+    ui_.status("\n")
+    for usk in parser.usks:
+        usk_entry = parser.usks[usk]
+        ui_.status("USK Hash: %s\n%s\n%s\n\n" %
+                   (get_usk_hash(usk), usk,
+                    '\n'.join(usk_entry)))
+
+    return True
 
 def execute_fmsread(ui_, params, stored_cfg):
     """ Run the fmsread command. """
