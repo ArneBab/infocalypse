@@ -688,7 +688,8 @@ Insert URI:
 %s
 """
 
-def execute_info(ui_, repo, params, stored_cfg):
+def execute_info(ui_, params, stored_cfg):
+    """ Run the info command. """
     request_uri = params['REQUEST_URI']
     if request_uri is None or not is_usk_file(request_uri):
         ui_.status("Only works with USK file URIs.\n")
@@ -708,7 +709,8 @@ def execute_info(ui_, repo, params, stored_cfg):
     ui_.status(INFO_FMT %
                (usk_hash, max_index or -1, request_uri, insert_uri))
 
-def execute_fmsread(ui_, repo, params, stored_cfg):
+def execute_fmsread(ui_, params, stored_cfg):
+    """ Run the fmsread command. """
     action = params['FMSREAD']
     if params['VERBOSITY'] >= 2:
         ui_.status(('Connecting to fms on %s:%i\n'
@@ -781,9 +783,11 @@ def execute_fmsread(ui_, repo, params, stored_cfg):
 
 # REDFLAG: Catch this in config when depersisting?
 def is_none(value):
+    """ Return True if value is None or 'None',  False otherwise. """
     return value is None or value == 'None'
 
 def execute_fmsnotify(ui_, repo, params, stored_cfg):
+    """ Run fmsnotify command. """
     update_sm = None
     try:
         # REDFLAG: dci, test non uri keys

@@ -32,7 +32,7 @@ Subject: %s
 
 %s"""
 
-# msg_tuple = (sender, group, subject, text)
+# Please use this function for good and not evil.
 def send_msgs(fms_host, fms_port, msg_tuples):
     """ Send messages via fms.
     msg_tuple format is: (sender, group, subject, text)
@@ -58,14 +58,24 @@ def send_msgs(fms_host, fms_port, msg_tuples):
 
 
 class IFmsMessageSink:
+    """ Abstract interface for an fms message handler. """
     def __init__(self):
         pass
 
-    def wants_msg(self, group, item):
-        return True
+    def wants_msg(self, group, items):
+        """ Return True if the message should be passed to recv_fms_msg,
+            False, otherwise.
 
-    def recv_fms_msg(self, group, item, lines):
-        pass
+            items is an nntplib xover items tuple.
+            """
+        raise NotImplementedError()
+
+    def recv_fms_msg(self, group, items, lines):
+        """ Handle an fms message.
+
+            items is an nntplib xover items tuple.
+        """
+        raise NotImplementedError()
 
 def recv_msgs(fms_host, fms_port, msg_sink, groups):
     """ Read messages from fms. """
@@ -101,6 +111,7 @@ def recv_msgs(fms_host, fms_port, msg_sink, groups):
 # Infocalypse specific stuff.
 ############################################################
 def clean_nym(fms_id):
+    """ Returns the line noise part of an fms id, after the '@'. """
     pos = fms_id.index('@')
     if pos == -1:
         return fms_id
@@ -159,7 +170,8 @@ def parse(text, is_lines=False):
                 if is_usk_file(fields[1]):
                     announcements.add(fields[1])
                     # Implicit update.
-                    updates.add((get_usk_hash(fields[1]), get_version(fields[1])))
+                    updates.add((get_usk_hash(fields[1]),
+                                 get_version(fields[1])))
             except ValueError:
                 continue
         # else, silently fail... hmmmm
@@ -174,6 +186,7 @@ def parse(text, is_lines=False):
 
 
 def strip_names(trust_map):
+    """ Returns a trust map without human readable names in the keys. """
     clean = {}
     for nym in trust_map:
         cleaned = clean_nym(nym)
@@ -191,10 +204,12 @@ class USKIndexUpdateParser(IFmsMessageSink):
     """ Class which accumulates USK index update notifications
         from fms messages. """
     def __init__(self, trust_map):
+        IFmsMessageSink.__init__(self)
         self.trust_map = strip_names(trust_map)
         self.updates = {}
 
-    def wants_msg(self, group, items):
+    def wants_msg(self, dummy, items):
+        """ IFmsMessageSink implementation. """
         if len(items[5]) != 0:
             # Skip replies
             return False
@@ -206,15 +221,16 @@ class USKIndexUpdateParser(IFmsMessageSink):
 
         return True
 
-    def recv_fms_msg(self, group, items, lines):
-        """ recv_messages message callback implementation. """
+    def recv_fms_msg(self, dummy, items, lines):
+        """ IFmsMessageSink implementation. """
         allowed_hashes = self.trust_map[clean_nym(items[2])]
 
         #print "---\nSender: %s\nSubject: %s\n" % (items[2], items[1])
         for update in parse(lines, True)[0]:
             if update[0] in allowed_hashes:
                 # Only update if the nym is trusted *for the specific USK*.
-                #print "UPDATING ---\nSender: %s\nSubject: %s\n" % (items[2], items[1])
+                #print "UPDATING ---\nSender: %s\nSubject:
+                # %s\n" % (items[2], items[1])
                 self.handle_update(update)
 
     def handle_update(self, update):
@@ -244,12 +260,14 @@ class USKAnnouncementParser(IFmsMessageSink):
         from fms messages. """
     # None means accept all announcements.
     def __init__(self, trust_map = None):
+        IFmsMessageSink.__init__(self)
         if not trust_map is None:
             trust_map = strip_names(trust_map)
         self.trust_map = trust_map
         self.usks = {}
 
-    def wants_msg(self, group, items):
+    def wants_msg(self, dummy, items):
+        """ IFmsMessageSink implementation. """
         if len(items[5]) != 0:
             # Skip replies
             return False
@@ -264,7 +282,8 @@ class USKAnnouncementParser(IFmsMessageSink):
 
         return True
 
-    def recv_fms_msg(self, group, items, lines):
+    def recv_fms_msg(self, dummy, items, lines):
+        """ IFmsMessageSink implementation. """
         #print "---\nSender: %s\nSubject: %s\n" % (items[2], items[1])
         for usk in parse(lines, True)[1]:
             self.handle_announcement(items[2], usk)
@@ -279,8 +298,12 @@ class USKAnnouncementParser(IFmsMessageSink):
 
 HEX_CHARS = frozenset(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
                        'a', 'b', 'c', 'd', 'e', 'f'])
+
+# Really no library function to do this?
 # REQUIRES: Lowercase!
 def is_hex_string(value, length=12):
+    """ Returns True if value is a lowercase hex digit string,
+        False otherwise. """
     if not length is None:
         if len(value) != length:
             raise ValueError("Expected hex string of length: %i" % length)
@@ -294,6 +317,7 @@ def is_hex_string(value, length=12):
 DEFAULT_SUBJECT = 'Ignore'
 def make_update_msg(fms_id, group, updates, announcements=None,
                     subject=DEFAULT_SUBJECT):
+    """ Test function to make message tuples. """
     print "updates: ",  updates
     print "announcements: ", announcements
 
@@ -312,14 +336,9 @@ Group  : %s
 %s
 ---
 """
-class MsgSink(IFmsMessageSink):
-    def __init__(self):
-        IFmsMessageSink.__init__(self)
-
-    def recv_fms_msg(self, group, item, lines):
-        print MSG_FMT % (item[2], item[1], item[3], group, '\n'.join(lines))
 
 def smoke_test():
+    """ Smoke test the functions in this module. """
     #    trust_map = {'djk@isFiaD04zgAgnrEC5XJt1i4IE7AkNPqhBG5bONi6Yks':
     #                 ('be68e8feccdd', ),}
 
@@ -351,7 +370,8 @@ def smoke_test():
                 + 'infocalypse.hgext.R1/12', ))
 
     # Includes implicit update from announcement.
-    values2 = ((('be68e8feccdd', 12), ('be68e8feccdd', 23), ('e246cc31bc42', 3)),
+    values2 = ((('be68e8feccdd', 12), ('be68e8feccdd', 23),
+                ('e246cc31bc42', 3)),
                ('USK@kRM~jJVREwnN2qnA8R0Vt8HmpfRzBZ0j4rHC2cQ-0hw,'
                 + '2xcoQVdQLyqfTpF2DpkdUIbHFCeL4W~2X1phUYymnhM,AQACAAE/'
                 + 'infocalypse.hgext.R1/12',))

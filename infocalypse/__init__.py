@@ -299,7 +299,7 @@ def infocalypse_info(ui_, repo, **opts):
             return
 
     params['REQUEST_URI'] = request_uri
-    execute_info(ui_, repo, params, stored_cfg)
+    execute_info(ui_, params, stored_cfg)
 
 def infocalypse_fmsread(ui_, repo, **opts):
     """ Read repository update information from fms.
@@ -323,7 +323,7 @@ def infocalypse_fmsread(ui_, repo, **opts):
         params['FMSREAD'] = 'update'
     params['DRYRUN'] = opts['dryrun']
     params['REQUEST_URI'] = request_uri
-    execute_fmsread(ui_, repo, params, stored_cfg)
+    execute_fmsread(ui_, params, stored_cfg)
 
 def infocalypse_fmsnotify(ui_, repo, **opts):
     """ Post an update with the current repository USK
@@ -404,7 +404,8 @@ cmdtable = {
 
     "fn-fmsread": (infocalypse_fmsread,
                    [('', 'uri', '', 'request URI'),
-                    ('', 'list', None, 'show repo USKs from trusted fms identities'),
+                    ('', 'list', None, 'show repo USKs from trusted '
+                     + 'fms identities'),
                     ('', 'listall', None, 'show all repo USKs'),
                     ('', 'dryrun', None, "don't update the index cache"),],
                    "[options]"),
