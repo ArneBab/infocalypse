@@ -52,7 +52,6 @@ def send_msgs(fms_host, fms_port, msg_tuples):
             #print raw_msg
             try:
                 server.post(in_file)
-                pass
             finally:
                 in_file.close()
     finally:
@@ -120,7 +119,8 @@ def clean_nym(fms_id):
 
     return fms_id[pos + 1:]
 
-def to_msg_string(updates, announcements=None):
+def to_msg_string(updates, announcements=None,
+                  separator='\n'):
     """ Dump updates and announcements in a format which can
         be read by parse. """
     if updates is None:
@@ -135,21 +135,43 @@ def to_msg_string(updates, announcements=None):
     announcements = list(announcements)
     announcements.sort()
 
-    text = ''
+    # Hmmm... extra loops for assert paranoia.
     for value in announcements:
         assert is_usk_file(value)
-        text += "A:%s\n" % value
 
     for update in updates:
         assert is_hex_string(update[0], 12)
         assert update[1] >= 0
-        text += "U:%s:%i\n" % (update[0], update[1])
 
-    return text
+    tmp = [separator.join(["A:%s" % value for value in announcements]),
+           separator.join(["U:%s:%i" % (update[0], update[1])
+                           for update in updates])]
+    while '' in tmp:
+        tmp.remove('')
+
+    return separator.join(tmp)
+
+def parse_updates(fields, updates):
+    """ Helper function parses updates. """
+    if fields[0] != 'U' or len(fields) < 3:
+        return False
+
+    while len(fields) > 0 and fields[0] == 'U' and len(fields) >= 3:
+        try:
+            if is_hex_string(fields[1]):
+                updates.add((fields[1], int(fields[2])))
+                fields = fields[3:]
+            else:
+                break
+        except ValueError:
+            break
+    # Doesn't imply success, just that we tried.
+    return True
 
 # A grepper, not a parser...
 def parse(text, is_lines=False):
     """ Parse updates and announcements from raw text. """
+
     if is_lines:
         lines = text
     else:
@@ -161,13 +183,10 @@ def parse(text, is_lines=False):
     for line in lines:
         line = line.strip() # Handle crlf bs on Windoze.
         fields = line.split(':')
-        if fields[0] == 'U' and len(fields) >= 3:
-            try:
-                if is_hex_string(fields[1]):
-                    updates.add((fields[1], int(fields[2])))
-            except ValueError:
-                continue
-        elif fields[0] == 'A' and len(fields) >= 2:
+        if parse_updates(fields, updates):
+            continue
+
+        if fields[0] == 'A' and len(fields) >= 2:
             try:
                 if is_usk_file(fields[1]):
                     announcements.add(fields[1])
@@ -413,12 +432,19 @@ def smoke_test():
     # Not values0 because of implicit update.
     assert values1 == values2
 
-    msg = make_update_msg('djk@isFiaD04zgAgnrEC5XJt1i4IE7AkNPqhBG5bONi6Yks'
-                          'test',
-                          'test',
-                          values0[0],
-                          values0[1])
-    send_msgs('127.0.0.1', 11119, (msg, ))
+    # Test sig style update strings.
+    text = to_msg_string(values0[0], None, ':')
+    print text
+    values3 = parse(text)
+    assert values3 == (values0[0], ())
+
+    # msg = make_update_msg('djk@isFiaD04zgAgnrEC5XJt1i4IE7AkNPqhBG5bONi6Yks'
+    #                           'infocalypse.tst',
+    #                           'infocalypse.tst',
+    #                           values0[0],
+    #                           values0[1])
+    # DOH! This goes over the wire
+    #send_msgs('127.0.0.1', 11119, (msg, ))
 
 if __name__ == "__main__":
     smoke_test()
