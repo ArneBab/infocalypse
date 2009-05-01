@@ -1,3 +1,17 @@
+djk20090501
+I added fn-fmsread and fn-fmsnotify to support sending and
+receiving repo update notifications via fms. They are
+documented in __init__.py.
+
+The gensig.py script can be use to publish repo updates
+in your fms signature.
+
+IMPORTANT:
+If you were running an earlier version of the code
+you must fn-push or fn-pull successfully at least once
+before you will see the new fms* config variables in
+your .infocalypse/infocalypse.ini file.
+
 djk20090425
 I reworked the graph representation to handle multiple
 heads correctly.  
@@ -14,6 +28,8 @@ djk20090414
 KNOWN LIMITATIONS:
 o Won't handle repositories with multiple heads correctly.
   I am reworking the graph rep to fix this.
+o Doesn't support hg rollback correctly. 
+  I need to dig into this. Advice welcome.
 
 FCP BUGS:
 o 1208 SSK reinserts of same data fail with code 9.
