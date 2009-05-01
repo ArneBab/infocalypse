@@ -420,8 +420,7 @@ def do_key_setup(ui_, update_sm, params, stored_cfg):
     request_uri = params.get('REQUEST_URI')
     if not request_uri is None and is_usk(request_uri):
         assert not params['NO_SEARCH'] or not request_uri is None
-        # REDFLAG: wtf? cleanup
-        if not request_uri is None and not params['NO_SEARCH']:
+        if not params['NO_SEARCH']:
             max_index = max(stored_cfg.get_index(request_uri),
                             get_version(request_uri))
             request_uri = get_usk_for_usk_version(request_uri, max_index)
@@ -440,7 +439,6 @@ def do_key_setup(ui_, update_sm, params, stored_cfg):
         not params.get('INVERTED_INSERT_URI') is None):
         request_uri = params['INVERTED_INSERT_URI']
         is_keypair = True
-
     return (request_uri, is_keypair)
 
 def handle_updating_config(repo, update_sm, params, stored_cfg,
@@ -620,6 +618,8 @@ def execute_reinsert(ui_, repo, params, stored_cfg):
 
 def execute_push(ui_, repo, params, stored_cfg):
     """ Run the push command. """
+
+    assert params.get('REQUEST_URI', None) is None
     update_sm = None
     try:
         update_sm = setup(ui_, repo, params, stored_cfg)
