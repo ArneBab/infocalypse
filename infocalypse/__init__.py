@@ -235,7 +235,9 @@ from mercurial import commands, util
 
 from infcmds import get_config_info, execute_create, execute_pull, \
      execute_push, execute_setup, execute_copy, execute_reinsert, \
-     execute_info, execute_fmsread, execute_fmsnotify
+     execute_info
+
+from fmscmds import execute_fmsread, execute_fmsnotify
 
 def set_target_version(ui_, repo, opts, params, msg_fmt):
     """ INTERNAL: Update TARGET_VERSION in params. """
