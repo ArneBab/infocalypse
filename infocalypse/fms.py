@@ -205,16 +205,22 @@ def strip_names(trust_map):
 class USKIndexUpdateParser(IFmsMessageSink):
     """ Class which accumulates USK index update notifications
         from fms messages. """
-    def __init__(self, trust_map):
+    def __init__(self, trust_map, keep_untrusted=False):
         IFmsMessageSink.__init__(self)
         self.trust_map = strip_names(trust_map)
         self.updates = {}
+        self.untrusted = None
+        if keep_untrusted:
+            self.untrusted = {}
 
     def wants_msg(self, dummy, items):
         """ IFmsMessageSink implementation. """
         if len(items[5]) != 0:
             # Skip replies
             return False
+
+        if not self.untrusted is None:
+            return True
 
         if clean_nym(items[2]) not in self.trust_map:
             #print "Not trusted: ", items[2]
@@ -225,7 +231,7 @@ class USKIndexUpdateParser(IFmsMessageSink):
 
     def recv_fms_msg(self, dummy, items, lines):
         """ IFmsMessageSink implementation. """
-        allowed_hashes = self.trust_map[clean_nym(items[2])]
+        allowed_hashes = self.trust_map.get(clean_nym(items[2]), ())
 
         #print "---\nSender: %s\nSubject: %s\n" % (items[2], items[1])
         for update in parse(lines, True)[0]:
@@ -233,14 +239,23 @@ class USKIndexUpdateParser(IFmsMessageSink):
                 # Only update if the nym is trusted *for the specific USK*.
                 #print "UPDATING ---\nSender: %s\nSubject:
                 # %s\n" % (items[2], items[1])
-                self.handle_update(update)
+                self.handle_trusted_update(update)
+            else:
+                self.handle_untrusted_update(items[2], update)
 
-    def handle_update(self, update):
+    def handle_trusted_update(self, update):
         """ INTERNAL: Handle a single update. """
         index = update[1]
         value = self.updates.get(update[0], index)
         if index >= value:
             self.updates[update[0]] = index
+
+    def handle_untrusted_update(self, sender, update):
+        """ INTERNAL: Handle a single untrusted update. """
+        entry = self.untrusted.get(update[0], [])
+        if not sender in entry:
+            entry.append(sender)
+        self.untrusted[update[0]] = entry
 
     def updated(self, previous=None):
         """ Returns a USK hash -> index map for USKs which

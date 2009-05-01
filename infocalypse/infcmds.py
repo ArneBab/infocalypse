@@ -714,7 +714,7 @@ def execute_info(ui_, params, stored_cfg):
     ui_.status(INFO_FMT %
                (usk_hash, max_index or -1, request_uri, insert_uri))
 
-def handled_listall(ui_, params, stored_cfg):
+def handled_list(ui_, params, stored_cfg):
     """ INTERNAL: Helper function to simplify execute_fmsread. """
     if params['FMSREAD'] != 'list' and params['FMSREAD'] != 'listall':
         return False
@@ -760,7 +760,7 @@ def execute_fmsread(ui_, params, stored_cfg):
                     ' '.join(stored_cfg.fmsread_groups)))
 
     # Listing announced Repo USKs
-    if handled_listall(ui_, params, stored_cfg):
+    if handled_list(ui_, params, stored_cfg):
         return
 
     # Updating Repo USK indices for repos which are
@@ -768,6 +768,8 @@ def execute_fmsread(ui_, params, stored_cfg):
     # config file.
     trust_map = stored_cfg.fmsread_trust_map.copy() # paranoid copy
     if params['VERBOSITY'] >= 2:
+        if not params['REQUEST_URI'] is None:
+            ui_.status("USK Hash: %s\n" % get_usk_hash(params['REQUEST_URI']))
         fms_ids = trust_map.keys()
         fms_ids.sort()
         ui_.status("Update Trust Map:\n")
@@ -775,19 +777,39 @@ def execute_fmsread(ui_, params, stored_cfg):
             ui_.status("   %s: %s\n" % (fms_id,
                                         ' '.join(trust_map[fms_id])))
         ui_.status("\n")
-    parser = USKIndexUpdateParser(trust_map)
+    ui_.status("Raking through fms messages. This make take a while...\n")
+    parser = USKIndexUpdateParser(trust_map, True)
     recv_msgs(stored_cfg.defaults['FMS_HOST'],
               stored_cfg.defaults['FMS_PORT'],
               parser,
               stored_cfg.fmsread_groups)
     changed = parser.updated(stored_cfg.version_table)
+
+    if params['VERBOSITY'] >= 2:
+        if parser.untrusted and len(parser.untrusted) > 0:
+            text = 'Skipped Untrusted Updates:\n'
+            for usk_hash in parser.untrusted:
+                text += usk_hash + ':\n'
+                fms_ids = parser.untrusted[usk_hash]
+                for fms_id in fms_ids:
+                    text += '   ' + fms_id + '\n'
+            text += '\n'
+            ui_.status(text)
+
     if len(changed) == 0:
         ui_.status('No updates found.\n')
         return
 
-    # Back map to uris ?
-    for usk_hash in changed:
-        ui_.status('%s:%i\n' % (usk_hash, changed[usk_hash]))
+    # Back map to uris ? Can't always do it.
+    if len(changed) > 0:
+        text = 'Updates:\n'
+        for usk_hash in changed:
+            text += '%s:%i\n' % (usk_hash, changed[usk_hash])
+        ui_.status(text)
+        if ((not params['REQUEST_URI'] is None) and
+            get_usk_hash(params['REQUEST_URI']) in changed):
+            ui_.status("Current repo has update to index %s.\n" %
+                       changed[get_usk_hash(params['REQUEST_URI'])])
 
     if params['DRYRUN']:
         ui_.status('Exiting without saving because --dryrun was set.\n')
@@ -795,6 +817,7 @@ def execute_fmsread(ui_, params, stored_cfg):
 
     for usk_hash in changed:
         stored_cfg.update_index(usk_hash, changed[usk_hash])
+
 
     Config.to_file(stored_cfg)
     ui_.status('Saved updated indices.\n')
