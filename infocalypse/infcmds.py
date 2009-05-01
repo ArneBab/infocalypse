@@ -420,6 +420,7 @@ def do_key_setup(ui_, update_sm, params, stored_cfg):
     request_uri = params.get('REQUEST_URI')
     if not request_uri is None and is_usk(request_uri):
         assert not params['NO_SEARCH'] or not request_uri is None
+        # REDFLAG: wtf? cleanup
         if not request_uri is None and not params['NO_SEARCH']:
             max_index = max(stored_cfg.get_index(request_uri),
                             get_version(request_uri))
@@ -650,12 +651,20 @@ def execute_pull(ui_, repo, params, stored_cfg):
     """ Run the pull command. """
     update_sm = None
     try:
+        assert not params['REQUEST_URI'] is None
+        if not params['NO_SEARCH'] and is_usk_file(params['REQUEST_URI']):
+            index = stored_cfg.get_index(params['REQUEST_URI'])
+            if not index is None:
+                # Update index to the latest known value
+                # for the --uri case.
+                params['REQUEST_URI'] = get_usk_for_usk_version(
+                    params['REQUEST_URI'], index)
+
         update_sm = setup(ui_, repo, params, stored_cfg)
         ui_.status("%sRequest URI:\n%s\n" % (is_redundant(params[
             'REQUEST_URI']),
                                              params['REQUEST_URI']))
         #ui_.status("Current tip: %s\n" % hex_version(repo)[:12])
-
         update_sm.start_pulling(params['REQUEST_URI'])
         run_until_quiescent(update_sm, params['POLL_SECS'])
 
