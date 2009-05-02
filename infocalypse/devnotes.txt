@@ -1,3 +1,11 @@
+djk20090502
+I added an explicit format_version field to the config file
+and added code to automatically re-write the config file
+when the version changes.  
+
+Disregard the note about fms* config variables below.
+They will appear 'automagically'.
+
 djk20090501
 I added fn-fmsread and fn-fmsnotify to support sending and
 receiving repo update notifications via fms. They are
