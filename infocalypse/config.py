@@ -38,6 +38,9 @@ else:
 
 DEFAULT_CFG_PATH = '~/%s' % CFG_NAME
 
+# hg version that the format last changed in.
+FORMAT_VERSION = '8c1f129b1df3'
+
 def normalize(usk_or_id):
     """ Returns a USK hash. """
     if usk_or_id.startswith('USK'):
@@ -81,6 +84,8 @@ class Config:
         self.defaults['FMS_PORT'] = 1119
         self.defaults['FMS_ID'] = None # User must set this in config.
         self.defaults['FMSNOTIFY_GROUP'] = DEFAULT_NOTIFICATION_GROUP
+
+        self.defaults['FORMAT_VERSION'] = 'Unknown' # Read from file.
 
     def get_index(self, usk_or_id):
         """ Returns the highest known USK version for a USK or None. """
@@ -147,6 +152,9 @@ class Config:
     def update_defaults(cls, parser, cfg):
         """ INTERNAL: Helper function to simplify from_file. """
         if parser.has_section('default'):
+            if parser.has_option('default', 'format_version'):
+                cfg.defaults['FORMAT_VERSION'] = parser.get('default',
+                                                             'format_version')
             if parser.has_option('default','host'):
                 cfg.defaults['HOST'] = parser.get('default','host')
             if parser.has_option('default','port'):
@@ -242,6 +250,7 @@ class Config:
         file_name = os.path.expanduser(file_name)
         parser = ConfigParser()
         parser.add_section('default')
+        parser.set('default', 'format_version', FORMAT_VERSION)
         parser.set('default', 'host', cfg.defaults['HOST'])
         parser.set('default', 'port', cfg.defaults['PORT'])
         parser.set('default', 'tmp_dir', cfg.defaults['TMP_DIR'])

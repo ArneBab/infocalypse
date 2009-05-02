@@ -43,7 +43,7 @@ from updatesm import UpdateStateMachine, QUIESCENT, FINISHING, REQUESTING_URI, \
      REQUESTING_URI_4_INSERT, INSERTING_BUNDLES, INSERTING_GRAPH, \
      INSERTING_URI, FAILING, REQUESTING_URI_4_COPY, CANCELING, CleaningUp
 
-from config import Config, DEFAULT_CFG_PATH, normalize
+from config import Config, DEFAULT_CFG_PATH, FORMAT_VERSION, normalize
 
 DEFAULT_PARAMS = {
     # FCP params
@@ -186,6 +186,14 @@ def get_config_info(ui_, opts):
         or command line options. """
 
     cfg = Config.from_ui(ui_)
+    if cfg.defaults['FORMAT_VERSION'] != FORMAT_VERSION:
+        ui_.warn(('Updating config file: %s\n'
+                  + 'From format version: %s\nTo format version: %s\n') %
+                 (str(cfg.file_name),
+                  cfg.defaults['FORMAT_VERSION'],
+                  FORMAT_VERSION))
+        Config.to_file(cfg)
+        ui_.warn('Converted OK.\n')
 
     if opts.get('fcphost') != '':
         cfg.defaults['HOST'] = opts['fcphost']
