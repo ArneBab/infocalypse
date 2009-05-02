@@ -25,9 +25,9 @@ USK@0npnMrqZNKRCRoGojZV93UNHCMN-6UU3rRSAmP6jNLE,
 ADDING THE EXTENSION:
 Add the following to your .hgrc/mercurial.ini file.
 
-   # .hgrc snippet
-   [extensions]
-   infocalypse = /path/to/infocalypse_dir
+# .hgrc snippet
+[extensions]
+infocalypse = /path/to/infocalypse_dir
 
 Where infocalypse_dir is the directory containing
 this file.
@@ -63,7 +63,6 @@ what repositories you insert/retrieve.
 
 It's a good idea to keep it on
 a removable drive for maximum security.
-
 
 USAGE EXAMPLES:
 
