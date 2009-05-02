@@ -99,7 +99,7 @@ def execute_fmsread(ui_, params, stored_cfg):
 
     dump_trust_map(ui_, params, trust_map)
 
-    ui_.status("Raking through fms messages. This make take a while...\n")
+    ui_.status("Raking through fms messages. This may take a while...\n")
     parser = USKIndexUpdateParser(trust_map, True)
     recv_msgs(stored_cfg.defaults['FMS_HOST'],
               stored_cfg.defaults['FMS_PORT'],
