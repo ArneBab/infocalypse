@@ -19,7 +19,8 @@
     Author: djk@isFiaD04zgAgnrEC5XJt1i4IE7AkNPqhBG5bONi6Yks
 """
 
-import nntplib
+import os
+import sys
 import StringIO
 
 from fcpclient import get_usk_hash, get_version, is_usk_file, \
@@ -27,6 +28,28 @@ from fcpclient import get_usk_hash, get_version, is_usk_file, \
 
 # Hmmm... This dependency doesn't really belong here.
 from knownrepos import KNOWN_REPOS
+
+import knownrepos # Just need a module to read __file__ from
+
+try:
+    __import__('nntplib')
+except ImportError, err:
+    # nntplib doesn't ship with the Windoze binary hg distro.
+    # so we do some hacks to use a local copy.
+    #print
+    #print "No nntplib? This doesn't look good."
+    parts = os.path.split(os.path.dirname(knownrepos.__file__))
+    if parts[-1] != 'infocalypse':
+        print "nntplib is missing and couldn't hack path. Giving up. :-("
+    else:
+        path = os.path.join(parts[0], 'python2_5_files')
+        sys.path.append(path)
+    # Seems to work ok with 2.6...
+    #print "Put local copies of python2.5 nntplib.py and netrc.py in path..."
+    #print
+# REDFLAG: Research.
+# Can't catch ImportError? Always aborts. ???
+import nntplib
 
 MSG_TEMPLATE = """From: %s
 Newsgroups: %s
