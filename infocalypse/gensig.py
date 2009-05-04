@@ -44,12 +44,12 @@ CFG_PATH = os.path.expanduser(DEFAULT_CFG_PATH)
 STATIC_TEXT = ('Incremental hg repos in Freenet (Not pyfreenethg!):\n'
                + 'USK@-bk9znYylSCOEDuSWAvo5m72nUeMxKkDmH3nIqAeI-0,'
                + 'qfu5H3FZsZ-5rfNBY-jQHS5Ke7AT2PtJWd13IrPZjcg,'
-               + 'AQACAAE/feral_codewright/8/source.html')
+               + 'AQACAAE/feral_codewright/10/source.html')
 
 # Your repo Request (not Insert!) URIs go here:
 #
 # The versions don't matter, they are read from your .infocalpse file.
-# Hmmm... using repo uris means you can broadcast information about
+# Hmmm... using request uris means you can broadcast information about
 # repos you have pulled but didn't insert.
 REPO_USKS = ('USK@kRM~jJVREwnN2qnA8R0Vt8HmpfRzBZ0j4rHC2cQ-0hw,'
              + '2xcoQVdQLyqfTpF2DpkdUIbHFCeL4W~2X1phUYymnhM,'
