@@ -32,18 +32,20 @@ from knownrepos import KNOWN_REPOS
 import knownrepos # Just need a module to read __file__ from
 
 try:
+    #raise ImportError('fake error to test code path')
     __import__('nntplib')
 except ImportError, err:
+    # djk20090506 tested this code path.
     # nntplib doesn't ship with the Windoze binary hg distro.
     # so we do some hacks to use a local copy.
     #print
     #print "No nntplib? This doesn't look good."
-    parts = os.path.split(os.path.dirname(knownrepos.__file__))
-    if parts[-1] != 'infocalypse':
+    PARTS = os.path.split(os.path.dirname(knownrepos.__file__))
+    if PARTS[-1] != 'infocalypse':
         print "nntplib is missing and couldn't hack path. Giving up. :-("
     else:
-        path = os.path.join(parts[0], 'python2_5_files')
-        sys.path.append(path)
+        PATH = os.path.join(PARTS[0], 'python2_5_files')
+        sys.path.append(PATH)
     # Seems to work ok with 2.6...
     #print "Put local copies of python2.5 nntplib.py and netrc.py in path..."
     #print
