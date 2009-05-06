@@ -953,33 +953,6 @@ def get_heads(graph, to_index=None):
     heads.sort()
     return tuple(heads)
 
-def get_huge_top_key_edges(graph, extant=False):
-    """ Get the list of edges in the top key edges (and
-        alternates) that are too big to salt.
-
-        If extant is True, return existing edges.
-        If extent is False, return edges that could be added. """
-    ret = []
-    edges = graph.get_top_key_edges()
-    for edge in edges:
-        if graph.get_length(edge) > MAX_METADATA_HACK_LEN:
-            if edge[2] == 1:
-                assert graph.insert_type(edge) == INSERT_HUGE
-                if extant and (not alternate in ret):
-                    ret.append(edge)
-            else:
-                assert edge[2] == 0
-                assert graph.insert_type(edge) == INSERT_NORMAL
-                alternate = (edge[0], edge[1], 1)
-                if graph.is_redundant(edge):
-                    assert graph.insert_type(alternate) == INSERT_HUGE
-                    if extant and (not alternate in ret):
-                        ret.append(alternate)
-                else:
-                    if (not extant) and (not alternate in ret):
-                        ret.append(alternate)
-
-    return ret
 # ASSUMPTIONS:
 # 0) head which don't appear in bases are tip heads. True?
 

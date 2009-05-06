@@ -23,7 +23,8 @@
 from binascii import hexlify
 
 from graph import FIRST_INDEX, MAX_PATH_LEN, UpdateGraph, \
-     UpdateGraphException, canonical_path_itr
+     UpdateGraphException, canonical_path_itr, edges_containing, INSERT_HUGE, \
+     INSERT_NORMAL, MAX_METADATA_HACK_LEN
 
 ############################################################
 # Doesn't dump FIRST_INDEX entry.
@@ -395,3 +396,80 @@ def minimal_graph(graph, repo, version_table, max_size=32*1024,
 
     return prev_minimal
 
+# REDFLAG: todo, find other places where I should be using this func.
+def find_alternate_edges(graph, edges):
+    """ Find alternate redundant edges that aren't already in edges. """
+    alternate_edges = []
+    for edge in edges:
+        if graph.is_redundant(edge):
+            alternate_edge = (edge[0], edge[1], int(not edge[2]))
+            if not alternate_edge in edges:
+                alternate_edges.append(alternate_edge)
+    return alternate_edges
+
+def find_redundant_edges(graph, current_edges, skip_huge=True):
+    """ Find the edges you would need to add to make current_edges
+        fully redundant.
+
+        Return an (edge_list, failed_indices) with the alternate edges
+        and indices which only appear in a single edge.
+        """
+    def increment_counts(counts, for_edge):
+        """ INTERNAL: Increment count for every index contained by for_edge.
+        """
+        for index in range(for_edge[0] + 1, for_edge[1] + 1):
+            counts[index] = counts[index] + 1
+
+    # Empty redundancy counts for all indexes
+    redundancy = [0, ] * (graph.latest_index + 1)
+
+    edges = set(current_edges)
+    for edge in edges:
+        increment_counts(redundancy, edge)
+
+    failed_indices = []
+    redundant_edges = []
+    for index in range(0, len(redundancy)):
+        if redundancy[index] < 2:
+            candidates = edges_containing(graph, index)
+            while len(candidates) and redundancy[index] < 2:
+                candidate = candidates.pop()
+                if candidate in edges:
+                    continue
+                if graph.insert_type(candidate) == INSERT_HUGE and skip_huge:
+                    continue
+                redundant_edges.append(candidate)
+                increment_counts(redundancy, candidate)
+            if redundancy[index] < 2:
+                failed_indices.append(index)
+
+    return (redundant_edges, failed_indices)
+
+def get_huge_top_key_edges(graph, extant=False):
+    """ Get the list of edges in the top key edges (and
+        alternates) that are too big to salt.
+
+        If extant is True, return existing edges.
+        If extent is False, return edges that could be added. """
+    ret = []
+    edges = graph.get_top_key_edges()
+    edges += find_redundant_edges(graph, edges, False)[0]
+    for edge in edges:
+        if graph.get_length(edge) > MAX_METADATA_HACK_LEN:
+            if edge[2] == 1:
+                assert graph.insert_type(edge) == INSERT_HUGE
+                if extant and (not alternate in ret):
+                    ret.append(edge)
+            else:
+                assert edge[2] == 0
+                assert graph.insert_type(edge) == INSERT_NORMAL
+                alternate = (edge[0], edge[1], 1)
+                if graph.is_redundant(edge):
+                    assert graph.insert_type(alternate) == INSERT_HUGE
+                    if extant and (not alternate in ret):
+                        ret.append(alternate)
+                else:
+                    if (not extant) and (not alternate in ret):
+                        ret.append(alternate)
+
+    return ret

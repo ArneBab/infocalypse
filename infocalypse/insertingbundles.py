@@ -22,8 +22,9 @@
 
 from graph import UpToDate, INSERT_SALTED_METADATA, INSERT_HUGE, \
      FREENET_BLOCK_LEN, build_version_table, get_heads, \
-     PENDING_INSERT1, get_huge_top_key_edges
-from graphutil import graph_to_string
+     PENDING_INSERT1
+from graphutil import graph_to_string, find_redundant_edges, \
+     find_alternate_edges, get_huge_top_key_edges
 from bundlecache import BundleException
 
 from statemachine import RequestQueueState
@@ -283,13 +284,22 @@ class InsertingBundles(RequestQueueState):
                 # Only the latest update.
                 self.new_edges = self.new_edges[:1]
 
-            redundant = []
-            for edge in  self.new_edges:
-                if graph.is_redundant(edge):
-                    alternate_edge = (edge[0], edge[1], int(not edge[2]))
-                    if not alternate_edge in self.new_edges:
-                        redundant.append(alternate_edge)
-            self.new_edges += redundant
+            else:
+                pass
+
+            # Add alternate CHKs for the same bundle.
+            self.new_edges += find_alternate_edges(graph, self.new_edges)
+            if level == 3:
+                # Add CHKs for other bundles to make sure that each
+                # change occurs in at least two CHKS (i.e. edges) if
+                # possible.
+                other_edges, failed = find_redundant_edges(graph,
+                                                           self.new_edges,
+                                                           True)
+                self.new_edges += other_edges
+                for index in failed:
+                    self.parent.ctx.ui_.status("Non-redundant index: %i\n"
+                                               % index)
             for edge in self.new_edges[:]: # Deep copy!
                 if graph.insert_type(edge) == INSERT_HUGE:
                     # User can do this with level == 5
@@ -305,5 +315,5 @@ class InsertingBundles(RequestQueueState):
                 graph.add_edge(edge[:2],
                                (graph.get_length(edge), PENDING_INSERT1))
         elif level == 5: # Reinsert big updates.
-            self.new_edges =  get_huge_top_key_edges(graph, True)
+            self.new_edges = get_huge_top_key_edges(graph, True)
             self._check_new_edges("There are no big edges to re-insert.")
