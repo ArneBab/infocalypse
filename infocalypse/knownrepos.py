@@ -33,7 +33,7 @@ KNOWN_REPOS = (
     ('djk@isFiaD04zgAgnrEC5XJt1i4IE7AkNPqhBG5bONi6Yks',
      'USK@kRM~jJVREwnN2qnA8R0Vt8HmpfRzBZ0j4rHC2cQ-0hw,'
      + '2xcoQVdQLyqfTpF2DpkdUIbHFCeL4W~2X1phUYymnhM,AQACAAE/'
-     + 'fred_staging.R1/0'), # Expiremental git->hg mirror
+     + 'fred_staging.R1/17'), # Expiremental git->hg mirror
     )
 
 
