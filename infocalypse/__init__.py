@@ -203,6 +203,10 @@ Top level URIs ending in '.R1' are inserted redundantly.
 Don't use this if you are worried about correlation
 attacks.
 
+If you see 'abort: Connection refused' when you run
+fn-fmsread or fn-fmsnotify, check fms_host and
+fms_port in the config file.
+
 CONTACT:
 djk@isFiaD04zgAgnrEC5XJt1i4IE7AkNPqhBG5bONi6Yks
 Post to freenet group on FMS.

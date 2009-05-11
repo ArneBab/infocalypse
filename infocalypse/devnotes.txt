@@ -1,3 +1,9 @@
+djk20090511
+Finally, fixed default config creation.
+
+There is a bug which sometimes shows up in re-insert.
+See bottom of this file.
+
 djk20090502
 I added an explicit format_version field to the config file
 and added code to automatically re-write the config file
@@ -31,18 +37,27 @@ top key format.
 djk20090422
 pylint -fparseable --include-ids=y *.py
 
-djk20090414
-
-KNOWN LIMITATIONS:
-o Won't handle repositories with multiple heads correctly.
-  I am reworking the graph rep to fix this.
+------------------------------------------------------------
+KNOWN LIMITATIONS/BUGS:
+------------------------------------------------------------
 o Doesn't support hg rollback correctly. 
   I need to dig into this. Advice welcome.
 
+o reinsert sometimes fails because it can't regenerate a bit-for-bit
+  exact copy of the bundle it is trying to insert.
+  I need to dig into this more.  It looks like command.bundle()
+  is giving me different outputs for the same inputs depending
+  on the repo head????
+
+x Won't handle repositories with multiple heads correctly.
+  I am reworking the graph rep to fix this.
+  [FIXED: eb110e539719]
+
 FCP BUGS:
-o 1208 SSK reinserts of same data fail with code 9.
-  This breaks fn-reinsert.
-o 1208 RemoveRequest kills the FCP connection.
+x 1208 SSK reinserts of same data fail with code 9.
+  This breaks fn-reinsert. [FIXED in 1209]
+x 1208 RemoveRequest kills the FCP connection.
   This can cause fn-pull to fail. 
-  It should work if you run it again.
+  It should work if you run it again. 
+  [FIXED in 1209]
 
