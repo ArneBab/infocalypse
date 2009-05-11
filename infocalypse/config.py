@@ -68,8 +68,8 @@ class Config:
         # repo_id -> insert uri map
         self.insert_usks = {}
         # fms_id -> (usk_hash, ...) map
-        self.fmsread_trust_map = {}
-        self.fmsread_groups = ()
+        self.fmsread_trust_map = DEFAULT_TRUST.copy()
+        self.fmsread_groups = DEFAULT_GROUPS
 
         self.file_name = None
 
@@ -177,8 +177,6 @@ class Config:
             if parser.has_option('default','fmsread_groups'):
                 cfg.fmsread_groups = (parser.get('default','fmsread_groups').
                                       strip().split('|'))
-            else:
-                cfg.fmsread_groups = DEFAULT_GROUPS
 
     @classmethod
     def from_file(cls, file_name):
@@ -201,6 +199,7 @@ class Config:
 
         # ignored = fms_id|usk_hash|usk_hash|...
         if parser.has_section('fmsread_trust_map'):
+            cfg.fmsread_trust_map.clear() # Wipe defaults.
             for ordinal in parser.options('fmsread_trust_map'):
                 fields = parser.get('fmsread_trust_map',
                                     ordinal).strip().split('|')
@@ -212,8 +211,7 @@ class Config:
                     raise ValueError("No USK hashes for fms id: %s?" %
                                      fields[0])
                 cfg.fmsread_trust_map[fields[0]] = tuple(fields[1:])
-        else:
-            cfg.fmsread_trust_map = DEFAULT_TRUST
+
 
         Config.update_defaults(parser, cfg)
 
