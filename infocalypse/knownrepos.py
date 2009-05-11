@@ -22,19 +22,37 @@
     let me know and I'll add it.
 """
 
+from fcpclient import get_usk_hash
+
 # Not sure about this. Flat text file instead?
 KNOWN_REPOS = (
     ('djk@isFiaD04zgAgnrEC5XJt1i4IE7AkNPqhBG5bONi6Yks',
      'USK@kRM~jJVREwnN2qnA8R0Vt8HmpfRzBZ0j4rHC2cQ-0hw,'
-    + '2xcoQVdQLyqfTpF2DpkdUIbHFCeL4W~2X1phUYymnhM,AQACAAE/'
-    + 'infocalypse.hgext.R1/23'),
+     + '2xcoQVdQLyqfTpF2DpkdUIbHFCeL4W~2X1phUYymnhM,AQACAAE/'
+     + 'infocalypse.hgext.R1/28'), # This code.
+    ('djk@isFiaD04zgAgnrEC5XJt1i4IE7AkNPqhBG5bONi6Yks',
+     'USK@kRM~jJVREwnN2qnA8R0Vt8HmpfRzBZ0j4rHC2cQ-0hw,'
+     + '2xcoQVdQLyqfTpF2DpkdUIbHFCeL4W~2X1phUYymnhM,AQACAAE/'
+     + 'fred_staging.R1/0'), # Expiremental git->hg mirror
     )
 
-# LATER: Compile from KNOWN_REPOS? To risky?
-DEFAULT_TRUST = {
-    'djk@isFiaD04zgAgnrEC5XJt1i4IE7AkNPqhBG5bONi6Yks':
-    ('be68e8feccdd', ),
-    }
+
+def build_trust_list(id_usk_list):
+    """ INTERNAL: Compile the default trust map from a list of
+        (trusted_fms_id, USK) tuples. """
+    table = {}
+    for fms_id, usk in id_usk_list:
+        hashes = table.get(fms_id, [])
+        usk_hash = get_usk_hash(usk)
+        if not usk_hash in hashes:
+            hashes.append(usk_hash)
+        table[fms_id] = hashes
+    for fms_id in table.keys()[:]:
+        table[fms_id] = tuple(table[fms_id])
+    return table
+
+# fms_id -> (usk_hash0, ..., usk_hashn) map
+DEFAULT_TRUST = build_trust_list(KNOWN_REPOS)
 
 DEFAULT_GROUPS = ('infocalypse.notify', )
 DEFAULT_NOTIFICATION_GROUP = 'infocalypse.notify'
