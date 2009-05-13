@@ -108,6 +108,8 @@ def recv_msgs(fms_host, fms_port, msg_sink, groups):
     server = nntplib.NNTP(fms_host, fms_port)
     try:
         for group in groups:
+            if not group or group.strip() == '':
+                raise ValueError("Empty group names are not allowed.")
             result = server.group(group)
             if result[1] == '0':
                 continue

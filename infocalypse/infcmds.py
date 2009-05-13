@@ -44,6 +44,7 @@ from updatesm import UpdateStateMachine, QUIESCENT, FINISHING, REQUESTING_URI, \
      INSERTING_URI, FAILING, REQUESTING_URI_4_COPY, CANCELING, CleaningUp
 
 from config import Config, DEFAULT_CFG_PATH, FORMAT_VERSION, normalize
+from knownrepos import DEFAULT_TRUST, DEFAULT_GROUPS
 
 DEFAULT_PARAMS = {
     # FCP params
@@ -192,6 +193,14 @@ def get_config_info(ui_, opts):
                  (str(cfg.file_name),
                   cfg.defaults['FORMAT_VERSION'],
                   FORMAT_VERSION))
+
+        # Hacks to clean up variables that were set wrong.
+        if not cfg.fmsread_trust_map:
+            ui_.warn('Set default trust map.\n')
+            cfg.fmsread_trust_map = DEFAULT_TRUST.copy()
+        if not cfg.fmsread_groups or cfg.fmsread_groups == ['', ]:
+            ui_.warn('Set default fmsread groups.\n')
+            cfg.fmsread_groups = DEFAULT_GROUPS
         Config.to_file(cfg)
         ui_.warn('Converted OK.\n')
 
