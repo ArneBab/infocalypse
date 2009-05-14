@@ -183,6 +183,9 @@ class Config:
         """ Make a Config from a file. """
         file_name = os.path.expanduser(file_name)
         parser = ConfigParser()
+        # IMPORTANT: Turn off downcasing of option names.
+        parser.optionxform = str
+
         parser.read(file_name)
         cfg = Config()
         if parser.has_section('index_values'):
@@ -247,6 +250,11 @@ class Config:
                 file_name = cfg.file_name
         file_name = os.path.expanduser(file_name)
         parser = ConfigParser()
+
+        # MUST do this or directory names get mangled.
+        # IMPORTANT: Turn off downcasing of option names.
+        parser.optionxform = str
+
         parser.add_section('default')
         parser.set('default', 'format_version', FORMAT_VERSION)
         parser.set('default', 'host', cfg.defaults['HOST'])
