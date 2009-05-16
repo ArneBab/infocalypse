@@ -20,7 +20,7 @@ server.
 
 For more information on FMS see:
 USK@0npnMrqZNKRCRoGojZV93UNHCMN-6UU3rRSAmP6jNLE,
-   ~BG-edFtdCC1cSH4O3BWdeIYa8Sw5DfyrSV-TKdO5ec,AQACAAE/fms/98/
+   ~BG-edFtdCC1cSH4O3BWdeIYa8Sw5DfyrSV-TKdO5ec,AQACAAE/fms/100/
 
 ADDING THE EXTENSION:
 Add the following to your .hgrc/mercurial.ini file.
@@ -138,6 +138,8 @@ determines which fms ids can update which repositories.
 The format is:
 <number> = <fms_id>|<usk_hash0>|<usk_hash1>| ... |<usk_hashn>
 
+The number value must be unique, but is ignored.
+
 You can get the repository hash for a repo by running
 fn-info in the directory where you have fn-pull'ed it.
 
@@ -206,6 +208,15 @@ attacks.
 If you see 'abort: Connection refused' when you run
 fn-fmsread or fn-fmsnotify, check fms_host and
 fms_port in the config file.
+
+SOURCE CODE:
+The authoritative repository for this code is hosted in Freenet.
+
+# hg fn-fmsread -v
+hg fn-pull --debug --aggressive \\
+--uri USK@kRM~jJVREwnN2qnA8R0Vt8HmpfRzBZ0j4rHC2cQ-0hw,\\
+2xcoQVdQLyqfTpF2DpkdUIbHFCeL4W~2X1phUYymnhM,AQACAAE/\\
+infocalypse.hgext.R1/31
 
 CONTACT:
 djk@isFiaD04zgAgnrEC5XJt1i4IE7AkNPqhBG5bONi6Yks
