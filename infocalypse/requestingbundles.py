@@ -38,7 +38,6 @@ from statemachine import RetryingRequestList, CandidateRequest
 
 from chk import clear_control_bytes
 
-# REDFLAG: Make sure that you are copying lists. eg. updates
 # FUNCTIONAL REQUIREMENTS:
 # 0) Update as fast as possible
 # 1) Single block fetch alternate keys.
@@ -48,20 +47,12 @@ from chk import clear_control_bytes
 # 5) Optionally disable alternate single block fetching?
 # ?6) serialize? Easier to write from scratch?
 
-# No graph case
-# CHKs ARE EDGES! dont need to store extra state
-# can bootstrap from a chk_list -> edges (slowly)
-#
-# Can unwind padding hack w/o graph
-# len < 32K done
-# len == 32K re-request DONE
-
 # What this does:
 # 0) Fetches graph(s)
 # 1) Fetches early bundles in parallel with graphs
 # 2) Fixes up pending requests to graph edges when the graph arrives
 # 3) Handles metadata salting for bundle requests
-# 4) Keeps track of what requests are required to update and request them.
+# 4) Keeps track of what requests are required to update and requests them.
 
 # a candidate is a list:
 # [CHK, tries, single_block, edge_triple, update_data, msg, is_graph_request]
@@ -88,11 +79,6 @@ class RequestingBundles(RetryingRequestList):
         self._initialize()
         #self.dump()
 
-    # REDFLAG: delete this?
-    def leave(self, to_state):
-        """ Implementation of State virtual. """
-        pass
-
     def reset(self):
         """ Implementation of State virtual. """
         #print "reset -- pending: ", len(self.pending)
@@ -118,7 +104,7 @@ class RequestingBundles(RetryingRequestList):
                                      + "machine stalled.\n")
             self.parent.transition(self.failure_state)
 
-    # DONT add to pending. Base clase does that.
+    # DONT add to pending. Base class does that.
     def make_request(self, candidate):
         """ Implementation of RetryingRequestList virtual. """
         #print "CANDIDATE: ", candidate
@@ -158,10 +144,7 @@ class RequestingBundles(RetryingRequestList):
         return request
 
     ############################################################
-
-
     # DEALING: With partial heads, partial bases?
-
     # REDFLAG: deal with optional request serialization?
     # REDFLAG: Move
     # ASSUMPTION: Keys are in descenting order of latest_rev.
@@ -521,8 +504,6 @@ class RequestingBundles(RetryingRequestList):
         self._handle_graph_failure(candidate)
         return True
 
-    # REDFLAG: move
-    # REDFLAG: Too slow?
     def _force_single_block(self, edge):
         """ INTERNAL: Make sure there is only one non-single-block request
             running for a redundant edge. """
@@ -550,7 +531,6 @@ class RequestingBundles(RetryingRequestList):
                 if chk.split(',')[:-1] == target:
                     # Reset the CHK because the control bytes were zorched.
                     candidate[0] = chk
-                    #candidate[1] += 1
                     candidate[2] = False
                     candidate[5] = None # Reset!
                     self.current_candidates.insert(0, candidate)
@@ -926,7 +906,7 @@ class RequestingBundles(RetryingRequestList):
                 graph.index_table[step[1]][1])
 
     def _known_chks(self):
-        """ INTERNAL: Returns a tuple of sets off all CHKs which are
+        """ INTERNAL: Returns a tuple of sets of all CHKs which are
             pending, currently scheduled, scheduled next or already
             finished. """
         return (set([candidate[0] for candidate in
@@ -938,9 +918,20 @@ class RequestingBundles(RetryingRequestList):
     # REDFLAG: need to fix these to skip graph special case candidates
     # otherwise you get a None in the sets.
     def _known_edges(self):
-        """ INTERNAL: Returns a tuple of sets off all edges which are
+        """ INTERNAL: Returns a tuple of sets of all edges which are
             pending, currently scheduled, scheduled next or already
             finished. """
+
+        def process_queue(queue, never_run=None):
+            """ INTERNAL: Helper function to reduce c&p. """
+            ret = set([])
+            for candidate in queue:
+                if candidate[3] is None:
+                    continue
+                ret.add(candidate[3])
+                if not never_run is None and candidate[1] <= 0:
+                    never_run.add(candidate[3])
+            return ret
 
         never_run = set([])
 
@@ -948,30 +939,9 @@ class RequestingBundles(RetryingRequestList):
                        self.pending_candidates()
                        if not candidate[3] is None])
 
-        current = set([])
-        for candidate in self.current_candidates:
-            if candidate[3] is None:
-                continue
-            current.add(candidate[3])
-            if candidate[1] <= 0:
-                never_run.add(candidate[3])
-
-        next = set([])
-        for candidate in self.next_candidates:
-            if candidate[3] is None:
-                continue
-            next.add(candidate[3])
-            if candidate[1] <= 0:
-                never_run.add(candidate[3])
-
-        finished = set([])
-        for candidate in self.finished_candidates:
-            if candidate[3] is None:
-                continue
-            finished.add(candidate[3])
-            #if candidate[1] <= 0:
-            #    print "Finished candidate never ran???", candidate[3]
-
+        current = process_queue(self.current_candidates, never_run)
+        next = process_queue(self.next_candidates, never_run)
+        finished = process_queue(self.finished_candidates)
         return (pending, current, next, finished, never_run)
 
     def _remove_unrun(self, never_run):
@@ -984,12 +954,6 @@ class RequestingBundles(RetryingRequestList):
                     queue.remove(candidate)
                     never_run.remove(candidate[3])
         assert len(never_run) == 0
-
-#         return (set([candidate[3] for candidate in
-#                      self.pending_candidates()]),
-#                 set([candidate[3] for candidate in self.current_candidates]),
-#                 set([candidate[3] for candidate in self.next_candidates]),
-#                 set([candidate[3] for candidate in self.finished_candidates]))
 
 
     ############################################################
