@@ -657,7 +657,7 @@ class RequestingBundles(RetryingRequestList):
         if not self.parent.ctx.graph.is_redundant(edge):
             return False
 
-        pending, current, next, finished = self._known_edges()
+        pending, current, next, finished, dummy = self._known_edges()
         # Must include finished! REDFLAG: re-examine other cases.
         all_edges = pending.union(current).union(next).union(finished)
         alternate_edge = (edge[0], edge[1], int(not edge[2]))
@@ -810,18 +810,18 @@ class RequestingBundles(RetryingRequestList):
         #           "All paths %i -> %i" % (index + 1, latest))
 
         # Find all extant edges.
-        pending, current, next, finished = self._known_edges()
-        all_edges = pending.union(current).union(next).union(finished)
+        pending, current, next, finished, never_run = self._known_edges()
+         # Ignore edges which have never been run.
+        self._remove_unrun(never_run)
+        all_edges = pending.union(current).union(next).union(finished) \
+                    - never_run
         #print "sets:", pending, current, next, finished
         #print "finished_candidates: ", self.finished_candidates
         if None in all_edges:
             all_edges.remove(None)
 
         assert not None in all_edges
-        # BUG: What if an existing edge would be better?
-        #      i.e. how do you know to queue the new edges after
-        #      the better existing  ones?
-        #      Is this just a problem with edges queued before graph?
+
         # Find the edges we need to update.
         first, second = get_update_edges(graph, index, redundancy, True,
                                          all_edges)
@@ -868,7 +868,6 @@ class RequestingBundles(RetryingRequestList):
         chk = self.parent.ctx.graph.get_chk(edge)
         candidate = [chk,
                      0, single_block, edge, None, None, False]
-
         candidate_list.insert(0, candidate)
 
     def _remove_old_candidates(self):
@@ -943,11 +942,54 @@ class RequestingBundles(RetryingRequestList):
             pending, currently scheduled, scheduled next or already
             finished. """
 
-        return (set([candidate[3] for candidate in
-                     self.pending_candidates()]),
-                set([candidate[3] for candidate in self.current_candidates]),
-                set([candidate[3] for candidate in self.next_candidates]),
-                set([candidate[3] for candidate in self.finished_candidates]))
+        never_run = set([])
+
+        pending = set([candidate[3] for candidate in
+                       self.pending_candidates()
+                       if not candidate[3] is None])
+
+        current = set([])
+        for candidate in self.current_candidates:
+            if candidate[3] is None:
+                continue
+            current.add(candidate[3])
+            if candidate[1] <= 0:
+                never_run.add(candidate[3])
+
+        next = set([])
+        for candidate in self.next_candidates:
+            if candidate[3] is None:
+                continue
+            next.add(candidate[3])
+            if candidate[1] <= 0:
+                never_run.add(candidate[3])
+
+        finished = set([])
+        for candidate in self.finished_candidates:
+            if candidate[3] is None:
+                continue
+            finished.add(candidate[3])
+            #if candidate[1] <= 0:
+            #    print "Finished candidate never ran???", candidate[3]
+
+        return (pending, current, next, finished, never_run)
+
+    def _remove_unrun(self, never_run):
+        """ INTERNAL: Remove edges that have never been run from the
+            current and next queues. """
+        never_run = never_run.copy()
+        for queue in (self.current_candidates, self.next_candidates):
+            for candidate in queue[:]:
+                if candidate[3] in never_run:
+                    queue.remove(candidate)
+                    never_run.remove(candidate[3])
+        assert len(never_run) == 0
+
+#         return (set([candidate[3] for candidate in
+#                      self.pending_candidates()]),
+#                 set([candidate[3] for candidate in self.current_candidates]),
+#                 set([candidate[3] for candidate in self.next_candidates]),
+#                 set([candidate[3] for candidate in self.finished_candidates]))
 
 
     ############################################################
