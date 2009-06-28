@@ -448,7 +448,12 @@ class InsertingGraph(StaticRequestList):
         while (len(top_key_tuple_to_bytes((chks, updates))) >= MAX_SSK_LEN
                and index >= 0):
             victim = list(updates[index])
-            victim[1] = victim[1 + int(zorch_base)][:1] # Discard versions
+            # djk20090628 -- There was a bad b_ug here until c47cb6a56d80 which
+            #                caused revs not to be discarded. This resulted in
+            #                topkey data which was larger than expected.
+            #
+            # Discard versions
+            victim[1 + int(zorch_base)] = victim[1 + int(zorch_base)][:1]
             victim[4 + int(zorch_base)] = False
             updates[index] = tuple(victim)
             if not zorch_base:
