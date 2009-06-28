@@ -171,7 +171,7 @@ class UICallbacks:
 # I use this value to keep from running code which isn't
 # required.
 def get_verbosity(ui_):
-    """ INTERNAL: Get the verbosity levl from the state of a ui. """
+    """ INTERNAL: Get the verbosity level from the state of a ui. """
     if ui_.debugflag:
         return 5 # Graph, candidates, canonical paths
     elif ui_.verbose:
