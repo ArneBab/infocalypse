@@ -252,12 +252,6 @@ class CleaningUp(Canceling):
         if len(self.pending) == 0:
             self.parent.transition(self.finished_state)
 
-# Uses:
-# Inserting Graph -- insert 2 chks
-# Inserting URI -- insert up to 2 keys
-# Requesting URI -- request up to 2 keys
-# Requesting Graph -- request up to 2
-
 # candidate is:
 #[uri, tries, is_insert, raw_data, mime_type, last_msg]
 class StaticRequestList(RetryingRequestList):
