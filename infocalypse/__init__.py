@@ -197,12 +197,52 @@ fms can have pretty high latency. Be patient. It may
 take hours (sometimes a day!) for your notification
 to appear.  Don't send lots of redundant notifications.
 
+FREESITE INSERTION:
+hg fn-putsite --index <n>
+
+inserts a freesite based on the configuration in
+the freesite.cfg file in the root of the repository.
+
+Use:
+hg fn-putsite --createconfig
+
+to create a basic freesite.cfg file that you
+can modify. Look at the comments in it for an
+explanation of the supported parameters.
+
+The default freesite.cfg file inserts using the
+same private key as the repo and a site name
+of 'default'. Editing the name is highly
+recommended.
+
+You can use --key CHK@ to insert a test version of
+the site to a CHK key before writing to the USK.
+
+Limitations:
+o You MUST have fn-pushed the repo at least once
+  in order to insert using the repo's private key.
+  If you haven't fn-push'd you'll see this error:
+  "You don't have the insert URI for this repo.
+  Supply a private key with --key or fn-push the repo."
+o Inserts *all* files in the site_dir directory in
+  the freesite.cfg file.  Run with --dryrun to make
+  sure that you aren't going to insert stuff you don't
+  want too.
+o You must manually specify the USK edition you want
+  to insert on.  You will get a collision error
+  if you specify an index that was already inserted.
+o Don't use this for big sites.  It should be fine
+  for notes on your project.  If you have lots of images
+  or big binary files use a tool like jSite instead.
+o Don't modify site files while the fn-putsite is
+  running.
+
 HINTS:
 The -q, -v and --debug verbosity options are
 supported.
 
 Top level URIs ending in '.R1' are inserted redundantly.
-Don't use this if you are worried about correlation
+Don't use this if you're worried about correlation
 attacks.
 
 If you see 'abort: Connection refused' when you run
@@ -252,6 +292,8 @@ from infcmds import get_config_info, execute_create, execute_pull, \
      execute_info
 
 from fmscmds import execute_fmsread, execute_fmsnotify
+
+from sitecmds import read_freesite_cfg, execute_putsite, execute_genkey
 
 def set_target_version(ui_, repo, opts, params, msg_fmt):
     """ INTERNAL: Update TARGET_VERSION in params. """
@@ -437,6 +479,56 @@ def infocalypse_fmsnotify(ui_, repo, **opts):
     params['INSERT_URI'] = insert_uri
     execute_fmsnotify(ui_, repo, params, stored_cfg)
 
+MSG_BAD_INDEX = 'You must set --index to a value >= 0.'
+def infocalypse_putsite(ui_, repo, **opts):
+    """ Insert an update to a freesite.
+    """
+
+    if opts['createconfig']:
+        params = {'SITE_CREATE_CONFIG':True}
+        execute_putsite(ui_, repo, params)
+        return
+
+    params, stored_cfg = get_config_info(ui_, opts)
+    if opts['key'] != '': # order important
+        params['SITE_KEY'] = opts['key']
+        if not (params['SITE_KEY'].startswith('SSK') or
+                params['SITE_KEY'] == 'CHK@'):
+            raise util.Abort("--key must be a valid SSK "
+                             + "insert key or CHK@.")
+    read_freesite_cfg(ui_, repo, params, stored_cfg)
+
+    try:
+        # --index not required for CHK@
+        if not params['SITE_KEY'].startswith('CHK'):
+            params['SITE_INDEX'] = int(opts['index'])
+            if params['SITE_INDEX'] < 0:
+                raise ValueError()
+        else:
+            params['SITE_INDEX'] = -1
+    except ValueError:
+        raise util.Abort(MSG_BAD_INDEX)
+    except TypeError:
+        raise util.Abort(MSG_BAD_INDEX)
+
+    params['DRYRUN'] = opts['dryrun']
+
+    if not params.get('SITE_KEY', None):
+        insert_uri = stored_cfg.get_dir_insert_uri(repo.root)
+        if not insert_uri:
+            ui_.warn("You don't have the insert URI for this repo.\n"
+                     + "Supply a private key with --key or fn-push "
+                     + "the repo.\n")
+            return # REDFLAG: hmmm... abort?
+        params['SITE_KEY'] = 'SSK' + insert_uri.split('/')[0][3:]
+
+    execute_putsite(ui_, repo, params)
+
+def infocalypse_genkey(ui_, **opts):
+    """ Print a new SSK key pair. """
+    params, dummy = get_config_info(ui_, opts)
+    execute_genkey(ui_, params)
+
 def infocalypse_setup(ui_, **opts):
     """ Setup the extension for use for the first time. """
 
@@ -511,6 +603,18 @@ cmdtable = {
                      + FCP_OPTS, # Needs to invert the insert uri
                      "[options]"),
 
+    "fn-putsite": (infocalypse_putsite,
+                     [('', 'dryrun', None, "don't insert site"),
+                     ('', 'index', -1, "edition to insert"),
+                     ('', 'createconfig', None, "create default freesite.cfg"),
+                     ('', 'key', '', "private SSK to insert under"),]
+                     + FCP_OPTS,
+                     "[options]"),
+
+    "fn-genkey": (infocalypse_genkey,
+                  FCP_OPTS,
+                  "[options]"),
+
     "fn-setup": (infocalypse_setup,
                  [('', 'tmpdir', '~/infocalypse_tmp', 'temp directory'),]
                  + FCP_OPTS,
@@ -519,4 +623,5 @@ cmdtable = {
 
 
 commands.norepo += ' fn-setup'
+commands.norepo += ' fn-genkey'
 
