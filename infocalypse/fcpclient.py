@@ -66,6 +66,9 @@ def get_file_infos(directory, forced_mime_type=None, accept_regex = None):
             if os.path.isfile(full_name):
                 base = file_info[0]
                 local_path = full_name.replace(base, '')
+                # REDFLAG: More principled way to do this?
+                # Fix slashes on windows.
+                local_path = local_path.replace('\\', '/') 
                 if file_info[2] and not file_info[2].match(local_path):
                     # Skip files rejected by the regex
                     continue
