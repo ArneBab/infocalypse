@@ -1,3 +1,13 @@
+djk20090703
+Smoke tested fn-pull / fn-push / fn-fmsread on Windows XP using 
+Mercurial Distributed SCM (version 1.2.1)
+from http://mercurial.berkwood.com/
+No problems.
+
+fn-putsite works on XP after fix in 7e118c550744.
+
+Successfully pulled fred_staging/82/ on XP.
+
 djk20090511
 Finally, fixed default config creation.
 
