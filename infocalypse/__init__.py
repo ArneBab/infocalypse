@@ -249,6 +249,10 @@ If you see 'abort: Connection refused' when you run
 fn-fmsread or fn-fmsnotify, check fms_host and
 fms_port in the config file.
 
+MORE DOCUMENTATION:
+See doc/infocalypse_howto.html in the directory this
+extension was installed into.
+
 SOURCE CODE:
 The authoritative repository for this code is hosted in Freenet.
 
@@ -256,7 +260,7 @@ The authoritative repository for this code is hosted in Freenet.
 hg fn-pull --debug --aggressive \\
 --uri USK@kRM~jJVREwnN2qnA8R0Vt8HmpfRzBZ0j4rHC2cQ-0hw,\\
 2xcoQVdQLyqfTpF2DpkdUIbHFCeL4W~2X1phUYymnhM,AQACAAE/\\
-infocalypse.hgext.R1/31
+infocalypse.hgext.R1/37
 
 CONTACT:
 djk@isFiaD04zgAgnrEC5XJt1i4IE7AkNPqhBG5bONi6Yks

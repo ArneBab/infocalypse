@@ -1,3 +1,6 @@
+djk20090706
+Added doc/infocalypse_howto.html 
+
 djk20090703
 Smoke tested fn-pull / fn-push / fn-fmsread on Windows XP using 
 Mercurial Distributed SCM (version 1.2.1)
@@ -7,6 +10,18 @@ No problems.
 fn-putsite works on XP after fix in 7e118c550744.
 
 Successfully pulled fred_staging/82/ on XP.
+
+djk20090702
+Minimum required mercurial version is (and probably has been for a
+while) 1.2.1.
+
+That's the only rev. I've been testing with.
+
+djk20090620
+Re-insert failures are caused by a Mercurial bug
+see Limitations below.
+
+http://www.selenic.com/mercurial/bts/issue1704
 
 djk20090511
 Finally, fixed default config creation.
@@ -58,6 +73,9 @@ o reinsert sometimes fails because it can't regenerate a bit-for-bit
   I need to dig into this more.  It looks like command.bundle()
   is giving me different outputs for the same inputs depending
   on the repo head????
+  djk20090620
+  This is a Mercurial bug:
+  http://www.selenic.com/mercurial/bts/issue1704
 
 x Won't handle repositories with multiple heads correctly.
   I am reworking the graph rep to fix this.

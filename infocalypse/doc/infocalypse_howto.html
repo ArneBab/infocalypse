@@ -1,0 +1,621 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2">
+<html>
+<head>
+<title>
+HOWTO: Infocalypse 2.0 hg extension
+</title>
+</head>
+<body>
+
+<hr>
+<h1>HOWTO: Infocalypse 2.0 hg extension</h1>
+<hr>
+<h2><a name="toc"> Table of Contents</a></h2>
+<ul>
+<li> <a href="#introduction">Introduction</a>
+<li> <a href="#requirements">Requirements</a>
+<li> <a href="#installation">Installation</a>
+<li> <a href="#background">Background</a>
+<li> <a href="#basic">Basic Usage</a>
+    <ul>
+       <li> <a href="#fn_genkey">Generating a new private key</a>
+       <li> <a href="#fn_create">Creating a new repository</a>
+       <li> <a href="#fn_push">Pushing to a repository</a>
+       <li> <a href="#fn_pull">Pulling from a repository</a>
+    </ul>
+<li><a href="#fms_overview">Using FMS to send and receive update notifications</a>
+  <ul>
+      <li> <a href="#fms_trust_map">The update trust map</a>
+      <li> <a href="#fms_read">Reading other peoples notifications</a>
+      <li> <a href="#fms_post">Posting your own</a>
+  </ul>
+<li> <a href="#fn_reinsert">Reinserting and 'sponsoring' repositories</a>
+<li> <a href="#forking">Forking a repository onto a new USK</a>
+<li> <a href="#key_sharing">Sharing private keys</a>
+<li> <a href="#fn_putsite">Inserting a freesite</a>
+<li> <a href="#risks">Risks</a>
+<li> <a href="#advocacy">Advocacy</a>
+<li> <a href="#source_code">Source Code</a>
+<li> <a href="#contact">Contact</a>
+</ul>
+<hr>
+
+<h2><a name="introduction">Introduction</a></h2>
+The Infocalypse 2.0 hg extension is an extension for Mercurial that allows you to create,
+publish and maintain <em>incrementally</em> updateable repositories in
+Freenet.
+<p> 
+It works <a href="#advocacy">better</a> than the other DVCS currently available for Freenet.
+<p>
+Most of the information you will find in this document can also be found in the extension's
+online help. i.e.:
+<pre>
+hg help infocalypse
+</pre>
+<p>
+<a href="#toc">[TOC]</a>
+<hr>
+<h2><a name="requirements">Requirements</a></h2>
+The extension has the following dependencies:
+<ul>
+<li> Freenet <br>
+You can more information on Freenet here: <br>
+<a href="http://freenetproject.org/">http://freenetproject.org/ [HTTP Link!]</a>
+<p>
+<li> Python<br>
+I test on Python 2.5.4 and 2.6.1. Any 2.5.x or later version should work. Earlier versions may work.
+<p>
+You probably won't have to worry about installing Python.  It's
+included in the Windows binary Mercurial distributions and most *nix
+flavor OS's should have a reasonably update to date version of Python
+installed.
+<p>
+<li> Mercurial<br>
+You can find more information on Mercurial here: <br>
+<a href="http://mercurial.selenic.com/wiki/">http://mercurial.selenic.com/wiki/ [HTTP Link!]</a>
+<p>
+I've tested with version 1.2.1.  Later versions should work. Version 1.0.2 won't
+work.<p>
+<li>FMS<br>
+Installation of the Freenet Messaging System (FMS) is <em>optional</em> but
+<em>highly recommended</em>.  The hg fn-fmsread and hg fn-fmsnotify commands won't work
+without FMS.  Without fn-fmsread it is extremely difficult to reliably detect repository updates.
+<p>
+The Official FMS freesite is here:
+<pre>
+<a href = "USK@0npnMrqZNKRCRoGojZV93UNHCMN-6UU3rRSAmP6jNLE,~BG-edFtdCC1cSH4O3BWdeIYa8Sw5DfyrSV-TKdO5ec,AQACAAE/fms/103/">USK@0npnMrqZNKRCRoGojZV93UNHCMN-6UU3rRSAmP6jNLE,~BG-edFtdCC1cSH4O3BWdeIYa8Sw5DfyrSV-TKdO5ec,AQACAAE/fms/103/
+</a>
+</pre>
+<p>
+</ul>
+<p>
+<a href="#toc">[TOC]</a>
+<hr>
+<h2><a name="installation">Installation</a></h2>
+You checked the <a href="#requirements">requirements</a> and understand
+the <a href="#risks">risks</a> right?<p>
+
+Here are step-by-step instructions on how to install the extension.
+<ul>
+<li> Download the bootstrap hg bundle:
+    <pre><a href="CHK@cBiewYtYUe1KALYWHQCG8~O0ZSId76dOzg1UDorTfYU,eK2C4bOcChK9chl8xECPtUrN6m8XvFMVQJvfjrSZFo0,AAIC--8/infocalypse2_625bb5c717fe.hg">CHK@cBiewYtYUe1KALYWHQCG8~O0ZSId76dOzg1UDorTfYU,eK2C4bOcChK9chl8xECPtUrN6m8XvFMVQJvfjrSZFo0,AAIC--8/infocalypse2_625bb5c717fe.hg</a>
+    </pre>
+   You'll get a <b>Potentially Dangerous Content</b> warning from fproxy because
+   the mime type isn't set. Choose 'Click here to force your browser to download 
+   the file to disk.'.
+   <p>
+   I'll refer to the directory that you saved the bundle file to as DOWLOAD_DIR.
+<li> Create an empty directory where you want to install the extension.
+     I'll refer to that directory as INSTALL_DIR in the rest of these instructions.
+     <p>
+<li> Create an empty hg repository there. i.e.:
+<pre>
+   cd INSTALL_DIR
+   hg init
+</pre>
+<li> Unbundle the bootstrap bundle into the new repository. i.e:
+<pre>
+   hg pull DOWNLOAD_DIR/infocalypse2_625bb5c717fe.hg
+   hg update
+</pre>
+<li> Edit the '[extensions]' section of your .hgrc/mercurial.ini
+   file to point to the infocalypse directory in the unbundled source.<p>
+   <pre>
+     # .hgrc/mercurial.ini snippet
+     [extensions]
+     infocalypse = INSTALL_DIR/infocalypse
+
+   </pre>
+   where INSTALL_DIR is the directory you unbundled into.
+   <p>
+   If you don't known where to find/create your .hgrc/mercurial.ini file
+   this link may be useful: <br>
+   <a href="http://www.selenic.com/mercurial/hgrc.5.html">http://www.selenic.com/mercurial/hgrc.5.html [HTTP Link!]</a><p>
+<li> Run fn-setup to create the config file and temp dir. i.e.
+   <pre>
+   hg fn-setup
+   </pre>
+   If you run your Freenet node on another machine or on a non-standard port
+   you'll need to use the --fcphost and/or --fcpport parameters to set the
+   FCP host and port respectively.
+   <p>
+   By default fn-setup will write the configuration file for the extension
+   (.infocalype on *nix, infocalypse.ini on Windows) into your home directory
+   and also create a temp directory called infocalypse_tmp there.
+   <p>
+   You can change the location of the temp directory by using the --tmpdir argument.
+   <p>
+   If you want to put the config file in a different location set the
+   cfg_file option in the [infocalypse] section of your
+   .hgrc/mercurial.ini file <em>before</em> running fn-setup.
+   <pre>
+   Example .hgrc entry:
+   # Snip, from .hgrc
+   [infocalypse]
+   cfg_file = /mnt/usbkey/s3kr1t/infocalypse.cfg
+   </pre>
+
+<li><a name="setup_fms">Edit the fms_id and possibly fms_host/fms_port information in the
+.infocalyse/infocalypse.ini file. i.e.:</a><br>
+   <pre>
+     # Example .infocalypse snippet
+     fms_id = YOUR_FMS_ID
+
+     fms_host = 127.0.0.1
+     fms_port = 1119
+   </pre>
+   where YOUR_FMS_ID is the part of your fms id before the '@' sign.
+   <p>
+   If you run FMS with the default settings on the same machine you are running
+   Mercurial on you probably won't need to adjust the fcp_host or fcp_port.
+   <p>
+   You can <em>skip</em> this step if you're not running fms.
+   <p>
+<li>Read the latest know version of the extension's repository USK index from Freenet.
+   <pre>
+   hg fn-fmsread -v
+   </pre>
+   <p>
+   You can <em>skip</em> this step if you're not running fms.
+   <p>
+<li> <a name="pull_example">Pull the latest changes to the extension from Freenet. i.e.:</a>
+   <pre>
+   hg fn-pull --aggressive --debug --uri USK@kRM~jJVREwnN2qnA8R0Vt8HmpfRzBZ0j4rHC2cQ-0hw,2xcoQVdQLyqfTpF2DpkdUIbHFCeL4W~2X1phUYymnhM,AQACAAE/infocalypse.hgext.R1/36
+   hg update
+   </pre>
+   You may have trouble finding the top key if you're not using fn-fmsread. Just keep retrying.
+   If you know the index has increased, use the new index in the URI.
+</ul>
+<p>
+<a href="#toc">[TOC]</a>
+<hr>
+<h2><a name="background">Background</a></h2>
+Here's background information that's useful when using the extension.
+See the
+<a href="USK@-bk9znYylSCOEDuSWAvo5m72nUeMxKkDmH3nIqAeI-0,qfu5H3FZsZ-5rfNBY-jQHS5Ke7AT2PtJWd13IrPZjcg,AQACAAE/feral_codewright/11/infocalypse_hg.html">Infocalypse 2.0 hg extension</a> page on my freesite
+for a more detailed description of how the extension works.
+<p>
+<h3><a name="repo_bundles">Repositories are collections of hg bundle files</a></h3>
+An Infocalypse repository is just a collection of hg bundle files which have been inserted
+into Freenet as CHKs and some metadata describing how to pull the bundles to reconstruct
+the repository that they represent.  When you 'push' to an infocalypse repository a new bundle
+CHK is inserted with the changes since the last update. When you 'pull', only the CHKs for bundles
+for changesets not already in the local repository need to be fetched.
+<h3><a name="repo_usks">Repository USKs</a></h3>
+The latest version of the repository's metadata is stored on a Freenet Updateable Subspace Key (USK) as
+a small binary file.
+<p>
+You'll notice that repository USKs end with a number without a
+trailing '/'.  This is an important distinction.  A repository USK <em>is
+not</em> a freesite. If you try to view one with fproxy you'll just get a
+'Potentially Dangerous Content' warning.  This is harmless, and ugly
+but unavoidable at the current time because of limitation in
+fproxy/FCP.
+<h3><a name="repo_redundancy">Repository top key redundancy</a></h3>
+Repository USKs that end in *.R1/&lt;number&gt; are inserted redundantly, with a second USK
+insert done on *.R0/&lt;number&gt;.  Top key redundancy makes it easier for other people to
+fetch your repository.
+<p>
+Inserting to a redundant repository USK makes the inserter more vulnerable to
+<a href="#correlation_attacks">correlation attacks</a>. Don't use '.R1' USKs if you're worried about this.
+
+<h3><a name="repo_hashes">Repository Hashes</a></h3>
+Repository USKs can be long and cumbersome. A repository hash is the first 12 bytes of the
+SHA1 hash of the zero index version of a repository USK. e.g.:<br>
+<pre>
+SHA1( USK@kRM~jJVREwnN2qnA8R0Vt8HmpfRzBZ0j4rHC2cQ-0hw,2xcoQVdQLyqfTpF2DpkdUIbHFCeL4W~2X1phUYymnhM,AQACAAE/infocalypse.hgext.R1/0 )
+  == 'be68e8feccdd'
+</pre>
+You can get the repository hash for a repository USK using:<br>
+<pre>
+hg fn-info
+</pre>
+from a directory the repository USK has been fn-pull'd into.
+<p>
+You can get the hashes of repositories that other people have announced
+via fms with:
+<pre>
+hg fn-fmsread --listall
+</pre>
+<p>
+Repository hashes are used in the <a href="#fms_trust_map">fms update trust map</a>.
+
+<h3><a name="repo_private">The default private key</a></h3>
+When you run fn-setup, it creates a default SSK private key, which it stores in
+the default_private_key parameter in your .infocalypse/infocalypse.ini file.
+<p>
+You can edit the config file to substitute any valid SSK private key you want.
+<p>
+If you specify an Insert URI without the key part for an infocalypse command
+the default private key is filled in for you. i.e<br>
+<pre>
+hg fn-create --uri USK@/test.R1/0
+</pre>
+Inserts the local hg repository into a new USK in Freenet, using the private key in your
+config file.
+<h3><a name="repo_mappings">USK &lt;--&gt; Directory mappings</a></h3>
+The extension's commands 'remember' the insert and request repository USKs they were
+last run with when run again from the same directory.
+<p>
+This makes it unnescessary to retype cumbersome repository USK values once a repository
+has been successfully pulled or pushed from a directory.
+<h3><a name="arg_aggressive">Aggressive topkey searching</a></h3>
+fn-pull and fn-push have an --aggressive command line argument
+which causes them to search harder for the latest request URI.
+<p>
+This can be slow, especially if the USK index is much lower than the
+latest index in Freenet.
+<p>
+You will need to use it if you're not using FMS update notifications.
+<p>
+<a href="#toc">[TOC]</a>
+<hr>
+<h2><a name="basic">Basic Usage</a></h2>
+Here are examples of basic commands.
+
+<h3><a name="fn_genkey">Generating a new private key</a></h3>
+You can generate an new private key with:<br>
+<pre>
+hg fn-genkey
+</pre>
+This has no effect on the stored default private key.
+<p>
+Make sure to change the 'SSK' in the InsertURI to 'USK' when
+supplying the insert URI on the command line.
+
+<h3><a name="fn_create">Creating a new repository</a></h3>
+<pre>
+hg fn-create --uri USK@/test.R1/0
+</pre>
+Inserts the local hg repository into a new USK in Freenet, using the private
+key in your config file.  You can use a full insert URI
+value if you want.
+<p>
+If you see an "update -- Bundle too big to salt!" warning message when you
+run this command you should consider running
+<a href="#fn_reinsert">fn-reinsert --level 4</a>.
+<p>
+<h3><a name="fn_push">Pushing to a repository</a></h3>
+<pre>
+hg fn-push --uri USK@/test.R1/0
+</pre>
+Pushes incremental changes from the local directory into an existing
+Infocalypse repository.
+<p>
+The &lt;keypart&gt;/test.R1/0 repository must already exist in Freenet.
+In the example above the default private key is used. You could have
+specified a full Insert URI. The URI must end in a number but the value
+doesn't matter because fn-push searches for the latest unused index.
+<p>
+You can <a href="#repo_mappings">ommit the --uri argument</a> when
+you run from the same directory the fn-create (or a previous fn-push)
+was run from.
+<p>
+<h3><a name="fn_pull">Pulling from a repository</a></h3>
+<pre>
+hg fn-pull --uri &lt;request uri&gt;
+</pre>
+pulls from an Infocalypse repository in Freenet into
+the local repository.
+<a href="#pull_example">Here's</a> an example with a fully specified uri.
+<p>
+You can <a href="#repo_mappings">ommit the --uri argument</a> when
+you run from the same directory a previous fn-pull was successfully run from.
+<p>
+For maximum reliability use the <a href="#arg_aggressive">--aggressive</a> argument.
+<p>
+<a href="#toc">[TOC]</a>
+<hr>
+<h2><a name="fms_overview">Using FMS to send and receive update notifications</a></h2>
+The extension can send and receive repository update notifications
+via FMS.  It is <em>highly recommended</em> that you
+<a href="#setup_fms">setup this feature</a>.
+<h3><a name="fms_trust_map">The update trust map</a></h3>
+There's a trust map in the .infocalypse/infocalypse.ini config file which
+determines which fms ids can update the index values for
+which repositories.
+<p>
+The format is:<br>
+&lt;number&gt; = &lt;fms_id&gt;|&lt;usk_hash0&gt;|&lt;usk_hash1&gt;| ... |&lt;usk_hashn&gt;
+<p>
+The number value must be unique, but is ignored.
+<p>
+The fms_id values are the full fms_ids that you are trusting to update the
+repositories with the listed hashes.
+<p>
+The usk_hash* values are <a href="#repo_hashes">repository hashes</a>.
+<p>
+You MUST manually update the trust map to enable
+index updating for repos other than the one
+this code lives in (be68e8feccdd).
+<pre>
+   # Example .infocalypse snippet
+   [fmsread_trust_map]
+   1 = test0@adnT6a9yUSEWe5p8J-O1i8rJCDPqccY~dVvAmtMuC9Q|55833b3e6419
+   0 = djk@isFiaD04zgAgnrEC5XJt1i4IE7AkNPqhBG5bONi6Yks|be68e8feccdd|5582404a9124
+   2 = test1@SH1BCHw-47oD9~B56SkijxfE35M9XUvqXLX1aYyZNyA|fab7c8bd2fc3
+</pre>
+
+<h3><a name="fms_read">Reading other peoples notifications</a></h3>
+<pre>
+hg fn-fmsread -v
+</pre>
+Will read update notifications for all the repos in the trust map and
+locally cache the new latest index values.  If you run with -v
+it prints a message when updates are available which weren't
+used because the sender(s) weren't in the trust map.
+
+<pre>
+hg fn-fmsread --list
+</pre>
+Displays announced repositories from fms ids that appear in
+the trust map.
+<pre>
+hg fn-fmsread --listall
+</pre>
+Displays all announced repositories including ones from unknown
+fms ids.
+
+<h3><a name="fms_post">Posting your own</a></h3>
+<pre>
+hg fn-fmsnotify -v
+</pre>
+Posts an update notification for the current repository to fms.
+<p>
+You MUST <a href="#setup_fms">set the fms_id value in the config file</a>
+to your fms id for this to work.
+<p>
+Use --dryrun to double check before sending the actual
+fms message.
+<p>
+Use --announce at least once if you want your USK to
+show up in the fmsread --listall list.
+<p>
+By default notifications are written to and read
+from the infocalypse.notify fms group.
+<p>
+The read and write groups can be changed by editing
+the following variables in the config file:
+<p>
+fmsnotify_group = &lt;group&gt;<br>
+fmsread_groups = &lt;group0&gt;[|&lt;group1&gt;|...]
+<p>
+fms can have pretty high latency. Be patient. It may
+take hours (sometimes a day!) for your notification
+to appear.  Don't send lots of redundant notifications.
+<p>
+<a href="#toc">[TOC]</a>
+<hr>
+<h2><a name="fn_reinsert">Reinserting and 'sponsoring' repositories</a></h2>
+<pre>
+hg fn-reinsert
+</pre>
+will re-insert the bundles for the repository
+that was last pulled into the directory.
+<p>
+The exact behavior is determined by the
+level argument.
+<p>
+level:
+<ul>
+<li> 1 - re-inserts the top key(s)
+<li> 2 - re-inserts the top keys(s), graphs(s) and
+     the most recent update.
+<li> 3 - re-inserts the top keys(s), graphs(s) and
+    all keys required to bootstrap the repo.<p>
+    This is the default level.
+<li> 4 - adds redundancy for big (>7Mb) updates.
+<li> 5 - re-inserts existing redundant big updates.
+</ul>
+<p>
+Levels 1 and 4 require that you have the private
+key for the repository. For other levels, the
+top key insert is skipped if you don't have
+the private key.
+<p>
+DO NOT use fn-reinsert if you're concerned about
+<a href="#correlation_attacks">correlation attacks</a>. The risk is on the order
+of re-inserting a freesite, but may be
+worse if you use redundant
+(i.e. USK@&lt;line noise&gt;/name.R1/0) top keys.
+<p>
+<a href="#toc">[TOC]</a>
+<hr>
+<h2><a name="forking">Forking a repository onto a new USK</a></h2>
+<pre>
+hg fn-copy --inserturi USK@/name_for_my_copy.R1/0
+</pre>
+copies the Infocalypse repository which was fn-pull'd into
+the local directory onto a new repository USK under your default
+private key.  You can use a full insert URI if you want.
+<p>
+This only requires copying the top key data (a maximum of 2 SSK inserts).
+<p>
+<a href="#toc">[TOC]</a>
+<hr>
+<h2><a name="key_sharing">Sharing private keys</a></h2>
+It is possible for multiple people to collaborate anonymously over Freenet
+by sharing the private key to a single Infocalypse repository.
+<p>
+I haven't tested this yet, but I'm interested in doing so.
+<p>
+Here are some things to keep in mind.
+<ul>
+    <li> There is no (explict) key revocation in Freenet<br>
+    If you decide to share keys, you should generate a special key on a per
+    repo basis with fn-genkey. There is <em>no way</em> to revoke a private
+    key once it has been shared.  This could be mitigated with an ad-hoc convention.
+    e.g. if I find any file named USK@&lt;public_key&gt;/REVOKED, I stop using the key.
+    <li> Non-atomic top key inserts<br>
+    Occasionally, you might end up overwriting someone elses commits because the FCP
+    insert of the repo top key isn't atomic.  I think you should be able to merge and
+    re fn-push to resolve this.
+    <li> All contributors should be in the <a href="#fms_trust_map">fn-fmsread trust map</a>
+</ul>
+<p>
+<a href="#toc">[TOC]</a>
+<hr>
+<h2><a name="fn_putsite">Inserting a freesite</a></h2>
+<pre>
+hg fn-putsite --index &lt;n&gt;
+</pre>
+inserts a freesite based on the configuration in
+the freesite.cfg file in the root of the repository.
+
+Use:<br>
+<pre>
+hg fn-putsite --createconfig
+</pre>
+to create a basic freesite.cfg file that you
+can modify. Look at the comments in it for an
+explanation of the supported parameters.
+<p>
+The default freesite.cfg file inserts using the
+same private key as the repo and a site name
+of 'default'. Editing the name is highly
+recommended.
+<p>
+You can use --key CHK@ to insert a test version of
+the site to a CHK key before writing to the USK.
+<p>
+Limitations:
+<ul>
+<li> You MUST have fn-pushed the repo at least once
+  in order to insert using the repo's private key.
+  If you haven't fn-push'd you'll see this error:
+  "You don't have the insert URI for this repo.
+  Supply a private key with --key or fn-push the repo."
+<li> Inserts <em>all</em> files in the site_dir directory in
+  the freesite.cfg file.  Run with --dryrun to make
+  sure that you aren't going to insert stuff you don't
+  want too.
+<li> You must manually specify the USK edition you want
+  to insert on.  You will get a collision error
+  if you specify an index that was already inserted.
+<li> Don't use this for big sites.  It should be fine
+  for notes on your project.  If you have lots of images
+  or big binary files use a tool like jSite instead.
+<li> Don't modify site files while the fn-putsite is
+  running.
+</ul>
+<p>
+<a href="#toc">[TOC]</a>
+<hr>
+<h2><a name="risks">Risks</a></h2>
+I don't believe that using this extension is significantly more dangerous that
+using any other piece of Freenet client code, but here is a list of the risks
+which come to mind:
+<ul>
+<li> Freenet is beta software<br>
+The authors of Freenet don't pretend to guarantee that it is free of bugs that could
+that could compromise your anonymity or worse.
+<p>
+While written in Java, Freenet loads native
+code via JNI (FEC codecs, bigint stuff, wrapper, etc.) that makes it vulnerable to the same kinds
+of attacks as any other C/C++ code.
+<p>
+<li> FMS == anonymous software<br>
+FMS is published anonymously on Freenet and it is written in C++ with dependencies
+on large libraries which could contain security defects.
+<p>
+I personally build FMS from source and run it in a chroot jail.
+<p>
+Somedude, the author of FMS, seems like a reputable guy and has conducted himself
+as such for more than a year.
+<li><a name="correlation_attacks">correlation attacks</a><br>
+There is a concern that any system which inserts keys that can be predicted ahead
+of time could allow an attacker with control over many nodes in the network to
+eventually find the IP of your node.
+<p>
+<em>Any</em> system which has this property is vulnerable. e.g. fproxy Freesite insertion,
+Freetalk, FMS, FLIP.  This extension's <em>optional</em> use of
+<a href="#repo_redundancy">redundant top keys</a> may make it particularly vulnerable. If you
+are concerned don't use '.R1' keys.
+<p>
+Running your node in pure darknet mode with trusted peers may somewhat reduce the risk of
+correlation attacks.
+<p>
+<li> Bugs in my code, Mercurial or Python<br>
+I do my best but no one's perfect.
+<p>
+There are lots of eyes over the Mercurial and Python source.
+</ul>
+<p>
+<a href="#toc">[TOC]</a>
+<hr>
+<h2><a name="advocacy">Advocacy</a></h2>
+Here are some reasons why I think the Infocalypse 2.0 hg extension is
+better than
+<a href="USK@MYLAnId-ZEyXhDGGbYOa1gOtkZZrFNTXjFl1dibLj9E,Xpu27DoAKKc8b0718E-ZteFrGqCYROe7XBBJI57pB4M,AQACAAE/pyFreenetHg/31/">pyFreenetHg</a> and
+<a href="USK@VoFcfs8Y3VQfwD66ZgXAb4HBiS~WJe8w9mOy2hS9Mh8,OS6~bhX8LHxMLw-sruBkWDeACo-fg4yBZqueMPVj1Uc,AQACAAE/egit-freenet/14/">egit-freenet</a>:
+<ul>
+<li> Incremental <p>
+You only need to insert/retrieve what has actually changed.  Changes of up to 32k
+of compressed deltas can be fetched in as little as one SSK fetch and one CHK fetch.
+<li> Redundant <p>
+The top level SSK and the CHK with the representation of the repository state are
+inserted redundantly so there are no 'critical path' keys. Updates of up to ~= 7Mb
+are inserted redundantly by cloning the splitfile metadata at the cost of a single
+32k CHK insert.
+<li> Re-insertable <p>
+Anyone can re-insert all repository data except for the top level SSKs with a 
+simple command (hg fn-reinsert). The repository owner can re-insert the top level
+SSKs as well.
+<li> Automatic rollups <p>
+Older changes are automatically 'rolled up' into large splitfiles, such that
+the entire repository can almost always be fetched in 4 CHK fetches or less.
+</ul>
+<p>
+<a href="#toc">[TOC]</a>
+<hr>
+<h2><a name="source_code">Source Code</a></h2>
+The authoritative repository the extension's code is hosted in Freenet.
+<p>
+<pre>
+hg init
+hg fn-fmsread -v
+hg fn-pull --aggressive --debug --uri USK@kRM~jJVREwnN2qnA8R0Vt8HmpfRzBZ0j4rHC2cQ-0hw,2xcoQVdQLyqfTpF2DpkdUIbHFCeL4W~2X1phUYymnhM,AQACAAE/infocalypse.hgext.R1/36
+hg update
+
+</pre>
+<p>
+<a href="#toc">[TOC]</a>
+<hr>
+<h2><a name="contact">Contact</a></h2>
+<b>fms:</b><br>
+djk@isFiaD04zgAgnrEC5XJt1i4IE7AkNPqhBG5bONi6Yks
+<p>
+I lurk on the freenet and fms boards.
+<p>
+
+<pre>
+<b>freesite:</b>
+<a href="USK@-bk9znYylSCOEDuSWAvo5m72nUeMxKkDmH3nIqAeI-0,qfu5H3FZsZ-5rfNBY-jQHS5Ke7AT2PtJWd13IrPZjcg,AQACAAE/feral_codewright/11/">USK@-bk9znYylSCOEDuSWAvo5m72nUeMxKkDmH3nIqAeI-0,qfu5H3FZsZ-5rfNBY-jQHS5Ke7AT2PtJWd13IrPZjcg,AQACAAE/feral_codewright/11/</a>
+
+</pre>
+<p>
+<a href="#toc">[TOC]</a>
+<hr>
+
+</body>
+</html>
