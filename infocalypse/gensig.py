@@ -44,7 +44,7 @@ CFG_PATH = os.path.expanduser(DEFAULT_CFG_PATH)
 STATIC_TEXT = ('Incremental hg repos in Freenet (Not pyfreenethg!):\n'
                + 'USK@-bk9znYylSCOEDuSWAvo5m72nUeMxKkDmH3nIqAeI-0,'
                + 'qfu5H3FZsZ-5rfNBY-jQHS5Ke7AT2PtJWd13IrPZjcg,'
-               + 'AQACAAE/feral_codewright/11/source.html')
+               + 'AQACAAE/feral_codewright/12/infocalypse_howto.html')
 
 # Your repo Request (not Insert!) URIs go here:
 #
