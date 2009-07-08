@@ -166,7 +166,7 @@ def execute_putsite(ui_, repo, params):
 
     if params['DRYRUN']:
         ui_.status('Would have inserted to:\n%s\n' % insert_uri)
-        ui_.status('But --dryrun was set.')
+        ui_.status('But --dryrun was set.\n')
         return
 
     client = FCPClient.connect(params['FCP_HOST'],
