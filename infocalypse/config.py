@@ -39,8 +39,7 @@ else:
 DEFAULT_CFG_PATH = '~/%s' % CFG_NAME
 
 # hg version that the format last changed in.
-FORMAT_VERSION = 'd3023b1560fa'
-
+FORMAT_VERSION = '348500df1ac6'
 def normalize(usk_or_id):
     """ Returns a USK hash. """
     if usk_or_id.startswith('USK'):
