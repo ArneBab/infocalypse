@@ -57,6 +57,38 @@ def norm_path(dir_name):
     fixed = split[0].replace(':', '') + split[1]
     return fixed
 
+# NOTE:
+# The bug prevents ConfigParser from even reading
+# the file. That's why I'm operating on the file
+# directly.
+#
+# This is a HACK which should eventually be removed.
+def detect_and_fix_default_bug(ui_, file_path):
+    """ INTERNAL: Fix old (pre: 466307bc98bc) config files. """
+    raw = open(file_path, 'rb').read()
+    if raw.find('[default]') == -1:
+        return
+
+    justin_case = os.path.join(os.path.dirname(file_path), 'INFOCALYPSE.BAK')
+    ui_.warn("Hit '[default'] bug in your config file.\n"
+             "Saving existing config as:\n%s\n" % justin_case)
+    if os.path.exists(justin_case):
+        ui_.warn("Refused to overwrite backup!\n"
+                 +"Move:\n%s\n" % justin_case
+                 +"out of the way and try again.\n")
+        raise util.Abort("Refused to overwrite backup config file.")
+    out_file = open(justin_case, 'wb')
+    try:
+        out_file.write(raw)
+    finally:
+        out_file.close()
+    fixed_file = open(file_path, 'wb')
+    try:
+        fixed_file.write(raw.replace('[default]', '[primary]'))
+    finally:
+        fixed_file.close()
+    ui_.warn("Applied fix.\n")
+
 # Eventually set state from fms feed. i.e. latest repo updates.
 class Config:
     """ Persisted state used by the Infocalypse mercurial extension. """
@@ -151,37 +183,40 @@ class Config:
     @classmethod
     def update_defaults(cls, parser, cfg):
         """ INTERNAL: Helper function to simplify from_file. """
-        if parser.has_section('default'):
-            if parser.has_option('default', 'format_version'):
-                cfg.defaults['FORMAT_VERSION'] = parser.get('default',
+        if parser.has_section('primary'):
+            if parser.has_option('primary', 'format_version'):
+                cfg.defaults['FORMAT_VERSION'] = parser.get('primary',
                                                              'format_version')
-            if parser.has_option('default','host'):
-                cfg.defaults['HOST'] = parser.get('default','host')
-            if parser.has_option('default','port'):
-                cfg.defaults['PORT'] = parser.getint('default','port')
-            if parser.has_option('default','tmp_dir'):
-                cfg.defaults['TMP_DIR'] = parser.get('default', 'tmp_dir')
-            if parser.has_option('default','default_private_key'):
+            if parser.has_option('primary','host'):
+                cfg.defaults['HOST'] = parser.get('primary','host')
+            if parser.has_option('primary','port'):
+                cfg.defaults['PORT'] = parser.getint('primary','port')
+            if parser.has_option('primary','tmp_dir'):
+                cfg.defaults['TMP_DIR'] = parser.get('primary', 'tmp_dir')
+            if parser.has_option('primary','default_private_key'):
                 cfg.defaults['DEFAULT_PRIVATE_KEY'] = (
-                    parser.get('default','default_private_key'))
+                    parser.get('primary','default_private_key'))
 
-            if parser.has_option('default','fms_host'):
-                cfg.defaults['FMS_HOST'] = parser.get('default','fms_host')
-            if parser.has_option('default','fms_port'):
-                cfg.defaults['FMS_PORT'] = parser.getint('default','fms_port')
-            if parser.has_option('default','fms_id'):
-                cfg.defaults['FMS_ID'] = parser.get('default','fms_id')
-            if parser.has_option('default','fmsnotify_group'):
-                cfg.defaults['FMSNOTIFY_GROUP'] = parser.get('default',
+            if parser.has_option('primary','fms_host'):
+                cfg.defaults['FMS_HOST'] = parser.get('primary','fms_host')
+            if parser.has_option('primary','fms_port'):
+                cfg.defaults['FMS_PORT'] = parser.getint('primary','fms_port')
+            if parser.has_option('primary','fms_id'):
+                cfg.defaults['FMS_ID'] = parser.get('primary','fms_id')
+            if parser.has_option('primary','fmsnotify_group'):
+                cfg.defaults['FMSNOTIFY_GROUP'] = parser.get('primary',
                                                              'fmsnotify_group')
-            if parser.has_option('default','fmsread_groups'):
-                cfg.fmsread_groups = (parser.get('default','fmsread_groups').
+            if parser.has_option('primary','fmsread_groups'):
+                cfg.fmsread_groups = (parser.get('primary','fmsread_groups').
                                       strip().split('|'))
 
+    # Hmmm... would be better to detect_and_fix_default_bug()
+    # here, but don't have ui.
     @classmethod
     def from_file(cls, file_name):
         """ Make a Config from a file. """
         file_name = os.path.expanduser(file_name)
+
         parser = ConfigParser()
         # IMPORTANT: Turn off downcasing of option names.
         parser.optionxform = str
@@ -238,6 +273,9 @@ class Config:
         if not os.path.exists(file_name):
             ui_.warn("Couldn't read config file: %s\n" % file_name)
             raise util.Abort("Run fn-setup.\n")
+
+        detect_and_fix_default_bug(ui_, file_name)
+
         return Config.from_file(file_name)
 
     @classmethod
@@ -255,20 +293,20 @@ class Config:
         # IMPORTANT: Turn off downcasing of option names.
         parser.optionxform = str
 
-        parser.add_section('default')
-        parser.set('default', 'format_version', FORMAT_VERSION)
-        parser.set('default', 'host', cfg.defaults['HOST'])
-        parser.set('default', 'port', cfg.defaults['PORT'])
-        parser.set('default', 'tmp_dir', cfg.defaults['TMP_DIR'])
-        parser.set('default', 'default_private_key',
+        parser.add_section('primary')
+        parser.set('primary', 'format_version', FORMAT_VERSION)
+        parser.set('primary', 'host', cfg.defaults['HOST'])
+        parser.set('primary', 'port', cfg.defaults['PORT'])
+        parser.set('primary', 'tmp_dir', cfg.defaults['TMP_DIR'])
+        parser.set('primary', 'default_private_key',
                    cfg.defaults['DEFAULT_PRIVATE_KEY'])
 
-        parser.set('default', 'fms_host', cfg.defaults['FMS_HOST'])
-        parser.set('default', 'fms_port', cfg.defaults['FMS_PORT'])
-        parser.set('default', 'fms_id', cfg.defaults['FMS_ID'])
-        parser.set('default', 'fmsnotify_group',
+        parser.set('primary', 'fms_host', cfg.defaults['FMS_HOST'])
+        parser.set('primary', 'fms_port', cfg.defaults['FMS_PORT'])
+        parser.set('primary', 'fms_id', cfg.defaults['FMS_ID'])
+        parser.set('primary', 'fmsnotify_group',
                    cfg.defaults['FMSNOTIFY_GROUP'])
-        parser.set('default', 'fmsread_groups', '|'.join(cfg.fmsread_groups))
+        parser.set('primary', 'fmsread_groups', '|'.join(cfg.fmsread_groups))
 
         parser.add_section('index_values')
         for repo_id in cfg.version_table:
