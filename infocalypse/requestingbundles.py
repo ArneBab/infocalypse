@@ -480,6 +480,10 @@ class RequestingBundles(RetryingRequestList):
                 self._handle_dump_canonical_paths(graph)
                 self._set_graph(graph)
                 self._reevaluate()
+                # BUG: need to check for at least one bundle
+                # in the primary candidates list. i.e. don't stall
+                # waiting for the second graph!
+                
             finally:
                 in_file.close()
             self.finished_candidates.append(candidate)
