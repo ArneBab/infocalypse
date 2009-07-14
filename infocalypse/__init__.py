@@ -297,7 +297,8 @@ from infcmds import get_config_info, execute_create, execute_pull, \
 
 from fmscmds import execute_fmsread, execute_fmsnotify
 
-from sitecmds import read_freesite_cfg, execute_putsite, execute_genkey
+from sitecmds import execute_putsite, execute_genkey
+from config import read_freesite_cfg
 
 def set_target_version(ui_, repo, opts, params, msg_fmt):
     """ INTERNAL: Update TARGET_VERSION in params. """

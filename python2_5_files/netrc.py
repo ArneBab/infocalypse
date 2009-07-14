@@ -1,3 +1,4 @@
+# Taken from Python 2.5.4
 """An object-oriented interface to .netrc files."""
 
 # Module and documentation by Eric S. Raymond, 21 Dec 1998

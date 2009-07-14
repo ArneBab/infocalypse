@@ -1,3 +1,4 @@
+# Taken from Python 2.5.4
 """An NNTP client class based on RFC 977: Network News Transfer Protocol.
 
 Example:

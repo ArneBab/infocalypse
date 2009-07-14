@@ -29,6 +29,29 @@ from fcpclient import get_usk_hash, is_usk_file, get_version, \
 from knownrepos import DEFAULT_TRUST, DEFAULT_GROUPS, \
      DEFAULT_NOTIFICATION_GROUP
 from mercurial import util
+
+# Similar hack is used in fms.py.
+import knownrepos # Just need a module to read __file__ from
+
+try:
+    #raise ImportError('fake error to test code path')
+    __import__('ConfigParser')
+except ImportError, err:
+    # ConfigParser doesn't ship with, the 1.3 Windows binary distro
+    # http://mercurial.berkwood.com/binaries/Mercurial-1.3.exe
+    # so we do some hacks to use a local copy.
+    #print
+    #print "No ConfigParser? This doesn't look good."
+    PARTS = os.path.split(os.path.dirname(knownrepos.__file__))
+    if PARTS[-1] != 'infocalypse':
+        print "ConfigParser is missing and couldn't hack path. Giving up. :-("
+    else:
+        PATH = os.path.join(PARTS[0], 'python2_5_files')
+        sys.path.append(PATH)
+    #print ("Put local copies of python2.5 ConfigParser.py, "
+    #       + "nntplib.py and netrc.py in path...")
+    print
+
 from ConfigParser import ConfigParser
 
 if sys.platform == 'win32':
@@ -328,3 +351,53 @@ class Config:
             parser.write(out_file)
         finally:
             out_file.close()
+
+# HACK: This really belongs in sitecmds.py but I wanted
+# all ConfigParser dependencies in one file because of
+# the ConfigParser import hack. See top of file.
+def read_freesite_cfg(ui_, repo, params, stored_cfg):
+    """ Read param out of the freesite.cfg file. """
+    cfg_file = os.path.join(repo.root, 'freesite.cfg')
+
+    ui_.status('Using config file:\n%s\n' % cfg_file)
+    if not os.path.exists(cfg_file):
+        ui_.warn("Can't read: %s\n" % cfg_file)
+        raise util.Abort("Use --createconfig to create freesite.cfg")
+
+    parser = ConfigParser()
+    parser.read(cfg_file)
+    if not parser.has_section('default'):
+        raise util.Abort("Can't read default section of config file?")
+
+    params['SITE_NAME'] = parser.get('default', 'site_name')
+    params['SITE_DIR'] = parser.get('default', 'site_dir')
+    if parser.has_option('default','default_file'):
+        params['SITE_DEFAULT_FILE'] = parser.get('default', 'default_file')
+    else:
+        params['SITE_DEFAULT_FILE'] = 'index.html'
+
+    if params.get('SITE_KEY'):
+        return # key set on command line
+
+    if not parser.has_option('default','site_key_file'):
+        params['SITE_KEY'] = ''
+        return # Will use the insert SSK for the repo.
+
+    key_file = parser.get('default', 'site_key_file', 'default')
+    if key_file == 'default':
+        ui_.status('Using repo insert key as site key.\n')
+        params['SITE_KEY'] = 'default'
+        return # Use the insert SSK for the repo.
+    try:
+        # Read private key from specified key file relative
+        # to the directory the .infocalypse config file is stored in.
+        key_file = os.path.join(os.path.dirname(stored_cfg.file_name),
+                                key_file)
+        ui_.status('Reading site key from:\n%s\n' % key_file)
+        params['SITE_KEY'] = open(key_file, 'rb').read().strip()
+    except IOError:
+        raise util.Abort("Couldn't read site key from: %s" % key_file)
+
+    if not params['SITE_KEY'].startswith('SSK@'):
+        raise util.Abort("Stored site key not an SSK?")
+

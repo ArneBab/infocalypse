@@ -1,3 +1,21 @@
+djk20090714
+Added Python 2.5.4 version of ConfigParser.py to the python2_5_file
+directory.  This was required to make the berkwood 1.3 Windows
+binary distribution of Mercurial work. i.e. here:
+
+http://mercurial.berkwood.com/binaries/Mercurial-1.3.exe
+
+Smoke tested on Windows XP w/ 1.2.1, 1.3 binary
+Mercurial distros:
+http://mercurial.berkwood.com/binaries/Mercurial-1.3.exe
+http://mercurial.berkwood.com/binaries/Mercurial-1.2.1.exe
+
+Looks good.
+
+djk20090713
+Smoke tested on Ubuntu Jaunty Jackalope with
+Mercurial 1.1.2.  Looks good.
+
 djk20090706
 Added doc/infocalypse_howto.html 
 
@@ -13,7 +31,8 @@ Successfully pulled fred_staging/82/ on XP.
 
 djk20090702
 Minimum required mercurial version is (and probably has been for a
-while) 1.2.1.
+while) 1.2.1. [djk20090713, Too conservative. 1.1.2 works on 
+Jaunty Jackalope. 1.0.2 definitely doesn't work anywhere (problems pushing)]
 
 That's the only rev. I've been testing with.
 
@@ -42,7 +61,7 @@ I added fn-fmsread and fn-fmsnotify to support sending and
 receiving repo update notifications via fms. They are
 documented in __init__.py.
 
-The gensig.py script can be use to publish repo updates
+The gensig.py script can be used to publish repo updates
 in your fms signature.
 
 IMPORTANT:

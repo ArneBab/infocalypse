@@ -22,8 +22,6 @@
 
 import os
 
-from ConfigParser import ConfigParser
-
 from mercurial import util
 
 from fcpconnection import FCPError
@@ -61,52 +59,6 @@ site_dir = site_root
 
     ui_.status('Created config file:\n%s\n' % file_name)
     ui_.status('You probably want to edit at least the site_name.\n')
-
-def read_freesite_cfg(ui_, repo, params, stored_cfg):
-    """ Read param out of the freesite.cfg file. """
-    cfg_file = os.path.join(repo.root, 'freesite.cfg')
-
-    ui_.status('Using config file:\n%s\n' % cfg_file)
-    if not os.path.exists(cfg_file):
-        ui_.warn("Can't read: %s\n" % cfg_file)
-        raise util.Abort("Use --createconfig to create freesite.cfg")
-
-    parser = ConfigParser()
-    parser.read(cfg_file)
-    if not parser.has_section('default'):
-        raise util.Abort("Can't read default section of config file?")
-
-    params['SITE_NAME'] = parser.get('default', 'site_name')
-    params['SITE_DIR'] = parser.get('default', 'site_dir')
-    if parser.has_option('default','default_file'):
-        params['SITE_DEFAULT_FILE'] = parser.get('default', 'default_file')
-    else:
-        params['SITE_DEFAULT_FILE'] = 'index.html'
-
-    if params.get('SITE_KEY'):
-        return # key set on command line
-
-    if not parser.has_option('default','site_key_file'):
-        params['SITE_KEY'] = ''
-        return # Will use the insert SSK for the repo.
-
-    key_file = parser.get('default', 'site_key_file', 'default')
-    if key_file == 'default':
-        ui_.status('Using repo insert key as site key.\n')
-        params['SITE_KEY'] = 'default'
-        return # Use the insert SSK for the repo.
-    try:
-        # Read private key from specified key file relative
-        # to the directory the .infocalypse config file is stored in.
-        key_file = os.path.join(os.path.dirname(stored_cfg.file_name),
-                                key_file)
-        ui_.status('Reading site key from:\n%s\n' % key_file)
-        params['SITE_KEY'] = open(key_file, 'rb').read().strip()
-    except IOError:
-        raise util.Abort("Couldn't read site key from: %s" % key_file)
-
-    if not params['SITE_KEY'].startswith('SSK@'):
-        raise util.Abort("Stored site key not an SSK?")
 
 def get_insert_uri(params):
     """ Helper function builds the insert URI. """

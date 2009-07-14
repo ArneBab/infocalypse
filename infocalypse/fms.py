@@ -29,6 +29,7 @@ from fcpclient import get_usk_hash, get_version, is_usk_file, \
 # Hmmm... This dependency doesn't really belong here.
 from knownrepos import KNOWN_REPOS
 
+# Similar HACK is used in config.py
 import knownrepos # Just need a module to read __file__ from
 
 try:
@@ -46,8 +47,8 @@ except ImportError, err:
     else:
         PATH = os.path.join(PARTS[0], 'python2_5_files')
         sys.path.append(PATH)
-    # Seems to work ok with 2.6...
-    #print "Put local copies of python2.5 nntplib.py and netrc.py in path..."
+    #print ("Put local copies of python2.5 ConfigParser.py, "
+    #       + "nntplib.py and netrc.py in path...")
     #print
 # REDFLAG: Research.
 # Can't catch ImportError? Always aborts. ???
