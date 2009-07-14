@@ -3,8 +3,8 @@
 # Need to suppress all exceptions.
 # pylint: disable-msg=W0702
 
-""" Program to print an fms/freemail signature string with embedded
-    repo update information.
+""" Print an fms/freemail signature string with repo update information
+    readable by fn-fmsread.
 
     Copyright (C) 2009 Darrell Karbott
 
@@ -57,6 +57,9 @@ REPO_USKS = ('USK@kRM~jJVREwnN2qnA8R0Vt8HmpfRzBZ0j4rHC2cQ-0hw,'
              'USK@kRM~jJVREwnN2qnA8R0Vt8HmpfRzBZ0j4rHC2cQ-0hw,'
              + '2xcoQVdQLyqfTpF2DpkdUIbHFCeL4W~2X1phUYymnhM,'
              + 'AQACAAE/infocalypse.hgext.R1/12',
+             'USK@EbQbLWtWLRBgQl4Ly-SjQJvzADdJPfIXNQfCbKzgCFI,'
+             + 'XDLYQTC0nYD4rhIIP~Ff~itkvVVF2u4WU8YVSL2f5RA,'
+             +'AQACAAE/collaborate.R1/1'
              )
 
 USK_HASHES = tuple([get_usk_hash(usk) for usk in REPO_USKS])
