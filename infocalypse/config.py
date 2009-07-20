@@ -213,7 +213,7 @@ class Config:
                 ret.append(fms_id)
         return ret
 
-    # Broke this into a seperate func to appease pylint.
+    # Broke this into a separate func to appease pylint.
     @classmethod
     def validate_trust_map_entry(cls, cfg, fields):
         """ INTERNAL: Raise a ValueError for invalid trust map entries. """

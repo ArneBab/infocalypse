@@ -14,13 +14,13 @@ in order to use this extension.
 For more information on Freenet see:
 http://freenetproject.org/
 
-To use the (optional) fn-fmsread and fn-fmsnotify commands
-you must be able to connect to a running FMS
-server.
+To use the (optional, but highly recommended) fn-fmsread
+and fn-fmsnotify commands you must be able to connect to
+a running FMS server.
 
 For more information on FMS see:
 USK@0npnMrqZNKRCRoGojZV93UNHCMN-6UU3rRSAmP6jNLE,
-   ~BG-edFtdCC1cSH4O3BWdeIYa8Sw5DfyrSV-TKdO5ec,AQACAAE/fms/100/
+   ~BG-edFtdCC1cSH4O3BWdeIYa8Sw5DfyrSV-TKdO5ec,AQACAAE/fms/103/
 
 ADDING THE EXTENSION:
 Add the following to your .hgrc/mercurial.ini file.
@@ -130,10 +130,16 @@ REPOSITORY UPDATE NOTIFICATIONS VIA FMS:
 hg fn-fmsread
 
 with no arguments reads the latest repo USK indexes from
-fms and updates the locally cached values.
+FMS and updates the locally cached values.
 
 There's a trust map in the config file which
-determines which fms ids can update which repositories.
+determines which FMS ids can update the index values
+for which repositories. It is purely local and completely
+separate from the trust values which appear in the
+FMS web of trust.
+
+The trust map is stored in the '[fmsread_trust_map]' section
+of the config file.
 
 The format is:
 <number> = <fms_id>|<usk_hash0>|<usk_hash1>| ... |<usk_hashn>
@@ -141,41 +147,76 @@ The format is:
 The number value must be unique, but is ignored.
 
 You can get the repository hash for a repo by running
-fn-info in the directory where you have fn-pull'ed it.
+fn-info in the directory where you have fn-pull'ed it
+or with fn-fmsread --list[all] if it has been announced.
 
-You MUST manually update the trust map to enable
-index updating for repos other than the one
-this code lives in (be68e8feccdd).
-
+Here's an example trust map config entry:
 # Example .infocalypse snippet
 [fmsread_trust_map]
 1 = test0@adnT6a9yUSEWe5p8J-O1i8rJCDPqccY~dVvAmtMuC9Q|55833b3e6419
 0 = djk@isFiaD04zgAgnrEC5XJt1i4IE7AkNPqhBG5bONi6Yks|be68e8feccdd|5582404a9124
 2 = test1@SH1BCHw-47oD9~B56SkijxfE35M9XUvqXLX1aYyZNyA|fab7c8bd2fc3
 
+You MUST update the trust map to enable index updating for
+repos other than the one this code lives in (be68e8feccdd).
+You can edit the config file directly if you want.
+
+However, the easiest way to update the trust map is by using the
+--trust and --untrust options on fn-fmsread.
+
+For example to trust falafel@IxVqeqM0LyYdTmYAf5z49SJZUxr7NtQkOqVYG0hvITw
+to notify you about changes to the repository with repo hash 2220b02cf7ee,
+type:
+
+hg fn-fmsread --trust --hash 2220b02cf7ee \
+   --fmsid falafel@IxVqeqM0LyYdTmYAf5z49SJZUxr7NtQkOqVYG0hvITw
+
+And to stop trusting that FMS id for updates to 2220b02cf7ee, you would
+type:
+
+hg fn-fmsread --untrust --hash 2220b02cf7ee \
+   --fmsid falafel@IxVqeqM0LyYdTmYAf5z49SJZUxr7NtQkOqVYG0hvITw
+
+To show the trust map type:
+
+hg fn-fmsread --showtrust
+
+The command:
+
 hg fn-fmsread --list
 
-Displays announced repositories from fms ids that appear in
+displays announced repositories from FMS ids that appear anywhere in
 the trust map.
 
 hg fn-fmsread --listall
 
 Displays all announced repositories including ones from unknown
-fms ids.
+FMS ids.
+
+You can use the --hash option with fn-pull to pull any repository
+you see in the fn-read --list[all] lists by specifying the
+repository hash.
+
+e.g. to pull this code, cd to an empty directory and type:
+
+hg init
+hg fn-pull --hash be68e8feccdd --aggressive
+
+The command:
 
 hg fn-fmsnotify
 
-Posts update notifications to fms.
+posts update notifications to FMS.
 
 You MUST set the fms_id value in the config file
-to your fms id for this to work. You only need the
+to your FMS id for this to work. You only need the
 part before the '@'.
 
 # Example .infocalypse snippet
 fms_id = djk
 
 Use --dryrun to double check before sending the actual
-fms message.
+FMS message.
 
 Use --announce at least once if you want your USK to
 show up in the fmsread --listall list.
@@ -193,7 +234,7 @@ The fms_host and fms_port variables allow you
 to specify the fms host and port if you run
 fms on a non-standard host/port.
 
-fms can have pretty high latency. Be patient. It may
+FMS can have pretty high latency. Be patient. It may
 take hours (sometimes a day!) for your notification
 to appear.  Don't send lots of redundant notifications.
 
@@ -256,11 +297,12 @@ extension was installed into.
 SOURCE CODE:
 The authoritative repository for this code is hosted in Freenet.
 
-# hg fn-fmsread -v
+hg fn-fmsread -v
 hg fn-pull --debug --aggressive \\
 --uri USK@kRM~jJVREwnN2qnA8R0Vt8HmpfRzBZ0j4rHC2cQ-0hw,\\
 2xcoQVdQLyqfTpF2DpkdUIbHFCeL4W~2X1phUYymnhM,AQACAAE/\\
-infocalypse.hgext.R1/37
+infocalypse.hgext.R1/38
+
 
 CONTACT:
 djk@isFiaD04zgAgnrEC5XJt1i4IE7AkNPqhBG5bONi6Yks
