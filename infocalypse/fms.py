@@ -26,8 +26,7 @@ import StringIO
 from fcpclient import get_usk_hash, get_version, is_usk_file, \
      get_usk_for_usk_version
 
-# Hmmm... This dependency doesn't really belong here.
-from knownrepos import KNOWN_REPOS
+from validate import is_hex_string
 
 # Similar HACK is used in config.py
 import knownrepos # Just need a module to read __file__ from
@@ -95,14 +94,18 @@ class IFmsMessageSink:
 
             items is an nntplib xover items tuple.
             """
-        raise NotImplementedError()
+        # Avoid pylint R0922
+        # raise NotImplementedError()
+        pass
 
     def recv_fms_msg(self, group, items, lines):
         """ Handle an fms message.
 
             items is an nntplib xover items tuple.
         """
-        raise NotImplementedError()
+        # Avoid pylint R0922
+        # raise NotImplementedError()
+        pass
 
 def recv_msgs(fms_host, fms_port, msg_sink, groups):
     """ Read messages from fms. """
@@ -139,6 +142,10 @@ def recv_msgs(fms_host, fms_port, msg_sink, groups):
 ############################################################
 # Infocalypse specific stuff.
 ############################################################
+# REDFLAG: LATER, move this into fmscmd.py?
+
+# REDFLAG: Research, when exactly?
+# Can sometimes see fms ids w/o  human readable part.
 def clean_nym(fms_id):
     """ Returns the line noise part of an fms id, after the '@'. """
     pos = fms_id.index('@')
@@ -233,7 +240,6 @@ def parse(text, is_lines=False):
     announcements.sort()
     return (tuple(updates), tuple(announcements))
 
-
 def strip_names(trust_map):
     """ Returns a trust map without human readable names in the keys. """
     clean = {}
@@ -246,142 +252,202 @@ def strip_names(trust_map):
                                   + clean.get(cleaned, [])))
     return clean
 
-# REDFLAG: Trust map ids are w/o names
-# 'isFiaD04zgAgnrEC5XJt1i4IE7AkNPqhBG5bONi6Yks', not
-# 'djk@isFiaD04zgAgnrEC5XJt1i4IE7AkNPqhBG5bONi6Yks'
-class USKIndexUpdateParser(IFmsMessageSink):
-    """ Class which accumulates USK index update notifications
-        from fms messages. """
-    def __init__(self, trust_map, keep_untrusted=False):
+# REDFLAG: Trust map ids are w/o names.
+#
+# clean_fms_id -> (set(uri,..), hash-> index, set(full_fms_id, ...))
+class USKNotificationParser(IFmsMessageSink):
+    """ IFmsMessageSink reads and saves all updates and announcements """
+    def __init__(self, trust_map=None):
         IFmsMessageSink.__init__(self)
-        self.trust_map = strip_names(trust_map)
-        self.updates = {}
-        self.untrusted = None
-        if keep_untrusted:
-            self.untrusted = {}
-
-    def wants_msg(self, dummy, items):
-        """ IFmsMessageSink implementation. """
-        if len(items[5]) != 0:
-            # Skip replies
-            return False
-
-        if not self.untrusted is None:
-            return True
-
-        if clean_nym(items[2]) not in self.trust_map:
-            #print "Not trusted: ", items[2]
-            # Sender not authoritative on any USK.
-            return False
-
-        return True
-
-    def recv_fms_msg(self, dummy, items, lines):
-        """ IFmsMessageSink implementation. """
-        allowed_hashes = self.trust_map.get(clean_nym(items[2]), ())
-
-        #print "---\nSender: %s\nSubject: %s\n" % (items[2], items[1])
-        for update in parse(lines, True)[0]:
-            if update[0] in allowed_hashes:
-                # Only update if the nym is trusted *for the specific USK*.
-                #print "UPDATING ---\nSender: %s\nSubject:
-                # %s\n" % (items[2], items[1])
-                self.handle_trusted_update(update)
-            else:
-                self.handle_untrusted_update(items[2], update)
-
-    def handle_trusted_update(self, update):
-        """ INTERNAL: Handle a single update. """
-        index = update[1]
-        value = self.updates.get(update[0], index)
-        if index >= value:
-            self.updates[update[0]] = index
-
-    def handle_untrusted_update(self, sender, update):
-        """ INTERNAL: Handle a single untrusted update. """
-        entry = self.untrusted.get(update[0], [])
-        if not sender in entry:
-            entry.append(sender)
-        self.untrusted[update[0]] = entry
-
-    def updated(self, previous=None):
-        """ Returns a USK hash -> index map for USKs which
-            have been updated. """
-        if previous is None:
-            previous = {}
-        ret = {}
-        for usk_hash in self.updates:
-            if not usk_hash in previous:
-                ret[usk_hash] = self.updates[usk_hash]
-                continue
-            if self.updates[usk_hash] > previous[usk_hash]:
-                ret[usk_hash] = self.updates[usk_hash]
-
-        return ret
-
-class USKAnnouncementParser(IFmsMessageSink):
-    """ Class which accumulates USK announcement notifications
-        from fms messages. """
-    # None means accept all announcements.
-    def __init__(self, trust_map = None, include_defaults=False):
-        IFmsMessageSink.__init__(self)
-        if not trust_map is None:
-            trust_map = strip_names(trust_map)
+        self.table = {}
         self.trust_map = trust_map
-        self.usks = {}
-        if include_defaults:
-            for owner, usk in KNOWN_REPOS:
-                if ((not trust_map is None) and
-                    (not clean_nym(owner) in trust_map)):
-                    continue
-                self.handle_announcement(owner, usk)
 
     def wants_msg(self, dummy, items):
-        """ IFmsMessageSink implementation. """
+        """ Return True if the message should be passed to recv_fms_msg,
+            False, otherwise.
+
+            items is an nntplib xover items tuple.
+            """
+        # Skip replies, accept everything else.
         if len(items[5]) != 0:
-            # Skip replies
             return False
 
         if self.trust_map is None:
             return True
 
-        if clean_nym(items[2]) not in self.trust_map:
-            #print "Not trusted: ", items[2]
-            # Sender not authoritative on any USK.
-            return False
-
-        return True
+        return items[2] in self.trust_map
 
     def recv_fms_msg(self, dummy, items, lines):
         """ IFmsMessageSink implementation. """
         #print "---\nSender: %s\nSubject: %s\n" % (items[2], items[1])
-        for usk in parse(lines, True)[1]:
-            self.handle_announcement(items[2], usk)
+        clean_id = clean_nym(items[2])
+        new_updates, new_announcements = parse(lines, True)
+        #if len(new_updates) > 0 or len(new_announcements) > 0:
+        #    print "---\nSender: %s\nSubject: %s\n" % (items[2], items[1])
 
-    def handle_announcement(self, sender, usk):
-        """ INTERNAL: Handle a single announcement """
-        usk = get_usk_for_usk_version(usk, 0)
-        entry = self.usks.get(usk, [])
-        if not sender in entry:
-            entry.append(sender)
-        self.usks[usk] = entry
+        for update in new_updates:
+            self.handle_update(clean_id, items[2], update[0], update[1])
 
-HEX_CHARS = frozenset(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
-                       'a', 'b', 'c', 'd', 'e', 'f'])
+        for announcement in new_announcements:
+            self.handle_announcement(clean_id, items[2], announcement)
 
-# Really no library function to do this?
-# REQUIRES: Lowercase!
-def is_hex_string(value, length=12):
-    """ Returns True if value is a lowercase hex digit string,
-        False otherwise. """
-    if not length is None:
-        if len(value) != length:
-            raise ValueError("Expected hex string of length: %i" % length)
-    for char in value:
-        if not char in HEX_CHARS:
-            return False
-    return True
+    def add_default_repos(self, default_repos):
+        """ Add table entries from a [(fms_id, usk), ...] list. """
+        for repo_entry in default_repos:
+            clean_id = clean_nym(repo_entry[0])
+            usk_hash = get_usk_hash(repo_entry[1])
+            self.handle_announcement(clean_id, repo_entry[0], repo_entry[1])
+            # Implicit in announcement
+            self.handle_update(clean_id, repo_entry[0], usk_hash,
+                               get_version(repo_entry[1]))
 
+    # parse() handles implicit updates in annoucements
+    def handle_announcement(self, clean_id, fms_id, usk):
+        """ INTERNAL: process a single announcement. """
+        entry = self.table.get(clean_id, (set([]), {}, set([])))
+        entry[0].add(get_usk_for_usk_version(usk, 0))
+        entry[2].add(fms_id)
+
+        self.table[clean_id] = entry
+
+    def handle_update(self, clean_id, fms_id, usk_hash, index):
+        """ INTERNAL: process a single update. """
+        if index < 0:
+            print "handle_update -- skipped negative index!"
+            return
+
+        entry = self.table.get(clean_id, (set([]), {}, set([])))
+        prev_index = entry[1].get(usk_hash, 0)
+        if index > prev_index:
+            prev_index = index
+        entry[1][usk_hash] = prev_index
+        entry[2].add(fms_id)
+
+        self.table[clean_id] = entry
+
+    # REDFLAG: Doesn't deep copy. Passing out refs to stuff in table.
+    def invert_table(self):
+        """ INTERNAL: Return (clean_id -> fms_id,  usk->set(clean_id, ...),
+            repo_hash->usk->set(clean_id, ...)) """
+        # clean_id -> fms_id
+        fms_id_map = {}
+        # usk -> clean_id
+        announce_map = {}
+        # repo_hash -> clean_id
+        update_map = {}
+
+        for clean_id in self.table:
+            table_entry = self.table[clean_id]
+
+            # Backmap to the human readable fms ids
+            fms_id_map[clean_id] = self.get_human_name(clean_id, table_entry)
+
+            # Accumulate all announcements
+            for usk in table_entry[0]:
+                entry = announce_map.get(usk, set([]))
+                entry.add(clean_id)
+                announce_map[usk] = entry
+
+            # Accumulate all updates
+            for usk_hash in table_entry[1]:
+                entry = update_map.get(usk_hash, set([]))
+                entry.add(clean_id)
+                update_map[usk_hash] = entry
+
+        return (fms_id_map, announce_map, update_map)
+
+    def get_human_name(self, clean_id, table_entry=None):
+        """ INTERNAL: Return a full FMS id from a clean_id. """
+        ret = None
+        if table_entry is None:
+            table_entry = self.table[clean_id]
+
+        for fms_id in table_entry[2]:
+            fields = fms_id.split('@')
+            if len(fields[0].strip()) > 0:
+                ret = fms_id
+                break # break inner loop.
+        if ret is None:
+            # REDFLAG: Nail down when this can happen.
+            print "??? saw an fms id with no human readable part ???"
+            print list(table_entry[2])[0]
+            ret = list(table_entry[2])[0]
+        return ret
+
+    # changed, untrusted
+    def get_updated(self, trust_map, version_table):
+        """ Returns trusted and untrusted changes with respect to
+            the version table. """
+
+        clean_trust = strip_names(trust_map)
+        # usk_hash -> index
+        max_trusted = {}
+        # usk_hash -> (index, fms_id)
+        max_untrusted = {}
+        for clean_id in self.table:
+            table_entry = self.table[clean_id]
+            for usk_hash in table_entry[1]:
+                if not usk_hash in version_table:
+                    continue # Not a repo we care about.
+
+                index = table_entry[1][usk_hash]
+                if index <= version_table[usk_hash]:
+                    continue # Not news. Already know about that index.
+
+                if (clean_id in clean_trust and
+                    usk_hash in clean_trust[clean_id]):
+                    # Trusted update
+                    if not usk_hash in max_trusted:
+                        max_trusted[usk_hash] = index
+                    elif index > max_trusted[usk_hash]:
+                        max_trusted[usk_hash] = index
+                else:
+                    # Untrusted update
+                    fms_id = self.get_human_name(clean_id, table_entry)
+                    if not usk_hash in max_untrusted:
+                        max_untrusted[usk_hash] = (index, fms_id)
+                    elif index > max_untrusted[usk_hash]:
+                        max_untrusted[usk_hash] = (index, fms_id)
+
+        changed = {}
+        untrusted = {}
+        for usk_hash in version_table:
+            if usk_hash in max_trusted:
+                changed[usk_hash] = max_trusted[usk_hash]
+
+            if usk_hash in max_untrusted:
+                if usk_hash in changed:
+                    if max_untrusted[usk_hash][0] > changed[usk_hash]:
+                        # There was a trusted update, but the untrusted one
+                        # was higher.
+                        untrusted[usk_hash] = max_untrusted[usk_hash]
+                else:
+                    # No trusted updated
+                    untrusted[usk_hash] =  max_untrusted[usk_hash]
+
+        # changed is usk_hash->index
+        # untrusted is usk_hash->(index, fms_id)
+        return (changed, untrusted)
+
+def show_table(parser, out_func):
+    """ Dump the announcements and updates in a human readable format. """
+    fms_id_map, announce_map, update_map = parser.invert_table()
+
+    usks = announce_map.keys()
+    usks.sort()
+
+    for usk in usks:
+        usk_hash = get_usk_hash(usk)
+        out_func("USK Hash: %s\n" % usk_hash)
+        out_func("USK: %s\n" % usk)
+        out_func("Announced by:\n")
+        for clean_id in announce_map[usk]:
+            out_func("   %s\n" % fms_id_map[clean_id])
+        out_func("Updated by:\n")
+        for clean_id in update_map[usk_hash]:
+            out_func("   %i:%s\n" % (parser.table[clean_id][1][usk_hash],
+                                     fms_id_map[clean_id]))
+        out_func("\n")
 ############################################################
 
 DEFAULT_SUBJECT = 'Ignore'
@@ -409,31 +475,8 @@ Group  : %s
 
 def smoke_test():
     """ Smoke test the functions in this module. """
-    #    trust_map = {'djk@isFiaD04zgAgnrEC5XJt1i4IE7AkNPqhBG5bONi6Yks':
-    #                 ('be68e8feccdd', ),}
 
-
-    trust_map = {'falafel@IxVqeqM0LyYdTmYAf5z49SJZUxr7NtQkOqVYG0hvITw':
-                 ('1' * 12, ),
-                 'SDiZ@17fy9sQtAvZI~nwDt5xXJkTZ9KlXon1ucEakK0vOFTc':
-                 ('2' * 12, ),
-                 }
-
-    parser = USKIndexUpdateParser(trust_map)
-    recv_msgs('127.0.0.1', 11119, parser, ('test',))
-    print
-    print "fms updates:"
-    print parser.updated()
-    print
-    print
-    parser = USKAnnouncementParser(trust_map)
-    recv_msgs('127.0.0.1', 11119, parser, ('test',))
-    print
-    print "fms announcements:"
-    print parser.usks
-    print
-    print
-
+    # REDFLAG: tests for USKNotificationParser ???
     values0 = ((('be68e8feccdd', 23), ('e246cc31bc42', 3)),
                ('USK@kRM~jJVREwnN2qnA8R0Vt8HmpfRzBZ0j4rHC2cQ-0hw,'
                 + '2xcoQVdQLyqfTpF2DpkdUIbHFCeL4W~2X1phUYymnhM,AQACAAE/'

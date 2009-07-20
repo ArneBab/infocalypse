@@ -19,68 +19,86 @@
 
     Author: djk@isFiaD04zgAgnrEC5XJt1i4IE7AkNPqhBG5bONi6Yks
 """
+from mercurial import util
 
 from fcpclient import get_usk_hash
 
-from fms import USKAnnouncementParser, USKIndexUpdateParser, recv_msgs, \
-     to_msg_string, MSG_TEMPLATE, send_msgs
+from knownrepos import KNOWN_REPOS
 
-from config import Config
+from fms import recv_msgs, to_msg_string, MSG_TEMPLATE, send_msgs, \
+     USKNotificationParser, show_table
+
+from config import Config, trust_id_for_repo, untrust_id_for_repo, known_hashes
 from infcmds import do_key_setup, setup, cleanup
 
 def handled_list(ui_, params, stored_cfg):
-    """ INTERNAL: Helper function to simplify execute_fmsread. """
-    if params['FMSREAD'] != 'list' and params['FMSREAD'] != 'listall':
+    """ INTERNAL: HACKED"""
+    if params['FMSREAD'] != 'listall' and params['FMSREAD'] != 'list':
         return False
 
-    if params['FMSREAD'] == 'listall':
-        parser = USKAnnouncementParser(None, True)
-        if params['VERBOSITY'] >= 2:
-            ui_.status('Listing all repo USKs.\n')
-    else:
+    trust_map = None
+    if params['FMSREAD'] == 'list':
         trust_map = stored_cfg.fmsread_trust_map.copy() # paranoid copy
-        if params['VERBOSITY'] >= 2:
-            fms_ids = trust_map.keys()
-            fms_ids.sort()
-            ui_.status(("Only listing repo USKs from trusted "
-                            + "fms IDs:\n%s\n\n") % '\n'.join(fms_ids))
-        parser = USKAnnouncementParser(trust_map, True)
+        fms_ids = trust_map.keys()
+        fms_ids.sort()
+        ui_.status(("Only listing repo USKs from trusted "
+                    + "FMS IDs:\n   %s\n\n") % '\n   '.join(fms_ids))
 
+    parser = USKNotificationParser(trust_map)
+    parser.add_default_repos(KNOWN_REPOS)
     recv_msgs(stored_cfg.defaults['FMS_HOST'],
               stored_cfg.defaults['FMS_PORT'],
               parser,
               stored_cfg.fmsread_groups)
-
-    if len(parser.usks) == 0:
-        ui_.status("No USKs found.\n")
-        return True
-
-    ui_.status("\n")
-    for usk in parser.usks:
-        usk_entry = parser.usks[usk]
-        ui_.status("USK Hash: %s\n%s\n%s\n\n" %
-                   (get_usk_hash(usk), usk,
-                    '\n'.join(usk_entry)))
+    show_table(parser, ui_.status)
 
     return True
 
-def dump_trust_map(ui_, params, trust_map):
+def dump_trust_map(ui_, params, trust_map, force=False):
     """ Show verbose trust map information. """
-    if params['VERBOSITY'] < 2:
+    if  not force and params['VERBOSITY'] < 2:
         return
 
-    if not params['REQUEST_URI'] is None:
-        ui_.status("USK Hash: %s\n" % get_usk_hash(params['REQUEST_URI']))
+    if not force and not params['REQUEST_URI'] is None:
+        ui_.status("USK hash for local repository: %s\n" %
+                   get_usk_hash(params['REQUEST_URI']))
     fms_ids = trust_map.keys()
     fms_ids.sort()
     ui_.status("Update Trust Map:\n")
     for fms_id in fms_ids:
-        ui_.status("   %s: %s\n" % (fms_id,
-                                    ' '.join(trust_map[fms_id])))
+        ui_.status("   %s\n      %s\n" % (fms_id,
+                                         '\n      '.join(trust_map[fms_id])))
     ui_.status("\n")
+
+def handled_trust_cmd(ui_, params, stored_cfg):
+    """ INTERNAL: Handle --trust, --untrust and --showtrust. """
+    if params['FMSREAD'] == 'trust':
+        if trust_id_for_repo(stored_cfg.fmsread_trust_map,
+                             params['FMSREAD_FMSID'],
+                             params['FMSREAD_HASH']):
+            ui_.status("Updated the trust map.\n")
+            Config.to_file(stored_cfg)
+        return True
+    elif params['FMSREAD'] == 'untrust':
+        if untrust_id_for_repo(stored_cfg.fmsread_trust_map,
+                               params['FMSREAD_FMSID'],
+                               params['FMSREAD_HASH']):
+            ui_.status("Updated the trust map.\n")
+            Config.to_file(stored_cfg)
+        return True
+
+    elif params['FMSREAD'] == 'showtrust':
+        dump_trust_map(ui_, params, stored_cfg.fmsread_trust_map, True)
+        return True
+
+    return False
 
 def execute_fmsread(ui_, params, stored_cfg):
     """ Run the fmsread command. """
+
+    if handled_trust_cmd(ui_, params, stored_cfg):
+        return
+
     if params['VERBOSITY'] >= 2:
         ui_.status(('Connecting to fms on %s:%i\n'
                     + 'Searching groups: %s\n') %
@@ -93,30 +111,34 @@ def execute_fmsread(ui_, params, stored_cfg):
         return
 
     # Updating Repo USK indices for repos which are
-    # listed int the fmsread_trust_map section of the
+    # listed in the fmsread_trust_map section of the
     # config file.
     trust_map = stored_cfg.fmsread_trust_map.copy() # paranoid copy
 
     dump_trust_map(ui_, params, trust_map)
 
     ui_.status("Raking through fms messages. This may take a while...\n")
-    parser = USKIndexUpdateParser(trust_map, True)
+    parser = USKNotificationParser()
     recv_msgs(stored_cfg.defaults['FMS_HOST'],
               stored_cfg.defaults['FMS_PORT'],
               parser,
               stored_cfg.fmsread_groups)
-    changed = parser.updated(stored_cfg.version_table)
 
-    if params['VERBOSITY'] >= 2:
-        if parser.untrusted and len(parser.untrusted) > 0:
-            text = 'Skipped Untrusted Updates:\n'
-            for usk_hash in parser.untrusted:
-                text += usk_hash + ':\n'
-                fms_ids = parser.untrusted[usk_hash]
-                for fms_id in fms_ids:
-                    text += '   ' + fms_id + '\n'
-            text += '\n'
-            ui_.status(text)
+    # IMPORTANT: Must include versions that are in the trust map
+    #            but which we haven't seen before.
+    full_version_table = stored_cfg.version_table.copy()
+    for usk_hash in known_hashes(trust_map):
+        if not usk_hash in full_version_table:
+            full_version_table[usk_hash] = None # works
+
+    changed, untrusted = parser.get_updated(trust_map, full_version_table)
+
+    if params['VERBOSITY'] >= 2 and len(untrusted) > 0:
+        text = 'Skipped untrusted updates:\n'
+        for usk_hash in untrusted:
+            text += "   %i:%s\n" % (untrusted[usk_hash], usk_hash)
+        text += '\n'
+        ui_.status(text)
 
     if len(changed) == 0:
         ui_.status('No updates found.\n')
@@ -220,4 +242,107 @@ def execute_fmsnotify(ui_, repo, params, stored_cfg):
                    'Be patient.  It may take up to a day to show up.\n')
     finally:
         cleanup(update_sm)
+
+def check_trust_map(ui_, stored_cfg, repo_hash, notifiers, trusted_notifiers):
+    """ INTERNAL: Function to interactively update the trust map. """
+    if len(trusted_notifiers) > 0:
+        return
+    ui_.warn("\nYou MUST trust at least one FMS Id to "
+             + "provide update notifications.\n\n")
+
+    added = False
+    fms_ids = notifiers.keys()
+    fms_ids.sort()
+
+    done = False
+    for fms_id in fms_ids:
+        if done:
+            break
+        ui_.status("Trust notifications from %s\n" % fms_id)
+        while not done:
+            result = ui_.prompt("(y)es, (n)o, (d)one, (a)bort?").lower()
+            if result is None:
+                raise util.Abort("Interactive input required.")
+            elif result == 'y':
+                trust_id_for_repo(stored_cfg.fmsread_trust_map, fms_id,
+                                  repo_hash)
+                added = True
+                break
+            elif result == 'n':
+                break
+            elif result == 'd':
+                done = True
+                break
+            elif result == 'a':
+                raise util.Abort("User aborted editing trust map.")
+
+    if not added:
+        raise util.Abort("No trusted notifiers!")
+
+    Config.to_file(stored_cfg)
+    ui_.status("Saved updated config file.\n\n")
+
+def get_uri_from_hash(ui_, dummy, params, stored_cfg):
+    """ Use FMS to get the URI for a repo hash. """
+    if params['VERBOSITY'] >= 2:
+        ui_.status(('Connecting to fms on %s:%i\n'
+                    + 'Searching groups: %s\n') %
+                   (stored_cfg.defaults['FMS_HOST'],
+                    stored_cfg.defaults['FMS_PORT'],
+                    ' '.join(stored_cfg.fmsread_groups)))
+    trust_map = None
+    if params['FMSREAD_ONLYTRUSTED']:
+        # HACK to deal with spam of the announcement group.'
+        trust_map = stored_cfg.fmsread_trust_map.copy() # paranoid copy
+        fms_ids = trust_map.keys()
+        fms_ids.sort()
+        ui_.status(("Only using announcements from trusted "
+                    + "FMS IDs:\n   %s\n\n") % '\n   '.join(fms_ids))
+
+    parser = USKNotificationParser(trust_map)
+    parser.add_default_repos(KNOWN_REPOS)
+    ui_.status("Raking through fms messages. This may take a while...\n")
+    recv_msgs(stored_cfg.defaults['FMS_HOST'],
+              stored_cfg.defaults['FMS_PORT'],
+              parser,
+              stored_cfg.fmsread_groups)
+
+    target_hash = params['FMSREAD_HASH']
+    target_usk = None
+    fms_id_map, announce_map, update_map = parser.invert_table()
+
+    # Find URI
+    for usk in announce_map:
+        if target_hash == get_usk_hash(usk):
+            # We don't care who announced. The hash matches.
+            target_usk = usk
+            break
+
+    if target_usk is None:
+        raise util.Abort(("No announcement found for [%s]. "
+                          +"Use --uri to set the URI.") % target_hash)
+
+    if params['VERBOSITY'] >= 2:
+        ui_.status("Found URI announcement:\n%s\n" % target_usk)
+
+    trusted_notifiers = stored_cfg.trusted_notifiers(target_hash)
+
+    notifiers = {}
+    for clean_id in update_map[target_hash]:
+        notifiers[fms_id_map[clean_id]] = parser.table[clean_id][1][target_hash]
+
+    fms_ids = notifiers.keys()
+    fms_ids.sort()
+
+    ui_.status("Found Updates:\n")
+    for fms_id in fms_ids:
+        if fms_id in trusted_notifiers:
+            value = "trusted"
+        else:
+            value = "untrusted"
+        ui_.status("   [%s]:%i:%s\n" % (value, notifiers[fms_id], fms_id))
+
+    check_trust_map(ui_, stored_cfg, target_hash, notifiers, trusted_notifiers)
+
+    return target_usk
 

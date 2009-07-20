@@ -44,6 +44,7 @@ from updatesm import UpdateStateMachine, QUIESCENT, FINISHING, REQUESTING_URI, \
      INSERTING_URI, FAILING, REQUESTING_URI_4_COPY, CANCELING, CleaningUp
 
 from config import Config, DEFAULT_CFG_PATH, FORMAT_VERSION, normalize
+
 from knownrepos import DEFAULT_TRUST, DEFAULT_GROUPS
 
 DEFAULT_PARAMS = {
@@ -668,10 +669,16 @@ def execute_pull(ui_, repo, params, stored_cfg):
         if not params['NO_SEARCH'] and is_usk_file(params['REQUEST_URI']):
             index = stored_cfg.get_index(params['REQUEST_URI'])
             if not index is None:
-                # Update index to the latest known value
-                # for the --uri case.
-                params['REQUEST_URI'] = get_usk_for_usk_version(
-                    params['REQUEST_URI'], index)
+                if index >= get_version(params['REQUEST_URI']):
+                    # Update index to the latest known value
+                    # for the --uri case.
+                    params['REQUEST_URI'] = get_usk_for_usk_version(
+                        params['REQUEST_URI'], index)
+                else:
+                    ui_.status(("Cached index [%i] < index in USK [%i].  "
+                                + "Using the index from the USK.\n"
+                                + "You're sure that index exists, right?\n") %
+                               (index, get_version(params['REQUEST_URI'])))
 
         update_sm = setup(ui_, repo, params, stored_cfg)
         ui_.status("%sRequest URI:\n%s\n" % (is_redundant(params[
@@ -693,12 +700,15 @@ def execute_pull(ui_, repo, params, stored_cfg):
     finally:
         cleanup(update_sm)
 
-NO_INFO_FMT = """There's no stored information about that USK.
+NO_INFO_FMT = """There's no stored information about this USK.
 USK hash: %s
 """
 
 INFO_FMT = """USK hash: %s
-index   : %i
+Index   : %i
+
+Trusted Notifiers:
+%s
 
 Request URI:
 %s
@@ -724,8 +734,14 @@ def execute_info(ui_, params, stored_cfg):
     # fix index
     request_uri = get_usk_for_usk_version(request_uri, max_index)
 
+    trusted = stored_cfg.trusted_notifiers(usk_hash)
+    if not trusted:
+        trusted = '   None'
+    else:
+        trusted = '   ' + '\n   '.join(trusted)
+
     ui_.status(INFO_FMT %
-               (usk_hash, max_index or -1, request_uri, insert_uri))
+               (usk_hash, max_index or -1, trusted, request_uri, insert_uri))
 
 def setup_tmp_dir(ui_, tmp):
     """ INTERNAL: Setup the temp directory. """

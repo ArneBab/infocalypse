@@ -20,7 +20,6 @@
     Author: djk@isFiaD04zgAgnrEC5XJt1i4IE7AkNPqhBG5bONi6Yks
 """
 
-
 import os
 import sys
 
@@ -28,6 +27,9 @@ from fcpclient import get_usk_hash, is_usk_file, get_version, \
      get_usk_for_usk_version
 from knownrepos import DEFAULT_TRUST, DEFAULT_GROUPS, \
      DEFAULT_NOTIFICATION_GROUP
+
+from validate import is_hex_string, is_fms_id
+
 from mercurial import util
 
 # Similar hack is used in fms.py.
@@ -202,6 +204,15 @@ class Config:
     #def get_key_alias(self, alias, is_public):
     #    pass
 
+    def trusted_notifiers(self, repo_hash):
+        """ Return the list of FMS ids trusted to modify the repo with
+            repository hash repo_hash. """
+        ret = []
+        for fms_id in self.fmsread_trust_map:
+            if repo_hash in self.fmsread_trust_map[fms_id]:
+                ret.append(fms_id)
+        return ret
+
     @classmethod
     def update_defaults(cls, parser, cfg):
         """ INTERNAL: Helper function to simplify from_file. """
@@ -264,12 +275,21 @@ class Config:
                 fields = parser.get('fmsread_trust_map',
                                     ordinal).strip().split('|')
                 # REDFLAG: better validation for fms_id, hashes?
-                if fields[0].find('@') == -1:
+                if not is_fms_id(fields[0]):
                     raise ValueError("%s doesn't look like an fms id." %
                                      fields[0])
                 if len(fields) < 2:
                     raise ValueError("No USK hashes for fms id: %s?" %
                                      fields[0])
+                for value in fields[1:]:
+                    if not is_hex_string(value):
+                        raise ValueError("%s doesn't look like a repo hash." %
+                                         value)
+
+                if fields[0] in cfg.fmsread_trust_map:
+                    raise ValueError(("%s appears more than once in the "
+                                      + "[fmsread_trust_map] section.") %
+                                         fields[0])
                 cfg.fmsread_trust_map[fields[0]] = tuple(fields[1:])
 
 
@@ -400,4 +420,49 @@ def read_freesite_cfg(ui_, repo, params, stored_cfg):
 
     if not params['SITE_KEY'].startswith('SSK@'):
         raise util.Abort("Stored site key not an SSK?")
+
+def known_hashes(trust_map):
+    """ Return all repo hashes in the trust map. """
+    ret = set([])
+    for fms_id in trust_map:
+        ret |=  set(trust_map[fms_id])
+    return tuple(ret)
+
+# REMEMBER that hashes are stored in a tuple not a list!
+def trust_id_for_repo(trust_map, fms_id, repo_hash):
+    """ Accept index updates from an fms id for a repo."""
+    assert is_fms_id(fms_id)
+    assert is_hex_string(repo_hash)
+
+    hashes = trust_map.get(fms_id, ())
+    if repo_hash in hashes:
+        return False
+    hashes = list(hashes)
+    hashes.append(repo_hash)
+    trust_map[fms_id] = tuple(hashes)
+
+    return True
+
+# See above.
+def untrust_id_for_repo(trust_map, fms_id, repo_hash):
+    """ Stop accepting index updates from an fms id for a repo."""
+    assert is_fms_id(fms_id)
+    assert is_hex_string(repo_hash)
+
+    if not fms_id in trust_map:
+        return False
+
+    hashes = list(trust_map[fms_id])
+    # Paranoia. There shouldn't be duplicates.
+    count = 0
+    while repo_hash in hashes:
+        hashes.remove(repo_hash)
+        count += 1
+
+    if len(hashes) == 0:
+        del trust_map[fms_id]
+        return True
+
+    trust_map[fms_id] = tuple(hashes)
+    return count > 0
 

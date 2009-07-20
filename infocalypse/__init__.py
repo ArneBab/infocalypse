@@ -295,10 +295,11 @@ from infcmds import get_config_info, execute_create, execute_pull, \
      execute_push, execute_setup, execute_copy, execute_reinsert, \
      execute_info
 
-from fmscmds import execute_fmsread, execute_fmsnotify
+from fmscmds import execute_fmsread, execute_fmsnotify, get_uri_from_hash
 
 from sitecmds import execute_putsite, execute_genkey
 from config import read_freesite_cfg
+from validate import is_hex_string, is_fms_id
 
 def set_target_version(ui_, repo, opts, params, msg_fmt):
     """ INTERNAL: Update TARGET_VERSION in params. """
@@ -390,7 +391,19 @@ def infocalypse_pull(ui_, repo, **opts):
     """ Pull from an Infocalypse repository in Freenet.
      """
     params, stored_cfg = get_config_info(ui_, opts)
-    request_uri = opts['uri']
+
+    if opts['hash']:
+        # Use FMS to lookup the uri from the repo hash.
+        if opts['uri'] != '':
+            ui_.warn("Ignoring --uri because --hash is set!\n")
+        if len(opts['hash']) != 1:
+            raise util.Abort("Only one --hash value is allowed.")
+        params['FMSREAD_HASH'] = opts['hash'][0]
+        params['FMSREAD_ONLYTRUSTED'] = bool(opts['onlytrusted'])
+        request_uri = get_uri_from_hash(ui_, repo, params, stored_cfg)
+    else:
+        request_uri = opts['uri']
+
     if request_uri == '':
         request_uri = stored_cfg.get_request_uri(repo.root)
         if not request_uri:
@@ -444,6 +457,44 @@ def infocalypse_info(ui_, repo, **opts):
     params['REQUEST_URI'] = request_uri
     execute_info(ui_, params, stored_cfg)
 
+def parse_trust_args(params, opts):
+    """ INTERNAL: Helper function to parse  --hash and --fmsid. """
+    if opts.get('hash', []) == []:
+        raise util.Abort("Use --hash to set the USK hash.")
+    if len(opts['hash']) != 1:
+        raise util.Abort("Only one --hash value is allowed.")
+    if not is_hex_string(opts['hash'][0]):
+        raise util.Abort("[%s] doesn't look like a USK hash." %
+                         opts['hash'][0])
+
+    if opts.get('fmsid', []) == []:
+        raise util.Abort("Use --fmsid to set the FMS id.")
+    if len(opts['fmsid']) != 1:
+        raise util.Abort("Only one --fmsid value is allowed.")
+    if not is_fms_id(opts['fmsid'][0]):
+        raise util.Abort("[%s] doesn't look like an FMS id."
+                         % opts['fmsid'][0])
+
+    params['FMSREAD_HASH'] = opts['hash'][0]
+    params['FMSREAD_FMSID'] = opts['fmsid'][0]
+
+def parse_fmsread_subcmd(params, opts):
+    """ INTERNAL: Parse subcommand for fmsread."""
+    if opts['listall']:
+        params['FMSREAD'] = 'listall'
+    elif opts['list']:
+        params['FMSREAD'] = 'list'
+    elif opts['showtrust']:
+        params['FMSREAD'] = 'showtrust'
+    elif opts['trust']:
+        params['FMSREAD'] = 'trust'
+        parse_trust_args(params, opts)
+    elif opts['untrust']:
+        params['FMSREAD'] = 'untrust'
+        parse_trust_args(params, opts)
+    else:
+        params['FMSREAD'] = 'update'
+
 def infocalypse_fmsread(ui_, repo, **opts):
     """ Read repository update information from fms.
     """
@@ -457,13 +508,7 @@ def infocalypse_fmsread(ui_, repo, **opts):
         if not request_uri:
             ui_.status("There is no stored request URI for this repo.\n")
             request_uri = None
-
-    if opts['listall']:
-        params['FMSREAD'] = 'listall'
-    elif opts['list']:
-        params['FMSREAD'] = 'list'
-    else:
-        params['FMSREAD'] = 'update'
+    parse_fmsread_subcmd(params, opts)
     params['DRYRUN'] = opts['dryrun']
     params['REQUEST_URI'] = request_uri
     execute_fmsread(ui_, params, stored_cfg)
@@ -555,7 +600,10 @@ NOSEARCH_OPT = [('', 'nosearch', None, 'use USK version in URI'), ]
 
 cmdtable = {
     "fn-pull": (infocalypse_pull,
-                [('', 'uri', '', 'request URI to pull from'),]
+                [('', 'uri', '', 'request URI to pull from'),
+                 ('', 'hash', [], 'repo hash of repository to pull from'),
+                 ('', 'onlytrusted', None, 'only use repo announcements from '
+                  + 'known users')]
                 + FCP_OPTS
                 + NOSEARCH_OPT
                 + AGGRESSIVE_OPT,
@@ -596,9 +644,14 @@ cmdtable = {
 
     "fn-fmsread": (infocalypse_fmsread,
                    [('', 'uri', '', 'request URI'),
+                    ('', 'hash', [], 'repo hash to modify trust for'),
+                    ('', 'fmsid', [], 'FMS id to modify trust for'),
                     ('', 'list', None, 'show repo USKs from trusted '
                      + 'fms identities'),
                     ('', 'listall', None, 'show all repo USKs'),
+                    ('', 'showtrust', None, 'show the trust map'),
+                    ('', 'trust', None, 'add an entry to the trust map'),
+                    ('', 'untrust', None, 'remove an entry from the trust map'),
                     ('', 'dryrun', None, "don't update the index cache"),],
                    "[options]"),
 
