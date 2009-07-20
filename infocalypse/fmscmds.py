@@ -93,18 +93,31 @@ def handled_trust_cmd(ui_, params, stored_cfg):
 
     return False
 
+# To appease pylint
+def show_fms_info(ui_, params, stored_cfg, show_groups=True):
+    """ INTERNAL: Helper function prints fms info. """
+
+    if params['VERBOSITY'] < 2:
+        return
+
+    if show_groups:
+        ui_.status(('Connecting to fms on %s:%i\n'
+                    + 'Searching groups: %s\n') %
+                   (stored_cfg.defaults['FMS_HOST'],
+                    stored_cfg.defaults['FMS_PORT'],
+                    ' '.join(stored_cfg.fmsread_groups)))
+    else:
+        ui_.status(('Connecting to fms on %s:%i\n') %
+                   (stored_cfg.defaults['FMS_HOST'],
+                    stored_cfg.defaults['FMS_PORT']))
+
 def execute_fmsread(ui_, params, stored_cfg):
     """ Run the fmsread command. """
 
     if handled_trust_cmd(ui_, params, stored_cfg):
         return
 
-    if params['VERBOSITY'] >= 2:
-        ui_.status(('Connecting to fms on %s:%i\n'
-                    + 'Searching groups: %s\n') %
-                   (stored_cfg.defaults['FMS_HOST'],
-                    stored_cfg.defaults['FMS_PORT'],
-                    ' '.join(stored_cfg.fmsread_groups)))
+    show_fms_info(ui_, params, stored_cfg)
 
     # Listing announced Repo USKs
     if handled_list(ui_, params, stored_cfg):
@@ -213,10 +226,7 @@ def execute_fmsnotify(ui_, repo, params, stored_cfg):
                      subject,
                      text)
 
-        if params['VERBOSITY'] >= 2:
-            ui_.status('Connecting to fms on %s:%i\n' %
-                       (stored_cfg.defaults['FMS_HOST'],
-                        stored_cfg.defaults['FMS_PORT']))
+        show_fms_info(ui_, params, stored_cfg, False)
 
         ui_.status('Sender : %s\nGroup  : %s\nSubject: %s\n%s\n' %
                    (stored_cfg.defaults['FMS_ID'],
@@ -282,14 +292,9 @@ def check_trust_map(ui_, stored_cfg, repo_hash, notifiers, trusted_notifiers):
     Config.to_file(stored_cfg)
     ui_.status("Saved updated config file.\n\n")
 
-def get_uri_from_hash(ui_, dummy, params, stored_cfg):
-    """ Use FMS to get the URI for a repo hash. """
-    if params['VERBOSITY'] >= 2:
-        ui_.status(('Connecting to fms on %s:%i\n'
-                    + 'Searching groups: %s\n') %
-                   (stored_cfg.defaults['FMS_HOST'],
-                    stored_cfg.defaults['FMS_PORT'],
-                    ' '.join(stored_cfg.fmsread_groups)))
+# Broke into a separate function to appease pylint.
+def get_trust_map(ui_, params, stored_cfg):
+    """ INTERNAL: Helper function to set up the trust map if required. """
     trust_map = None
     if params['FMSREAD_ONLYTRUSTED']:
         # HACK to deal with spam of the announcement group.'
@@ -299,37 +304,46 @@ def get_uri_from_hash(ui_, dummy, params, stored_cfg):
         ui_.status(("Only using announcements from trusted "
                     + "FMS IDs:\n   %s\n\n") % '\n   '.join(fms_ids))
 
-    parser = USKNotificationParser(trust_map)
+    return trust_map
+
+def get_uri_from_hash(ui_, dummy, params, stored_cfg):
+    """ Use FMS to get the URI for a repo hash. """
+
+    show_fms_info(ui_, params, stored_cfg)
+
+    parser = USKNotificationParser(get_trust_map(ui_, params, stored_cfg))
     parser.add_default_repos(KNOWN_REPOS)
+
     ui_.status("Raking through fms messages. This may take a while...\n")
     recv_msgs(stored_cfg.defaults['FMS_HOST'],
               stored_cfg.defaults['FMS_PORT'],
               parser,
               stored_cfg.fmsread_groups)
 
-    target_hash = params['FMSREAD_HASH']
     target_usk = None
     fms_id_map, announce_map, update_map = parser.invert_table()
 
     # Find URI
     for usk in announce_map:
-        if target_hash == get_usk_hash(usk):
+        if params['FMSREAD_HASH'] == get_usk_hash(usk):
             # We don't care who announced. The hash matches.
             target_usk = usk
             break
 
     if target_usk is None:
         raise util.Abort(("No announcement found for [%s]. "
-                          +"Use --uri to set the URI.") % target_hash)
+                          +"Use --uri to set the URI.") %
+                         params['FMSREAD_HASH'])
 
     if params['VERBOSITY'] >= 2:
         ui_.status("Found URI announcement:\n%s\n" % target_usk)
 
-    trusted_notifiers = stored_cfg.trusted_notifiers(target_hash)
+    trusted_notifiers = stored_cfg.trusted_notifiers(params['FMSREAD_HASH'])
 
     notifiers = {}
-    for clean_id in update_map[target_hash]:
-        notifiers[fms_id_map[clean_id]] = parser.table[clean_id][1][target_hash]
+    for clean_id in update_map[params['FMSREAD_HASH']]:
+        notifiers[fms_id_map[clean_id]] = (parser.table[clean_id][1]
+                                           [params['FMSREAD_HASH']])
 
     fms_ids = notifiers.keys()
     fms_ids.sort()
@@ -337,12 +351,12 @@ def get_uri_from_hash(ui_, dummy, params, stored_cfg):
     ui_.status("Found Updates:\n")
     for fms_id in fms_ids:
         if fms_id in trusted_notifiers:
-            value = "trusted"
+            ui_.status("   [trusted]:%i:%s\n" % (notifiers[fms_id], fms_id))
         else:
-            value = "untrusted"
-        ui_.status("   [%s]:%i:%s\n" % (value, notifiers[fms_id], fms_id))
+            ui_.status("   [untrusted]:%i:%s\n" % (notifiers[fms_id], fms_id))
 
-    check_trust_map(ui_, stored_cfg, target_hash, notifiers, trusted_notifiers)
+    check_trust_map(ui_, stored_cfg, params['FMSREAD_HASH'],
+                    notifiers, trusted_notifiers)
 
     return target_usk
 

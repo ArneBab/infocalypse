@@ -213,6 +213,26 @@ class Config:
                 ret.append(fms_id)
         return ret
 
+    # Broke this into a seperate func to appease pylint.
+    @classmethod
+    def validate_trust_map_entry(cls, cfg, fields):
+        """ INTERNAL: Raise a ValueError for invalid trust map entries. """
+        if not is_fms_id(fields[0]):
+            raise ValueError("%s doesn't look like an fms id." %
+                                     fields[0])
+        if len(fields) < 2:
+            raise ValueError("No USK hashes for fms id: %s?" %
+                                     fields[0])
+        for value in fields[1:]:
+            if not is_hex_string(value):
+                raise ValueError("%s doesn't look like a repo hash." %
+                                         value)
+
+        if fields[0] in cfg.fmsread_trust_map:
+            raise ValueError(("%s appears more than once in the "
+                              + "[fmsread_trust_map] section.") %
+                             fields[0])
+
     @classmethod
     def update_defaults(cls, parser, cfg):
         """ INTERNAL: Helper function to simplify from_file. """
@@ -274,24 +294,8 @@ class Config:
             for ordinal in parser.options('fmsread_trust_map'):
                 fields = parser.get('fmsread_trust_map',
                                     ordinal).strip().split('|')
-                # REDFLAG: better validation for fms_id, hashes?
-                if not is_fms_id(fields[0]):
-                    raise ValueError("%s doesn't look like an fms id." %
-                                     fields[0])
-                if len(fields) < 2:
-                    raise ValueError("No USK hashes for fms id: %s?" %
-                                     fields[0])
-                for value in fields[1:]:
-                    if not is_hex_string(value):
-                        raise ValueError("%s doesn't look like a repo hash." %
-                                         value)
-
-                if fields[0] in cfg.fmsread_trust_map:
-                    raise ValueError(("%s appears more than once in the "
-                                      + "[fmsread_trust_map] section.") %
-                                         fields[0])
+                Config.validate_trust_map_entry(cfg, fields)
                 cfg.fmsread_trust_map[fields[0]] = tuple(fields[1:])
-
 
         Config.update_defaults(parser, cfg)
 

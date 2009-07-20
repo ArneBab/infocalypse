@@ -252,6 +252,27 @@ def strip_names(trust_map):
                                   + clean.get(cleaned, [])))
     return clean
 
+# Hmmmm... broke into a separate func to appease pylint.
+def get_changed(max_trusted, max_untrusted, version_table):
+    """ INTERNAL: Helper function used by USKNotificationParser.get_updated. """
+    changed = {}
+    untrusted = {}
+    for usk_hash in version_table:
+        if usk_hash in max_trusted:
+            changed[usk_hash] = max_trusted[usk_hash]
+
+        if usk_hash in max_untrusted:
+            if usk_hash in changed:
+                if max_untrusted[usk_hash][0] > changed[usk_hash]:
+                    # There was a trusted update, but the untrusted one
+                    # was higher.
+                    untrusted[usk_hash] = max_untrusted[usk_hash]
+            else:
+                # No trusted updated
+                untrusted[usk_hash] =  max_untrusted[usk_hash]
+
+    return (changed, untrusted)
+
 # REDFLAG: Trust map ids are w/o names.
 #
 # clean_fms_id -> (set(uri,..), hash-> index, set(full_fms_id, ...))
@@ -409,25 +430,9 @@ class USKNotificationParser(IFmsMessageSink):
                     elif index > max_untrusted[usk_hash]:
                         max_untrusted[usk_hash] = (index, fms_id)
 
-        changed = {}
-        untrusted = {}
-        for usk_hash in version_table:
-            if usk_hash in max_trusted:
-                changed[usk_hash] = max_trusted[usk_hash]
-
-            if usk_hash in max_untrusted:
-                if usk_hash in changed:
-                    if max_untrusted[usk_hash][0] > changed[usk_hash]:
-                        # There was a trusted update, but the untrusted one
-                        # was higher.
-                        untrusted[usk_hash] = max_untrusted[usk_hash]
-                else:
-                    # No trusted updated
-                    untrusted[usk_hash] =  max_untrusted[usk_hash]
-
         # changed is usk_hash->index
         # untrusted is usk_hash->(index, fms_id)
-        return (changed, untrusted)
+        return get_changed(max_trusted, max_untrusted, version_table)
 
 def show_table(parser, out_func):
     """ Dump the announcements and updates in a human readable format. """

@@ -21,7 +21,6 @@
 """
 
 # REDFLAG: reevaluate on failure?
-
 import os
 import random # Hmmm... good enough?
 
@@ -163,8 +162,7 @@ class RequestingBundles(RetryingRequestList):
         last_queued = -1
         for index, update in enumerate(updates):
             if index < start_index:
-                # REDFLAG: do better?
-                continue
+                continue # REDFLAG: do better?
             if not update[4] or not update[5]:
                 # Don't attempt to queue updates if we don't know
                 # full parent/head info.
