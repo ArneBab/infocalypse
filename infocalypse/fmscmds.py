@@ -358,5 +358,14 @@ def get_uri_from_hash(ui_, dummy, params, stored_cfg):
     check_trust_map(ui_, stored_cfg, params['FMSREAD_HASH'],
                     notifiers, trusted_notifiers)
 
+    # Check for updates against the updated trust map.
+    trusted_notifiers = stored_cfg.trusted_notifiers(params['FMSREAD_HASH'])
+    for fms_id in fms_ids:
+        if fms_id in trusted_notifiers:
+            if (notifiers[fms_id] >
+                stored_cfg.get_index(params['FMSREAD_HASH'])):
+                stored_cfg.update_index(params['FMSREAD_HASH'],
+                                        notifiers[fms_id])
+
     return target_usk
 
