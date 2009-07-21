@@ -16,6 +16,7 @@ HOWTO: Infocalypse 2.0 hg extension
 <li> <a href="#introduction">Introduction</a>
 <li> <a href="#requirements">Requirements</a>
 <li> <a href="#installation">Installation</a>
+<li> <a href="#updating">Updating</a>
 <li> <a href="#background">Background</a>
 <li> <a href="#basic">Basic Usage</a>
     <ul>
@@ -104,15 +105,16 @@ the <a href="#risks">risks</a> right?<p>
 Here are step-by-step instructions on how to install the extension.
 <ul>
 <li> <a name="bootstrap_chk">Download the bootstrap hg bundle:</a>
-    <pre><a href="CHK@AVG1nw~py-tyAsF5NUzPIteT0frRiWBMP5OAVf6u-yE,0-IgGV7Oj3qanIBmm-p-qt1i5FT6UcPcmx9L6CaJbtk,AAIC--8/infocalypse2_42b099251848.hg">CHK@AVG1nw~py-tyAsF5NUzPIteT0frRiWBMP5OAVf6u-yE,0-IgGV7Oj3qanIBmm-p-qt1i5FT6UcPcmx9L6CaJbtk,AAIC--8/infocalypse2_42b099251848.hg</a>
+    <pre><a href="CHK@S~kAIr~UlpPu7mHNTQV0VlpZk-f~z0a71f7DlyPS0Do,IB-B5Hd7WePtvQuzaUGrVrozN8ibCaZBw3bQr2FvP5Y,AAIC--8/infocalypse2_1723a8de6e7c.hg">CHK@S~kAIr~UlpPu7mHNTQV0VlpZk-f~z0a71f7DlyPS0Do,IB-B5Hd7WePtvQuzaUGrVrozN8ibCaZBw3bQr2FvP5Y,AAIC--8/infocalypse2_1723a8de6e7c.hg</a>
     </pre>
    You'll get a <b>Potentially Dangerous Content</b> warning from fproxy because
    the mime type isn't set. Choose 'Click here to force your browser to download 
    the file to disk.'.
    <p>
    I'll refer to the directory that you saved the bundle file to as DOWNLOAD_DIR.
-<li> Create an empty directory where you want to install the extension.
-     I'll refer to that directory as INSTALL_DIR in the rest of these instructions.
+<li> <a name="install_dir">Create</a> an empty directory where you want to install the extension.
+     I'll refer to that directory as INSTALL_DIR in the
+     rest of these instructions.
      <p>
 <li> Create an empty hg repository there. i.e.:
 <pre>
@@ -184,14 +186,37 @@ Here are step-by-step instructions on how to install the extension.
    <p>
    You can <em>skip</em> this step if you're not running fms.
    <p>
-<li> <a name="pull_example">Pull the latest changes to the extension from Freenet. i.e.:</a>
+<li> <a name="pull_example">Pull the latest changes to the extension from Freenet for the 
+   first time. i.e.:</a>
    <pre>
    hg fn-pull --aggressive --debug --uri USK@kRM~jJVREwnN2qnA8R0Vt8HmpfRzBZ0j4rHC2cQ-0hw,2xcoQVdQLyqfTpF2DpkdUIbHFCeL4W~2X1phUYymnhM,AQACAAE/infocalypse.hgext.R1/38
    hg update
    </pre>
-   You may have trouble finding the top key if you're not using fn-fmsread. Just keep retrying.
+   You may have trouble finding the top key if you're not using fn-fmsread.  Just keep retrying.
    If you know the index has increased, use the new index in the URI.
+   <p>
+   After the first pull, you can <a href="#updating">update</a> without the URI.
 </ul>
+<p>
+<a href="#toc">[TOC]</a>
+<hr>
+<h2><a name="updating">Updating</h2>
+This extension is under active development.  You should periodically update to get the latest
+bug fixes and new features.
+<p>
+Once you've installed the extension and <a href="#pull_example">pulled</a> it for the
+first time, you can get updates by cd'ing into the initial <a href="#install_dir">INSTALL_DIR</a>
+and typing: <p>
+<pre>
+hg fn-fmsread -v
+hg fn-pull --aggressive
+hg update
+</pre>
+If you're not running FMS you can skip the fn-fmsread step.  You may have trouble getting
+the top key. Just keep retrying.
+<p>
+If you're having trouble updating and you  know the index has increased, use the full
+URI with the new index as <a href="#pull_example">above</a>.
 <p>
 <a href="#toc">[TOC]</a>
 <hr>
