@@ -271,6 +271,12 @@ def get_update_edges(graph, from_index, redundancy, shuffle_redundancy=False,
         shuffle_edge_redundancy(graph, first, second, original_known)
 
     #print "get_update_edges -- exiting", len(first), len(second)
+    if len(first) == 0 and len(original_known) == 0:
+        # HACK: Prevents stall waiting for the second graph CHK
+        # when bootstrapping from an empty repo.
+        first = list(second)
+        second = []
+
     return (first, list(second))
 
 def dump_update_edges(first, second, all_edges):
