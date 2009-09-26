@@ -477,11 +477,18 @@ class RequestingBundles(RetryingRequestList):
                 graph = parse_graph(data)
                 self._handle_dump_canonical_paths(graph)
                 self._set_graph(graph)
+                assert(not self.freenet_heads is None)
+                if self.parent.ctx.has_versions(self.freenet_heads):
+                    # Handle case where we are up to date but the heads list
+                    # didn't fit in the top key.
+                    self.parent.ctx.ui_.status('Freenet heads: %s\n' %
+                                           ' '.join([ver[:12] for ver in
+                                                     self.freenet_heads]))
+                    self.parent.ctx.ui_.warn("All remote heads are already "
+                                             + "in the local repo.\n")
+                    self.parent.transition(self.success_state)
+                    return True
                 self._reevaluate()
-                # BUG: need to check for at least one bundle
-                # in the primary candidates list. i.e. don't stall
-                # waiting for the second graph!
-                
             finally:
                 in_file.close()
             self.finished_candidates.append(candidate)
