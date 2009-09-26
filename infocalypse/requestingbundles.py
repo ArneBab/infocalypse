@@ -348,6 +348,8 @@ class RequestingBundles(RetryingRequestList):
         def fixup(edges, candidate_list):
             """ INTERNAL : Helper fixes up CHK->edges. """
             for candidate in candidate_list:
+                if candidate[6]:
+                    continue # Skip graph requests!
                 edge = edges[candidate[0]]
                 candidate[3] = edge
                 candidate[4] = None
