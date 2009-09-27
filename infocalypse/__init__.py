@@ -20,7 +20,7 @@ a running FMS server.
 
 For more information on FMS see:
 USK@0npnMrqZNKRCRoGojZV93UNHCMN-6UU3rRSAmP6jNLE,
-   ~BG-edFtdCC1cSH4O3BWdeIYa8Sw5DfyrSV-TKdO5ec,AQACAAE/fms/103/
+   ~BG-edFtdCC1cSH4O3BWdeIYa8Sw5DfyrSV-TKdO5ec,AQACAAE/fms/106/
 
 ADDING THE EXTENSION:
 Add the following to your .hgrc/mercurial.ini file.
@@ -301,12 +301,14 @@ hg fn-fmsread -v
 hg fn-pull --debug --aggressive \\
 --uri USK@kRM~jJVREwnN2qnA8R0Vt8HmpfRzBZ0j4rHC2cQ-0hw,\\
 2xcoQVdQLyqfTpF2DpkdUIbHFCeL4W~2X1phUYymnhM,AQACAAE/\\
-infocalypse.hgext.R1/38
+infocalypse.hgext.R1/41
 
 
 CONTACT:
 djk@isFiaD04zgAgnrEC5XJt1i4IE7AkNPqhBG5bONi6Yks
 Post to freenet group on FMS.
+
+d kar bott at com cast dot net
 
 """
 
