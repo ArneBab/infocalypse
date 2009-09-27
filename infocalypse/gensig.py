@@ -41,10 +41,16 @@ MAX_UPDATES = 4 #  == 67 chars
 CFG_PATH = os.path.expanduser(DEFAULT_CFG_PATH)
 
 # The static part of your sig message with no trailing '\n'
-STATIC_TEXT = ('Incremental hg repos in Freenet (Not pyfreenethg!):\n'
-               + 'USK@-bk9znYylSCOEDuSWAvo5m72nUeMxKkDmH3nIqAeI-0,'
-               + 'qfu5H3FZsZ-5rfNBY-jQHS5Ke7AT2PtJWd13IrPZjcg,'
-               + 'AQACAAE/feral_codewright/12/infocalypse_howto.html')
+#STATIC_TEXT = ('Incremental hg repos in Freenet (Not pyfreenethg!):\n'
+#               + 'USK@-bk9znYylSCOEDuSWAvo5m72nUeMxKkDmH3nIqAeI-0,'
+#               + 'qfu5H3FZsZ-5rfNBY-jQHS5Ke7AT2PtJWd13IrPZjcg,'
+#               + 'AQACAAE/feral_codewright/14/infocalypse_howto.html')
+
+FREEFAQ_INDEX = 22
+STATIC_TEXT = ('Know stuff about stuff? Add it to FreeFAQ:\n'
+               + 'USK@EbQbLWtWLRBgQl4Ly-SjQJvzADdJPfIXNQfCbKzgCFI,'
+               + 'XDLYQTC0nYD4rhIIP~Ff~itkvVVF2u4WU8YVSL2f5RA,AQACAAE/'
+               + 'freefaq/%i/') % FREEFAQ_INDEX
 
 # Your repo Request (not Insert!) URIs go here:
 #
@@ -85,6 +91,7 @@ def print_updates():
             print STATIC_TEXT
             print to_msg_string(updates, None, ':')
     except:
+        # Better to exit() with the correct exit code?
         # Fail silently, rather than spewing garbage into sig.
         return
 

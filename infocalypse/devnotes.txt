@@ -32,7 +32,7 @@ Successfully pulled fred_staging/82/ on XP.
 djk20090702
 Minimum required mercurial version is (and probably has been for a
 while) 1.2.1. [djk20090713, Too conservative. 1.1.2 works on 
-Jaunty Jackalope. 1.0.2 definitely doesn't work anywhere (problems pushing)]
+Jaunty Jackalope]. 1.0.2 definitely doesn't work anywhere (problems pushing)]
 
 That's the only rev. I've been testing with.
 
@@ -95,6 +95,9 @@ o reinsert sometimes fails because it can't regenerate a bit-for-bit
   djk20090620
   This is a Mercurial bug:
   http://www.selenic.com/mercurial/bts/issue1704
+
+! Bugs where I treat graph requests as edge requests,
+  AUDIT FOR BUGS ANALOGOUS: adebd3c115a6
 
 x Won't handle repositories with multiple heads correctly.
   I am reworking the graph rep to fix this.
