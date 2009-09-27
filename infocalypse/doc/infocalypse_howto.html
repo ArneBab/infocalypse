@@ -10,7 +10,8 @@ HOWTO: Infocalypse 2.0 hg extension
 <hr>
 <h1>HOWTO: Infocalypse 2.0 hg extension</h1>
 <hr>
-<em>updated: 20090720</em>
+<em>updated: 20090927</em><br/>
+<em><a href="#freenet_links">Note: Contains Freenet only links</a></em>
 <h2><a name="toc"> Table of Contents</a></h2>
 <ul>
 <li> <a href="#introduction">Introduction</a>
@@ -29,7 +30,7 @@ HOWTO: Infocalypse 2.0 hg extension
   <ul>
       <li> <a href="#fms_trust_map">The update trust map</a>
       <li> <a href="#fms_read">Reading other people's notifications</a>
-      <li> <a href="#fms_post">Posting your own</a>
+      <li> <a href="#fms_post">Posting your own notifications</a>
       <li> <a href="#fms_pull_hash">Pulling an announced repository</a>
   </ul>
 <li> <a href="#fn_reinsert">Reinserting and 'sponsoring' repositories</a>
@@ -40,6 +41,7 @@ HOWTO: Infocalypse 2.0 hg extension
 <li> <a href="#advocacy">Advocacy</a>
 <li> <a href="#source_code">Source Code</a>
 <li> <a href="#version_info">Fixes and version information</a>
+<li> <a href="#freenet_links">Freenet-only links</a>
 <li> <a href="#contact">Contact</a>
 </ul>
 <hr>
@@ -123,7 +125,7 @@ Here are step-by-step instructions on how to install the extension.
 </pre>
 <li> Unbundle the bootstrap bundle into the new repository. i.e:
 <pre>
-   hg pull DOWNLOAD_DIR/infocalypse2_625bb5c717fe.hg
+   hg pull DOWNLOAD_DIR/infocalypse2_1723a8de6e7c.hg
    hg update
 </pre>
 <li> Edit the '[extensions]' section of your .hgrc/mercurial.ini
@@ -187,7 +189,7 @@ Here are step-by-step instructions on how to install the extension.
    You can <em>skip</em> this step if you're not running fms.
    <p>
 <li> <a name="pull_example">Pull the latest changes to the extension from Freenet for the 
-   first time. i.e.:</a>
+   first time. <em>Don't skip this step!</em> i.e.:</a>
    <pre>
    hg fn-pull --aggressive --debug --uri USK@kRM~jJVREwnN2qnA8R0Vt8HmpfRzBZ0j4rHC2cQ-0hw,2xcoQVdQLyqfTpF2DpkdUIbHFCeL4W~2X1phUYymnhM,AQACAAE/infocalypse.hgext.R1/38
    hg update
@@ -447,7 +449,7 @@ hg init
 hg fn-pull --hash be68e8feccdd --aggressive
 </pre>
 <p>
-<h3><a name="fms_post">Posting your own</a></h3>
+<h3><a name="fms_post">Posting your own notifications</a></h3>
 <pre>
 hg fn-fmsnotify -v
 </pre>
@@ -528,19 +530,21 @@ This only requires copying the top key data (a maximum of 2 SSK inserts).
 It is possible for multiple people to collaborate anonymously over Freenet
 by sharing the private key to a single Infocalypse repository.
 <p>
-I haven't tested this yet, but I'm interested in doing so.
-<p>
-Here are some things to keep in mind.
+The <a href="USK@EbQbLWtWLRBgQl4Ly-SjQJvzADdJPfIXNQfCbKzgCFI,XDLYQTC0nYD4rhIIP~Ff~itkvVVF2u4WU8YVSL2f5RA,AQACAAE/freefaq/15/">FreeFAQ</a> is an example of this technique.
+</p>
+Here are some things to keep in mind when sharing private keys.
 <ul>
     <li> There is no (explict) key revocation in Freenet<br>
     If you decide to share keys, you should generate a special key on a per
     repo basis with fn-genkey. There is <em>no way</em> to revoke a private
     key once it has been shared.  This could be mitigated with an ad-hoc convention.
-    e.g. if I find any file named USK@&lt;public_key&gt;/REVOKED, I stop using the key.
+    e.g. if I find any file named <code>USK@&lt;public_key&gt;/revoked.txt</code>,
+    I stop using the key.
     <li> Non-atomic top key inserts<br>
     Occasionally, you might end up overwriting someone elses commits because the FCP
     insert of the repo top key isn't atomic.  I think you should be able to merge and
-    re fn-push to resolve this.
+    re fn-push to resolve this.  You can fn-pull a specific version of the repo by specify the full
+    URI including the version number with --uri and including the --nosearch option.
     <li> All contributors should be in the <a href="#fms_trust_map">fn-fmsread trust map</a>
 </ul>
 <p>
@@ -649,7 +653,7 @@ inserted redundantly so there are no 'critical path' keys. Updates of up to ~= 7
 are inserted redundantly by cloning the splitfile metadata at the cost of a single
 32k CHK insert.
 <li> Re-insertable <p>
-Anyone can re-insert all repository data except for the top level SSKs with a 
+Anyone can re-insert all repository data except for the top level SSKs with a
 simple command (hg fn-reinsert). The repository owner can re-insert the top level
 SSKs as well.
 <li> Automatic rollups <p>
@@ -660,22 +664,31 @@ the entire repository can almost always be fetched in 4 CHK fetches or less.
 <a href="#toc">[TOC]</a>
 <hr>
 <h2><a name="source_code">Source Code</a></h2>
-The authoritative repository for the extension's code is hosted in Freenet.
+The authoritative repository for the extension's code is hosted in Freenet:
 <p>
 <pre>
 hg init
 hg fn-fmsread -v
 hg fn-pull --aggressive --debug --uri USK@kRM~jJVREwnN2qnA8R0Vt8HmpfRzBZ0j4rHC2cQ-0hw,2xcoQVdQLyqfTpF2DpkdUIbHFCeL4W~2X1phUYymnhM,AQACAAE/infocalypse.hgext.R1/38
 hg update
-
 </pre>
 <p>
+It is also mirrored on <code>bitbucket.org</code>:
+<pre><code>hg clone http://bitbucket.org/dkarbott/infocalypse_hgext/
+</code>
+</pre>
 <a href="#toc">[TOC]</a>
 <hr>
 <h2><a name="version_info">Fixes and version information</a></h2>
 <ul>
+   <li>hg version: 0c5ce9e6b3b4<br>
+   Fixed intermittent stall when bootstrapping from an empty repo.
+   <li>hg version: 7f39b20500f0<br>
+   Fixed bug that kept fn-pull --hash from updating the initial USK index.
    <li>hg version: 7b10fa400be1<br>
    Added fn-fmsread --trust and --untrust and fn-pull --hash support.
+   <br>
+   <em>fn-pull --hash isn't really usable until 7f39b20500f0</em>
    <li>hg version: ea6efac8e3f6<br>
    Fixed a bug that was causing the berkwood binary 1.3 Mercurial distribution
    (<a href="http://mercurial.berkwood.com/binaries/Mercurial-1.3.exe">http://mercurial.berkwood.com/binaries/Mercurial-1.3.exe [HTTP Link!]</a>) not to work.
@@ -683,13 +696,31 @@ hg update
 <a href="#toc">[TOC]</a>
 <hr>
 
+<h2><a name="freenet_links">Freenet-only links</a></h2>
+<p>
+This document is meant to inserted into Freenet.
+</p>
+<a>
+<p>It contains links (starting with '<code>CHK@</code>' and '<code>USK@</code>')
+to Freenet keys that will only work
+from within <a href="http://wiki.freenetproject.org/FreenetFProxy">fproxy [HTTP link!]</a>.
+<p>You can find reasonably up to date version of this document on my freesite:</p>
+<pre><code><a href="USK@-bk9znYylSCOEDuSWAvo5m72nUeMxKkDmH3nIqAeI-0,qfu5H3FZsZ-5rfNBY-jQHS5Ke7AT2PtJWd13IrPZjcg,AQACAAE/feral_codewright/14/infocalypse_howto.html">USK@-bk9znYylSCOEDuSWAvo5m72nUeMxKkDmH3nIqAeI-0,qfu5H3FZsZ-5rfNBY-jQHS5Ke7AT2PtJWd13IrPZjcg,AQACAAE/feral_codewright/14/infocalypse_howto.html</a>
+</code>
+</pre>
+
+<a href="#toc">[TOC]</a>
+<hr>
+
 <h2><a name="contact">Contact</a></h2>
-<b>fms:</b><br>
+<b>FMS:</b><br>
 djk@isFiaD04zgAgnrEC5XJt1i4IE7AkNPqhBG5bONi6Yks
 <p>
 I lurk on the freenet and fms boards.
+</p>
 <p>
-
+If you really need to you can email me at d kar bott at com cast dot net but I prefer FMS.
+</p>
 <pre>
 <b>freesite:</b>
 <a href="USK@-bk9znYylSCOEDuSWAvo5m72nUeMxKkDmH3nIqAeI-0,qfu5H3FZsZ-5rfNBY-jQHS5Ke7AT2PtJWd13IrPZjcg,AQACAAE/feral_codewright/14/">USK@-bk9znYylSCOEDuSWAvo5m72nUeMxKkDmH3nIqAeI-0,qfu5H3FZsZ-5rfNBY-jQHS5Ke7AT2PtJWd13IrPZjcg,AQACAAE/feral_codewright/14/</a>
