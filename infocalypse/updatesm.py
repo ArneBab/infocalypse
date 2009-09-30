@@ -397,7 +397,7 @@ class InsertingGraph(StaticRequestList):
 
         # Make sure the string rep is small enough!
         graph_bytes = graph_to_string(self.working_graph)
-        assert len(graph_bytes) < 31 * 1024
+        assert len(graph_bytes) <= 31 * 1024
 
         # Insert the graph twice for redundancy
         self.queue(['CHK@', 0, True, '#A\n' + graph_bytes, None, None])

@@ -46,7 +46,7 @@ CFG_PATH = os.path.expanduser(DEFAULT_CFG_PATH)
 #               + 'qfu5H3FZsZ-5rfNBY-jQHS5Ke7AT2PtJWd13IrPZjcg,'
 #               + 'AQACAAE/feral_codewright/14/infocalypse_howto.html')
 
-FREEFAQ_INDEX = 22
+FREEFAQ_INDEX = 23
 STATIC_TEXT = ('Know stuff about stuff? Add it to FreeFAQ:\n'
                + 'USK@EbQbLWtWLRBgQl4Ly-SjQJvzADdJPfIXNQfCbKzgCFI,'
                + 'XDLYQTC0nYD4rhIIP~Ff~itkvVVF2u4WU8YVSL2f5RA,AQACAAE/'
