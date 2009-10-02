@@ -90,6 +90,11 @@ def pull_bundle(repo, ui_, bundle_file):
         bundle_file must be an absolute path.
     """
 
+    # Not 
+    commands.unbundle(ui_, repo, bundle_file, rev=[],
+                      force=None, update=None)
+    # Not required anymore, unbundle seems to work.
+    # 
     # REDFLAG: djk20090319, is this still an issue?
     # IMPORTANT:
     # You must be in the repository root directory in order to pull
@@ -99,13 +104,13 @@ def pull_bundle(repo, ui_, bundle_file):
     #
     # MUST use --cwd
     # MUST use an absolute path for the bundle field
-    prev_cwd = os.getcwd()
-    os.chdir(repo.root)
-    try:
-        commands.pull(ui_, repo, bundle_file, rev=[],
-                      force=None, update=None)
-    finally:
-        os.chdir(prev_cwd)
+    #prev_cwd = os.getcwd()
+    #os.chdir(repo.root)
+    #try:
+    #    commands.pull(ui_, repo, bundle_file, rev=[],
+    #                  force=None, update=None)
+    #finally:
+    #    os.chdir(prev_cwd)
 
 ############################################################
 
