@@ -1,3 +1,11 @@
+djk20091003
+Added work around for hg-git bug:
+http://github.com/schacon/hg-git/issues#issue/51
+
+Tested hg-git fix on Windows XP w/ 1.3.1 binary mercurial 
+(also tested fn-fmsread), Ubuntu Jaunty Jackalope with mercurial 1.1.2,
+gentoo Python 2.6.2 and mercurial 1.3.1.
+
 djk20090714
 Added Python 2.5.4 version of ConfigParser.py to the python2_5_file
 directory.  This was required to make the berkwood 1.3 Windows
@@ -98,6 +106,7 @@ o reinsert sometimes fails because it can't regenerate a bit-for-bit
 
 ! Bugs where I treat graph requests as edge requests,
   AUDIT FOR BUGS ANALOGOUS: adebd3c115a6
+  Saw an assertion trip.
 
 x Won't handle repositories with multiple heads correctly.
   I am reworking the graph rep to fix this.
