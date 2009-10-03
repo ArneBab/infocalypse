@@ -106,7 +106,8 @@ o reinsert sometimes fails because it can't regenerate a bit-for-bit
 
 ! Bugs where I treat graph requests as edge requests,
   AUDIT FOR BUGS ANALOGOUS: adebd3c115a6
-  Saw an assertion trip.
+  Saw an assertion trip. 
+  [djk20091004 think I've got this sorted.]
 
 x Won't handle repositories with multiple heads correctly.
   I am reworking the graph rep to fix this.

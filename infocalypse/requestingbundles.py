@@ -91,6 +91,7 @@ class RequestingBundles(RetryingRequestList):
         """ Implementation of RetryingRequestList virtual. """
         # Hmmmm... special case hack code to handle graph.
         if not self._graph_request_done(client, msg, candidate):
+            assert not candidate[6]
             if msg[0] == 'AllData':
                 self._handle_success(client, msg, candidate)
             else:
@@ -422,6 +423,7 @@ class RequestingBundles(RetryingRequestList):
 
     def _handle_graph_failure(self, candidate):
         """ INTERNAL: Handle failed FCP requests for the graph. """
+        assert candidate[6]
         max_retries = self.parent.params.get('MAX_RETRIES', 1)
         if candidate[1] < max_retries + 1:
             #print "_should_retry -- returned False"
@@ -518,6 +520,7 @@ class RequestingBundles(RetryingRequestList):
     def _force_single_block(self, edge):
         """ INTERNAL: Make sure there is only one non-single-block request
             running for a redundant edge. """
+        assert not edge is None
         for candidate in self.current_candidates:
             if candidate[3] == edge and not candidate[2]:
                 candidate[2] = True
@@ -532,6 +535,7 @@ class RequestingBundles(RetryingRequestList):
     def _handled_multiblock_case(self, candidate):
         """ INTERNAL: Handle requeueing full fetches when we don't have
             the graph yet. """
+        assert not candidate[6]
         if (candidate[2] and self._multiple_block(candidate) and
             self.parent.ctx.graph is None):
             assert not candidate[4] is None
@@ -551,6 +555,7 @@ class RequestingBundles(RetryingRequestList):
 
     def _handle_success(self, client, msg, candidate):
         """ INTERNAL: Handle successful FCP requests. """
+        assert not candidate[6]
         #print "_handle_success -- ", candidate
         if not self._needs_bundle(candidate):
             #print "_handle_success -- doesn't need bundle."
@@ -667,6 +672,7 @@ class RequestingBundles(RetryingRequestList):
 
     def _handle_failure(self, dummy, msg, candidate):
         """ INTERNAL: Handle FCP request failure for a candidate. """
+        assert not candidate[6]
         if not self._needs_bundle(candidate):
             #print "_handle_failure -- doesn't need bundle."
             candidate[5] = msg
@@ -693,6 +699,7 @@ class RequestingBundles(RetryingRequestList):
     def _multiple_block(self, candidate):
         """ INTERNAL: Return True if the candidate's FCP request is
             more than one block. """
+        assert not candidate[6]
         graph = self.parent.ctx.graph
         if not graph is None:
             step = candidate[3]
@@ -709,6 +716,8 @@ class RequestingBundles(RetryingRequestList):
     def _needs_bundle(self, candidate):
         """ INTERNAL: Returns True if the hg bundle for the candidate's edge
             could be pulled and contains changes that we don't already have. """
+        if candidate[6]:
+            return False # Gracefully handle graph requests.
         versions = self._get_versions(candidate)
         #print "_needs_bundle -- ", versions
         if not self.parent.ctx.has_versions(versions[0]):
@@ -721,6 +730,7 @@ class RequestingBundles(RetryingRequestList):
     def _pull_bundle(self, client, dummy_msg, candidate):
         """ INTERNAL: Pull the candidates bundle from the file in
             the client param. """
+        assert not candidate[6]
         length = os.path.getsize(client.in_params.file_name)
         if not candidate[3] is None:
             expected_length = self.parent.ctx.graph.get_length(candidate[3])
@@ -877,6 +887,8 @@ class RequestingBundles(RetryingRequestList):
         # "finish" requests which are no longer required.
         victims = []
         for candidate in self.current_candidates:
+            if candidate[6]:
+                continue # skip graph requests
             versions = self._get_versions(candidate)
             if self.parent.ctx.has_versions(versions[1]):
                 victims.append(candidate)
@@ -887,6 +899,8 @@ class RequestingBundles(RetryingRequestList):
         # REDFLAG: C&P
         victims = []
         for candidate in self.next_candidates:
+            if candidate[6]:
+                continue # skip graph requests
             versions = self._get_versions(candidate)
             if self.parent.ctx.has_versions(versions[1]):
                 victims.append(candidate)
@@ -938,7 +952,7 @@ class RequestingBundles(RetryingRequestList):
             ret = set([])
             for candidate in queue:
                 if candidate[3] is None:
-                    continue
+                    continue # weeds out graph requests
                 ret.add(candidate[3])
                 if not never_run is None and candidate[1] <= 0:
                     never_run.add(candidate[3])
@@ -978,7 +992,7 @@ class RequestingBundles(RetryingRequestList):
             """ INTERNAL: Helper function to count edges. """
             for candidate in candidate_list:
                 if candidate[3] is None:
-                    continue
+                    continue # skips graph requests
                 count = table.get(candidate[3], 0)
                 edge_counts[candidate[3]] = count + 1
                 if edge_counts[candidate[3]] > 1:
