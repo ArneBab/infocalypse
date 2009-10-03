@@ -37,6 +37,15 @@ from statemachine import RetryingRequestList, CandidateRequest
 
 from chk import clear_control_bytes
 
+def fixup(edges, candidate_list):
+    """ INTERNAL : Helper used by _set_graph to fix up CHKs->edges. """
+    for candidate in candidate_list:
+        if candidate[6]:
+            continue # Skip graph requests!
+        edge = edges[candidate[0]]
+        candidate[3] = edge
+        candidate[4] = None
+
 # FUNCTIONAL REQUIREMENTS:
 # 0) Update as fast as possible
 # 1) Single block fetch alternate keys.
@@ -345,15 +354,6 @@ class RequestingBundles(RetryingRequestList):
     def _set_graph(self, graph):
         """ INTERNAL: Set the graph and fixup any pending CHK edge
             requests with their edges.  """
-
-        def fixup(edges, candidate_list):
-            """ INTERNAL : Helper fixes up CHK->edges. """
-            for candidate in candidate_list:
-                if candidate[6]:
-                    continue # Skip graph requests!
-                edge = edges[candidate[0]]
-                candidate[3] = edge
-                candidate[4] = None
 
         edges = chk_to_edge_triple_map(graph)
 
