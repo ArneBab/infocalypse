@@ -26,7 +26,6 @@
 # REDFLAG: stash version map info in the graph?
 # REDFLAG: DOCUMENT version sorting assumptions/requirements
 import copy
-import os
 import random
 
 from binascii import hexlify
