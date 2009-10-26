@@ -149,7 +149,7 @@ def execute_fmsread(ui_, params, stored_cfg):
     if params['VERBOSITY'] >= 2 and len(untrusted) > 0:
         text = 'Skipped untrusted updates:\n'
         for usk_hash in untrusted:
-            text += "   %i:%s\n" % (untrusted[usk_hash], usk_hash)
+            text += "   %i:%s\n" % (untrusted[usk_hash][0], usk_hash)
         text += '\n'
         ui_.status(text)
 
