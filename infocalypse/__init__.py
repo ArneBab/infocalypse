@@ -342,6 +342,8 @@ from infcmds import get_config_info, execute_create, execute_pull, \
 from fmscmds import execute_fmsread, execute_fmsnotify, get_uri_from_hash
 
 from sitecmds import execute_putsite, execute_genkey
+from wikicmds import execute_wiki
+
 from config import read_freesite_cfg
 from validate import is_hex_string, is_fms_id
 
@@ -618,6 +620,23 @@ def infocalypse_putsite(ui_, repo, **opts):
 
     execute_putsite(ui_, repo, params)
 
+def infocalypse_wiki(ui_, repo, **opts):
+    """ View and edit the current repository as a wiki. """
+    if os.getcwd() != repo.root:
+        raise util.Abort("You must be in the repository root directory.")
+
+    subcmds = ('run', 'createconfig')
+    required = sum([bool(opts[cmd]) for cmd in subcmds])
+    if required == 0:
+        raise util.Abort("You must specify either --run or --createconfig.")
+    if required > 1:
+        raise util.Abort("Use either --run or --createconfig.")
+    # hmmmm.... useless copy? 
+    params = {'WIKI' : [cmd for cmd in subcmds if opts[cmd]][0],
+              'HTTP_PORT': opts['http_port'],
+              'HTTP_BIND': opts['http_bind']}
+    execute_wiki(ui_, repo, params)
+
 def infocalypse_genkey(ui_, **opts):
     """ Print a new SSK key pair. """
     params, dummy = get_config_info(ui_, opts)
@@ -711,6 +730,15 @@ cmdtable = {
                      ('', 'createconfig', None, "create default freesite.cfg"),
                      ('', 'key', '', "private SSK to insert under"),]
                      + FCP_OPTS,
+                     "[options]"),
+
+    "fn-wiki": (infocalypse_wiki,
+                     [('', 'run', None, "start a local http server " +
+                       "displaying a wiki"),
+                      ('', 'createconfig', None, "create default fnwiki.cfg"),
+                      ('', 'http_port', 8081, "port for http server"),
+                      ('', 'http_bind', 'localhost', "interface http " +
+                       "listens on, '' to listen on all"),],
                      "[options]"),
 
     "fn-genkey": (infocalypse_genkey,
