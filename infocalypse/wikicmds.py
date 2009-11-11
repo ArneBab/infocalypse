@@ -32,10 +32,7 @@ from pathhacks import add_parallel_sys_path
 add_parallel_sys_path('fniki')
 
 import servepiki
-from piki import create_empty_wiki
-
-# piki's required files are in that directory.
-PIKI_WWW_SRC = os.path.dirname(servepiki.__file__)
+from piki import create_default_wiki
 
 def execute_wiki(ui_, repo, params):
     """ Run the wiki command. """
@@ -59,7 +56,7 @@ def execute_wiki(ui_, repo, params):
             raise util.Abort("The wiki_root subdirectory already exists! " +
                              "Move it out of the way to continue.")
 
-        create_empty_wiki(os.path.join(repo.root, 'wiki_root'),  PIKI_WWW_SRC)
+        create_default_wiki(os.path.join(repo.root, 'wiki_root'))
         ui_.status("Created skeleton wiki_root dir.\n")
         write_default_config(ui_, repo, True)
         return

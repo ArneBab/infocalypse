@@ -690,22 +690,13 @@ def set_data_dir_from_cfg(base_path=None):
     reset_root_dir(root_dir)
 
 import shutil
-def create_empty_wiki(base_path, www_src):
+def create_default_wiki(base_path):
     if os.path.exists(base_path):
         raise IOError("The directory already exists.")
-    os.makedirs(base_path)
-    new_text = os.path.join(base_path, 'wikitext')
-    new_www = os.path.join(base_path, 'www')
-    os.makedirs(new_text)
-    os.makedirs(new_www)
-    out = open(os.path.join(new_text, 'FrontPage'), 'wt')
-    out.write("Empty wiki.\nStart editing :-)\n")
-    out.close()
-    if www_src is None:
-        return
-    for name in PIKI_REQUIRED_FILES:
-        shutil.copyfile(os.path.join(www_src, name),
-                        os.path.join(new_www, name))
+
+    shutil.copytree(os.path.join(os.path.dirname(__file__),
+                                 'default_files'),
+                    base_path)
 
 def dump(output_dir, wiki_root):
     global form, scrub_links

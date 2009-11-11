@@ -740,7 +740,8 @@ cmdtable = {
     "fn-wiki": (infocalypse_wiki,
                      [('', 'run', None, "start a local http server " +
                        "displaying a wiki"),
-                      ('', 'createconfig', None, "create default fnwiki.cfg"),
+                      ('', 'createconfig', None, "create default fnwiki.cfg " +
+                       "and skeleton wiki_root dir"),
                       ('', 'http_port', 8081, "port for http server"),
                       ('', 'http_bind', 'localhost', "interface http " +
                        "listens on, '' to listen on all"),],

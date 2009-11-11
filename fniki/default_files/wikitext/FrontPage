@@ -1,0 +1,24 @@
+'''Minimal wiki skeleton directory to start your wiki from'''
+
+fniki is based on PikiPiki.
+
+TitleIndex has a list of all pages.
+
+These pages have examples of wiki markup:
+ * TipsForBeginners, EditingTips, HorizontalRules
+ * FreenetOnlyFeatures
+
+
+Removing pages isn't supported though the wiki interface (yet!).
+You can manually remove pages by removing files from the:
+{{{
+<repo root>/wiki_root/wikitext
+}}}
+directory.
+
+These pages have embedded macros. You might want to take a look at
+the document source before you delete them.
+
+ * FindPage,RecentChanges,TitleIndex, WordIndex
+
+

@@ -1,0 +1,7 @@
+I'm using piki as the wiki engine for this project, mostly since it is so small and easy to understand / modify even if it is a little old.  Thanks to MartinPool for making this code available. I started hacking from:
+
+sha1:e71779f4f8fea7dc851ffb1e74f18c613a94b086 piki-1.62.zip
+
+which I got here:
+
+http://sourcefrog.net/projects/piki/
