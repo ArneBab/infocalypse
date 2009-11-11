@@ -113,7 +113,7 @@ class HTTP(SimpleAsyncServer.ClientHandler):
                 (not os.path.exists(file_name) or not os.path.isfile(file_name))):
                 if self.path.strip() == '/':
                     # Redirect instead of 404ing for no path.
-                    return self.redirect_resp('/%s/', 'Redirecting to % cgi.' %
+                    return self.redirect_resp('/%s/', 'Redirecting to %s cgi.' %
                                               (HTTP.script_name, HTTP.script_name))
                 return self.err_resp(404,'File not found')
             elif self.managed():
