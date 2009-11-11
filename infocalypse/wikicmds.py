@@ -22,25 +22,19 @@
 import os
 import sys
 
-#------------------------------------------------------------
-# REDFLAG: DCI path hacks
-import validate
-ADD_DIR = os.path.join(os.path.dirname(
-    os.path.dirname(os.path.dirname(validate.__file__))),
-                       'clean_piki')
-sys.path.append(ADD_DIR)
-#------------------------------------------------------------
-
-from servepiki import serve_wiki
-from piki import create_empty_wiki
 
 from mercurial import util
 
 from config import write_default_config
 
-# REDFLAG: DCI path hacks
-# piki's required files are in that directory.
+# HACK
+from pathhacks import add_parallel_sys_path
+add_parallel_sys_path('fniki')
+
 import servepiki
+from piki import create_empty_wiki
+
+# piki's required files are in that directory.
 PIKI_WWW_SRC = os.path.dirname(servepiki.__file__)
 
 def execute_wiki(ui_, repo, params):
@@ -52,7 +46,7 @@ def execute_wiki(ui_, repo, params):
         if not os.path.exists(os.path.join(repo.root, 'fnwiki.cfg')):
             raise util.Abort("Can't read fnwiki.cfg. Did you forget hg " +
                              "fn-wiki --createconfig?")
-        serve_wiki(params['HTTP_PORT'], params['HTTP_BIND'], out_func)
+        servepiki.serve_wiki(params['HTTP_PORT'], params['HTTP_BIND'], out_func)
         return
 
     # Hmmmm... some basic UI depends on wikitext. not sure

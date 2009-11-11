@@ -22,22 +22,16 @@
 
 import os
 import shutil
-import sys # REDFLAG: DCI
 
 from mercurial import util
 
 from fcpconnection import FCPError
 from fcpclient import FCPClient, get_file_infos, set_index_file
 
-#------------------------------------------------------------
-# REDFLAG: DCI path hacks
-import validate
-ADD_DIR = os.path.join(os.path.dirname(
-    os.path.dirname(os.path.dirname(validate.__file__))),
-                       'clean_piki')
-sys.path.append(ADD_DIR)
+# HACK
+from pathhacks import add_parallel_sys_path
+add_parallel_sys_path('fniki')
 
-#------------------------------------------------------------
 import piki
 
 # REDFLAG: DCI deal with loading hacks for config

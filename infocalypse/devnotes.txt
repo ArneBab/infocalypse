@@ -1,3 +1,9 @@
+!!! experimental branch for testing wiki over hg idea !!!
+
+djk20091111
+Remember to test pathhacks under windows.  If it works, use it to clean
+up the config and fms import hacks.
+
 djk20091003
 Added work around for hg-git bug:
 http://github.com/schacon/hg-git/issues#issue/51
