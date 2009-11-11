@@ -1,0 +1,28 @@
+djk20091111
+
+This directory contains a simple stand-alone wiki implementation 
+derived from piki and a small python CGI webserver.
+
+Thanks to Martin Pool and Pierre Quentel for making their code 
+available.
+
+---
+pipipiki:
+Attribution: Martin Pool
+http://sourcefrog.net/projects/piki/
+
+I started hacking from:
+http://sourcefrog.net/projects/piki/piki-1.62.zip
+sha1:e71779f4f8fea7dc851ffb1e74f18c613a94b086  /home/dkarbott/piki-1.62.zip
+
+LICENSE: GPL2
+---
+CGI webserver:
+Attribution: Pierre Quentel
+http://code.activestate.com/recipes/511454/
+http://code.activestate.com/recipes/511453/
+
+LICENSE: MIT
+http://code.activestate.com/help/terms/
+http://www.opensource.org/licenses/mit-license.php
+
