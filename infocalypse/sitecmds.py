@@ -37,9 +37,8 @@ ADD_DIR = os.path.join(os.path.dirname(
                        'clean_piki')
 sys.path.append(ADD_DIR)
 
-import servepiki
-
 #------------------------------------------------------------
+import piki
 
 # REDFLAG: DCI deal with loading hacks for config
 from config import write_default_config
@@ -80,13 +79,13 @@ def dump_wiki_html(wiki_root, staging_dir):
     os.makedirs(staging_dir)
 
     # REDFLAG: DCI, should be piki.
-    servepiki.dump(staging_dir, wiki_root)
+    piki.dump(staging_dir, wiki_root)
 
 TMP_DUMP_DIR = '_tmp_wiki_html_deletable'
 # Hmmmm... broken out to appease pylint
 def do_freenet_insert(ui_, repo, params, insert_uri, progress_func):
     """ INTERNAL: Helper does the actual insert. """
-    default_mime_type = "text/plain" # put_complex_dir() default. Hmmmm..
+    default_mime_type = "text/plain" # put_complex_dir() default. Hmmmm.
     if not params['ISWIKI']:
         site_root = os.path.join(repo.root, params['SITE_DIR'])
     else:

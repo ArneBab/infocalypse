@@ -31,7 +31,8 @@ ADD_DIR = os.path.join(os.path.dirname(
 sys.path.append(ADD_DIR)
 #------------------------------------------------------------
 
-from servepiki import serve_wiki, create_empty_wiki
+from servepiki import serve_wiki
+from piki import create_empty_wiki
 
 from mercurial import util
 
