@@ -581,6 +581,8 @@ def infocalypse_putsite(ui_, repo, **opts):
     """
 
     if opts['createconfig']:
+        if opts['wiki']:
+            raise util.Abort("Use fn-wiki --createconfig.")
         params = {'SITE_CREATE_CONFIG':True}
         execute_putsite(ui_, repo, params)
         return
@@ -592,6 +594,8 @@ def infocalypse_putsite(ui_, repo, **opts):
                 params['SITE_KEY'] == 'CHK@'):
             raise util.Abort("--key must be a valid SSK "
                              + "insert key or CHK@.")
+
+    params['ISWIKI'] = opts['wiki']
     read_freesite_cfg(ui_, repo, params, stored_cfg)
 
     try:
@@ -728,6 +732,7 @@ cmdtable = {
                      [('', 'dryrun', None, "don't insert site"),
                      ('', 'index', -1, "edition to insert"),
                      ('', 'createconfig', None, "create default freesite.cfg"),
+                      ('', 'wiki', None, "insert a wiki, requires fnwiki.cfg"),
                      ('', 'key', '', "private SSK to insert under"),]
                      + FCP_OPTS,
                      "[options]"),

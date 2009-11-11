@@ -35,6 +35,9 @@ from servepiki import serve_wiki, create_empty_wiki
 
 from mercurial import util
 
+from config import write_default_config
+
+# REDFLAG: DCI path hacks
 # piki's required files are in that directory.
 import servepiki
 PIKI_WWW_SRC = os.path.dirname(servepiki.__file__)
@@ -62,14 +65,8 @@ def execute_wiki(ui_, repo, params):
                              "Move it out of the way to continue.")
 
         create_empty_wiki(os.path.join(repo.root, 'wiki_root'),  PIKI_WWW_SRC)
-        out = open(os.path.join(repo.root, 'fnwiki.cfg'), 'w')
-        out.write("""[default]
-# fniki.cfg tells piki where to read the wiki data from.
-[default]
-root_dir = wiki_root
-""")
-        out.close()
-        ui_.status("Created fnwiki.cfg and skeleton wiki_root dir.\n")
+        ui_.status("Created skeleton wiki_root dir.\n")
+        write_default_config(ui_, repo, True)
         return
 
     raise util.Abort("Unsupported subcommand: " + params.get('WIKI', 'unknown'))

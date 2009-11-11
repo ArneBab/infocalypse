@@ -381,12 +381,20 @@ class Config:
 # the ConfigParser import hack. See top of file.
 def read_freesite_cfg(ui_, repo, params, stored_cfg):
     """ Read param out of the freesite.cfg file. """
-    cfg_file = os.path.join(repo.root, 'freesite.cfg')
+
+    fname = 'freesite.cfg'
+    # Hack to cut code paths to appease pylint. hmmmm....
+    no_cfg_err = "Use fn-putsite --createconfig to create freesite.cfg"
+    if params['ISWIKI']:
+        fname = 'fnwiki.cfg'
+        no_cfg_err = "Use fn-wiki --createconfig to create fnwiki.cfg"
+    cfg_file = os.path.join(repo.root, fname)
 
     ui_.status('Using config file:\n%s\n' % cfg_file)
     if not os.path.exists(cfg_file):
         ui_.warn("Can't read: %s\n" % cfg_file)
-        raise util.Abort("Use --createconfig to create freesite.cfg")
+        # REDFLAG: DCI TEST
+        raise util.Abort(no_cfg_err)
 
     parser = ConfigParser()
     parser.read(cfg_file)
@@ -394,7 +402,14 @@ def read_freesite_cfg(ui_, repo, params, stored_cfg):
         raise util.Abort("Can't read default section of config file?")
 
     params['SITE_NAME'] = parser.get('default', 'site_name')
-    params['SITE_DIR'] = parser.get('default', 'site_dir')
+
+    # wiki specific
+    if params['ISWIKI']:
+        # REDFLAG: DCI test error
+        params['WIKI_ROOT'] = parser.get('default', 'wiki_root')
+    else:
+        params['SITE_DIR'] = parser.get('default', 'site_dir')
+
     if parser.has_option('default','default_file'):
         params['SITE_DEFAULT_FILE'] = parser.get('default', 'default_file')
     else:
@@ -424,6 +439,80 @@ def read_freesite_cfg(ui_, repo, params, stored_cfg):
 
     if not params['SITE_KEY'].startswith('SSK@'):
         raise util.Abort("Stored site key not an SSK?")
+
+
+
+
+def write_default_config(ui_, repo, is_wiki=False):
+    """ Write a default freesite.cfg or fnwiki.cfg file into the repository
+        root dir. """
+
+    if not is_wiki:
+        file_name = os.path.join(repo.root, 'freesite.cfg')
+        text = \
+"""# freesite.cfg used by fn-putsite
+[default]
+# Human readable site name.
+site_name = default
+# Directory to insert from relative to the repository root.
+site_dir = site_root
+# Optional external file to load the site key from, relative
+# to the directory your .infocalypse/infocalypse.ini file
+# is stored in. This file should contain ONLY the SSK insert
+# key up to the first slash.
+#
+# If this value is not set the insert SSK for the repo is
+# used.
+#site_key_file = example_freesite_key.txt
+#
+# Optional file to display by default.  If this is not
+# set index.html is used.
+#default_file = index.html
+"""
+    else:
+        file_name = os.path.join(repo.root, 'fnwiki.cfg')
+        text = \
+"""# fnwiki.cfg used by fn-wiki and fn-putsite --wiki
+[default]
+# Wiki specific stuff
+#
+# The directory relative to the repository with the files
+# for the wiki. The directory layout is as follows:
+# <wiki_root>/wikitext/ -- contains wiki text file
+# <wiki_root>/www/piki.css -- contains the css for the wiki/freesite.
+# <wiki_root>/www/pikipiki-logo.png -- png diplayed in wiki headers.
+wiki_root = wiki_root
+#
+# freesite insertion stuff
+#
+# Human readable site name.
+site_name = default
+# site_dir = ignored # NOT USED for wikis
+# Optional external file to load the site key from, relative
+# to the directory your .infocalypse/infocalypse.ini file
+# is stored in. This file should contain ONLY the SSK insert
+# key up to the first slash.
+#
+# If this value is not set the insert SSK for the repo is
+# used.
+#site_key_file = example_freesite_key.txt
+#
+# File to display by default.
+default_file = FrontPage
+"""
+    if os.path.exists(file_name):
+        raise util.Abort("Already exists: %s" % file_name)
+
+
+    out_file = open(file_name, 'w')
+    try:
+        out_file.write(text)
+    finally:
+        out_file.close()
+
+    ui_.status('Created config file:\n%s\n' % file_name)
+    ui_.status('You probably want to edit at least the site_name.\n')
+
 
 def known_hashes(trust_map):
     """ Return all repo hashes in the trust map. """

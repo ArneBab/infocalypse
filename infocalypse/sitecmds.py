@@ -21,44 +21,28 @@
 
 
 import os
+import shutil
+import sys # REDFLAG: DCI
 
 from mercurial import util
 
 from fcpconnection import FCPError
 from fcpclient import FCPClient, get_file_infos, set_index_file
 
-def write_default_config(ui_, repo):
-    """ Write a default freesite.cfg file into the repository root dir. """
-    file_name = os.path.join(repo.root, 'freesite.cfg')
+#------------------------------------------------------------
+# REDFLAG: DCI path hacks
+import validate
+ADD_DIR = os.path.join(os.path.dirname(
+    os.path.dirname(os.path.dirname(validate.__file__))),
+                       'clean_piki')
+sys.path.append(ADD_DIR)
 
-    if os.path.exists(file_name):
-        raise util.Abort("Already exists: %s" % file_name)
+import servepiki
 
-    out_file = open(file_name, 'w')
-    try:
-        out_file.write("""[default]
-# Human readable site name.
-site_name = default
-# Directory to insert from relative to the repository root.
-site_dir = site_root
-# Optional external file to load the site key from, relative
-# to the directory your .infocalypse/infocalypse.ini file
-# is stored in. This file should contain ONLY the SSK insert
-# key up to the first slash.
-#
-# If this value is not set the insert SSK for the repo is
-# used.
-#site_key_file = example_freesite_key.txt
-#
-# Optional file to display by default.  If this is not
-# set index.html is used.
-#default_file = index.html
-""")
-    finally:
-        out_file.close()
+#------------------------------------------------------------
 
-    ui_.status('Created config file:\n%s\n' % file_name)
-    ui_.status('You probably want to edit at least the site_name.\n')
+# REDFLAG: DCI deal with loading hacks for config
+from config import write_default_config
 
 def get_insert_uri(params):
     """ Helper function builds the insert URI. """
@@ -78,27 +62,43 @@ def show_request_uri(ui_, params, uri):
         request_uri = uri
     ui_.status('RequestURI:\n%s\n' % request_uri)
 
-def execute_putsite(ui_, repo, params):
-    """ Run the putsite command. """
-    def progress(dummy, msg):
-        """ Message callback which writes to the hg ui instance."""
+def dump_wiki_html(wiki_root, staging_dir):
+    """ Dump the wiki as flat directory of html.
 
-        if msg[0] == 'SimpleProgress':
-            ui_.status("Progress: (%s/%s/%s)\n" % (msg[1]['Succeeded'],
-                                                   msg[1]['Required'],
-                                                   msg[1]['Total']))
-        else:
-            ui_.status("Progress: %s\n" % msg[0])
+        wiki_root is the directory containing the wikitext and www dirs.
+        staging_dir MUST contain the substring 'deletable'.
+    """
 
+    # i.e. so you can't delete your home directory by mistake.
+    if not staging_dir.find("deletable"):
+        raise ValueError("staging dir name must contain 'deletable'")
 
-    if params.get('SITE_CREATE_CONFIG', False):
-        write_default_config(ui_, repo)
-        return
+    if os.path.exists(staging_dir):
+        shutil.rmtree(staging_dir)
+    assert not os.path.exists(staging_dir)
 
-    # Remove trailing /
-    params['SITE_KEY'] = params['SITE_KEY'].split('/')[0].strip()
-    insert_uri = get_insert_uri(params)
-    site_root = os.path.join(repo.root, params['SITE_DIR'])
+    os.makedirs(staging_dir)
+
+    # REDFLAG: DCI, should be piki.
+    servepiki.dump(staging_dir, wiki_root)
+
+TMP_DUMP_DIR = '_tmp_wiki_html_deletable'
+# Hmmmm... broken out to appease pylint
+def do_freenet_insert(ui_, repo, params, insert_uri, progress_func):
+    """ INTERNAL: Helper does the actual insert. """
+    default_mime_type = "text/plain" # put_complex_dir() default. Hmmmm..
+    if not params['ISWIKI']:
+        site_root = os.path.join(repo.root, params['SITE_DIR'])
+    else:
+        # REDFLAG: DCI temp file cleanup on exception
+
+        # Because wiki html files have no extension to guess from.
+        default_mime_type = 'text/html'
+
+        ui_.status("Dumping wiki as HTML...\n")
+        site_root = os.path.join(params['TMP_DIR'], TMP_DUMP_DIR)
+        dump_wiki_html(os.path.join(repo.root, params['WIKI_ROOT']),
+                       site_root)
 
     ui_.status('Default file: %s\n' % params['SITE_DEFAULT_FILE'])
     ui_.status('Reading files from:\n%s\n' % site_root)
@@ -124,11 +124,12 @@ def execute_putsite(ui_, repo, params):
     client = FCPClient.connect(params['FCP_HOST'],
                                params['FCP_PORT'])
     client.in_params.default_fcp_params['DontCompress'] = False
-    client.message_callback = progress
+    client.message_callback = progress_func
     try:
         ui_.status('Inserting to:\n%s\n' % insert_uri)
         try:
-            request_uri = client.put_complex_dir(insert_uri, infos)[1]['URI']
+            request_uri = client.put_complex_dir(insert_uri, infos,
+                                                 default_mime_type)[1]['URI']
             show_request_uri(ui_, params, request_uri)
         except FCPError, err:
             if err.is_code(9): # magick number for collision
@@ -140,6 +141,36 @@ def execute_putsite(ui_, repo, params):
                 raise util.Abort("FCP Error")
     finally:
         client.close()
+
+def execute_putsite(ui_, repo, params):
+    """ Run the putsite command. """
+    def progress(dummy, msg):
+        """ Message callback which writes to the hg ui instance."""
+
+        if msg[0] == 'SimpleProgress':
+            ui_.status("Progress: (%s/%s/%s)\n" % (msg[1]['Succeeded'],
+                                                   msg[1]['Required'],
+                                                   msg[1]['Total']))
+        else:
+            ui_.status("Progress: %s\n" % msg[0])
+
+
+    if params.get('SITE_CREATE_CONFIG', False):
+        write_default_config(ui_, repo)
+        return
+
+    # Remove trailing /
+    params['SITE_KEY'] = params['SITE_KEY'].split('/')[0].strip()
+    try:
+        do_freenet_insert(ui_, repo, params,
+                          get_insert_uri(params),
+                          progress)
+    finally:
+        tmp_dump = os.path.join(params['TMP_DIR'], TMP_DUMP_DIR)
+        if os.path.exists(tmp_dump):
+            # REDFLAG: DCI, failure here is horrible.
+            # i.e. untrusted unencrypted data on your disk
+            shutil.rmtree(tmp_dump)
 
 MSG_FMT = """InsertURI:
 %s
