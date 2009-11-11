@@ -13,7 +13,7 @@ http://sourcefrog.net/projects/piki/
 
 I started hacking from:
 http://sourcefrog.net/projects/piki/piki-1.62.zip
-sha1:e71779f4f8fea7dc851ffb1e74f18c613a94b086  /home/dkarbott/piki-1.62.zip
+sha1:e71779f4f8fea7dc851ffb1e74f18c613a94b086 piki-1.62.zip
 
 LICENSE: GPL2
 ---
