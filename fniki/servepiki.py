@@ -252,8 +252,7 @@ def default_out_func(text):
     print text
 
 def serve_wiki(port=8081, bind_to='localhost', out_func=default_out_func):
-    print sys.version
-
+    #out_func("server_wiki running under: %s" % str(sys.version))
     out_func("Reading parameters from fniki.cfg...")
     piki.set_data_dir_from_cfg()
     out_func("Running wiki from:")
@@ -285,11 +284,13 @@ def serve_wiki(port=8081, bind_to='localhost', out_func=default_out_func):
     except KeyboardInterrupt:
         # djk20091109 Just wrong. Did I grab the wrong file for the base class??? hmmmm...
         #
-        #for s in server.client_handlers:
+        # for s in server.client_handlers:
+        #    server.close_client(s) # obviously wrong.
 
-        # BUG: Still wrong... REDFLAG: figure out what the correct thing to do is.
-        #for s in SimpleAsyncServer.client_handlers:
-        #    server.close_client(s)
+        # Correct now?
+        for s in SimpleAsyncServer.client_handlers:
+            SimpleAsyncServer.client_handlers[s].close()
+
 
         out_func('Ctrl+C pressed. Closing')
 
