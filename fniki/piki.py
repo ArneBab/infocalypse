@@ -655,8 +655,6 @@ class FreenetPage(Page):
         print "%s %s %s" % (link_tag('FrontPage', 'FrontPage'),
                             link_tag('TitleIndex', 'TitleIndex'),
                             link_tag('WordIndex', 'WordIndex'))
-        print '<hr>'
-
 
 def reset_root_dir(root_dir):
     global data_dir, text_dir, editlog_name
