@@ -641,7 +641,7 @@ def serve_one_page():
 
 ############################################################
 # Gross, but at least it keeps the hacks in one place.
-class NoFooterPage(Page):
+class FreenetPage(Page):
     def __init__(self, page_name):
         Page.__init__(self, page_name)
 
@@ -650,7 +650,10 @@ class NoFooterPage(Page):
         send_title(self.split_title(), link, msg)
         PageFormatter(self.get_raw_body()).print_html()
         #print_footer(self.page_name, 1, self._last_modified())
-
+        print "<hr>"
+        print "%s %s %s" % (link_tag('FrontPage', 'FrontPage'),
+                            link_tag('TitleIndex', 'TitleIndex'),
+                            link_tag('WordIndex', 'WordIndex'))
         print '<hr>'
 
 
@@ -712,7 +715,7 @@ def dump(output_dir, wiki_root):
             file_name = os.path.join(output_dir, name)
             out = open(file_name, "wb")
             try:
-                page = NoFooterPage(name)
+                page = FreenetPage(name)
                 sys.stdout = out
                 page.send_page()
                 sys.stdout.flush()
