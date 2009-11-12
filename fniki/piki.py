@@ -1,5 +1,4 @@
 #! /usr/bin/env python
-
 """Quick-quick implementation of WikiWikiWeb in Python
 """
 # Modifications: Copyright (C) 2009 Darrell Karbott
@@ -78,6 +77,8 @@ command_re_str = "(search|edit|fullsearch|titlesearch)\=(.*)"
 # TODO: Check values written in are reasonable
 
 def editlog_add(page_name, host):
+    if editlog_name is None:
+        return
     editlog = open(editlog_name, 'a+')
     try: 
         # fcntl.flock(editlog.fileno(), fcntl.LOCK_EX)
@@ -89,6 +90,9 @@ def editlog_add(page_name, host):
 
 
 def editlog_raw_lines():
+    if editlog_name is None:
+        return []
+
     editlog = open(editlog_name, 'rt')
     try:
         # fcntl.flock(editlog.fileno(), fcntl.LOCK_SH)
@@ -587,7 +591,7 @@ class Page:
 # See set_data_dir_from_cfg(), reset_root_cfg
 data_dir = None
 text_dir = None
-editlog_name = None
+editlog_name = None # disabled by default: see reset_root_dir()
 cgi.logfile = None
 
 def get_logo_string():
@@ -656,7 +660,7 @@ class FreenetPage(Page):
                             link_tag('TitleIndex', 'TitleIndex'),
                             link_tag('WordIndex', 'WordIndex'))
 
-def reset_root_dir(root_dir):
+def reset_root_dir(root_dir, disable_edit_log=True):
     global data_dir, text_dir, editlog_name
     if not os.path.exists(root_dir) or not os.path.isdir(root_dir):
         raise IOError("Base wiki dir doesn't exist: %s" % root_dir)
@@ -666,7 +670,10 @@ def reset_root_dir(root_dir):
     if not os.path.exists(text_dir) or not os.path.isdir(text_dir):
         raise IOError("Wikitext dir doesn't exist: %s" % text_dir)
 
-    editlog_name = path.join(data_dir, 'editlog')
+    if disable_edit_log:
+        editlog_name = None
+    else:
+        editlog_name = path.join(data_dir, 'editlog')
     cgi.logfile = path.join(data_dir, 'cgi_log')
 
 CFG_FILE = 'fnwiki.cfg'
