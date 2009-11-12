@@ -1,4 +1,0 @@
-
- * The highlighted PageTitle shows a list of all pages that link to the current page.  It even works on pages that are not defined yet.
-
- * A question mark after a link (e.g. NoSuchPage) means that the page is not defined: you can click the question mark to offer a definition.
