@@ -228,7 +228,8 @@ def print_footer(name, editable=1, mod_string=None):
         print '<br>'
     print link_tag('FindPage?value='+name, 'FindPage')
     print " by browsing, searching, or an index"
-
+    print "<p>"
+    print "<em>Editing dir: %s </em>" % data_dir
 
 # ----------------------------------------------------------
 # Macros
