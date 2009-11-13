@@ -288,7 +288,7 @@ def serve_wiki(port=8081, bind_to='localhost', out_func=default_out_func):
         #    server.close_client(s) # obviously wrong.
 
         # Correct now?
-        for s in SimpleAsyncServer.client_handlers:
+        for s in SimpleAsyncServer.client_handlers.copy():
             SimpleAsyncServer.client_handlers[s].close()
 
 

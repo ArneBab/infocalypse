@@ -746,7 +746,13 @@ def dump(output_dir, wiki_root):
 
 # "builtin" when execfile()'d by servepiki.py
 if __name__ == "__main__" or __name__ == "__builtin__":
-    sys.stderr = open('/tmp/mbp_piki_err', 'at') # REDFLAG: FIX
+
+    # Uncomment for testing but DCI.
+    # sys.stderr = open('/tmp/piki_err', 'at')
+
+    # Suppress all output. Would choke on unicode but shouldn't
+    # see unicode, right?
+    sys.stderr = StringIO() # REDFLAG: revisit.
     set_data_dir_from_cfg()
     serve_one_page()
 
