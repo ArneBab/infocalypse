@@ -571,6 +571,7 @@ def infocalypse_fmsnotify(ui_, repo, **opts):
         return
 
     params['ANNOUNCE'] = opts['announce']
+    params['SUBMIT'] = opts['submit']
     params['DRYRUN'] = opts['dryrun']
     params['INSERT_URI'] = insert_uri
     execute_fmsnotify(ui_, repo, params, stored_cfg)
@@ -724,7 +725,9 @@ cmdtable = {
 
     "fn-fmsnotify": (infocalypse_fmsnotify,
                      [('', 'dryrun', None, "don't send fms message"),
-                     ('', 'announce', None, "include full URI update"), ]
+                     ('', 'announce', None, "include full URI update"),
+                     ('', 'submit', None, "insert patch bundle and send an " +
+                      "fms notification"),]
                      + FCP_OPTS, # Needs to invert the insert uri
                      "[options]"),
 

@@ -29,7 +29,7 @@ from fms import recv_msgs, to_msg_string, MSG_TEMPLATE, send_msgs, \
      USKNotificationParser, show_table
 
 from config import Config, trust_id_for_repo, untrust_id_for_repo, known_hashes
-from infcmds import do_key_setup, setup, cleanup
+from infcmds import do_key_setup, setup, cleanup, execute_insert_patch
 
 def handled_list(ui_, params, stored_cfg):
     """ INTERNAL: HACKED"""
@@ -198,7 +198,7 @@ def execute_fmsnotify(ui_, repo, params, stored_cfg):
 
         usk_hash = get_usk_hash(request_uri)
         index = stored_cfg.get_index(usk_hash)
-        if index is None:
+        if index is None and not params['SUBMIT']:
             ui_.warn("Can't notify because there's no stored index "
                      + "for %s.\n" % usk_hash)
             return
@@ -215,12 +215,16 @@ def execute_fmsnotify(ui_, repo, params, stored_cfg):
             ui_.status("Update the fmsnotify_group = line and try again.\n")
             return
 
+        subject = 'Update:' + '/'.join(request_uri.split('/')[1:])
         if params['ANNOUNCE']:
             text = to_msg_string(None, (request_uri, ))
+        elif params['SUBMIT']:
+            params['REQUEST_URI'] = request_uri # REDFLAG: DCI. Think
+            text = execute_insert_patch(ui_, repo, params, stored_cfg)
+            subject = 'Patch:' + '/'.join(request_uri.split('/')[1:])
         else:
             text = to_msg_string(((usk_hash, index), ))
 
-        subject = 'Update:' + '/'.join(request_uri.split('/')[1:])
         msg_tuple = (stored_cfg.defaults['FMS_ID'],
                      stored_cfg.defaults['FMSNOTIFY_GROUP'],
                      subject,

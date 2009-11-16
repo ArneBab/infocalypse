@@ -19,14 +19,12 @@
     Author: djk@isFiaD04zgAgnrEC5XJt1i4IE7AkNPqhBG5bONi6Yks
 """
 
-
 # REDFLAG: cleanup exception handling
 #          by converting socket.error to IOError in fcpconnection?
 # REDFLAG: returning vs aborting. set system exit code.
 import os
 import socket
 import time
-
 from binascii import hexlify
 
 from mercurial import util
@@ -633,13 +631,6 @@ def execute_reinsert(ui_, repo, params, stored_cfg):
     finally:
         cleanup(update_sm)
 
-
-# REDFLAG: move into fcpclient?
-#def usks_equal(usk_a, usk_b):
-#    assert is_usk(usk_a) and and is_usk(usk_b)
-#    return (get_usk_for_usk_version(usk_a, 0) ==
-#            get_usk_for_usk_version(usk_b, 0))
-
 def execute_push(ui_, repo, params, stored_cfg):
     """ Run the push command. """
 
@@ -947,23 +938,17 @@ def create_patch_bundle(ui_, repo, freenet_heads, out_file):
     finally:
         ui_.popbuffer()
 
-
-    # explicitly specify heads?
-
-    # insert it into freenet as a CHK
-
-# ':', '|' not in freenet base64
-def patch_msg(usk_hash, bases, heads, chk, kind='B'):
-    """ Return a machine readable patch notification suitable for posting
-        via FMS. """
-    return ':'.join((kind, usk_hash, ':'.join([base[:12] for base in bases]),
-                     '|', ':'.join([head[:12] for head in heads]), chk))
 def execute_insert_patch(ui_, repo, params, stored_cfg):
     """ Create and hg bundle containing all changes not already in the
-        infocalypse repo in Freenet and insert it to a CHK. """
+        infocalypse repo in Freenet and insert it to a CHK.
+
+        Returns a machine readable patch notification message.
+        """
     try:
         update_sm = setup(ui_, repo, params, stored_cfg)
         out_file = make_temp_file(update_sm.ctx.bundle_cache.base_dir)
+
+        ui_.status("Reading repo state from Freenet...\n")
         freenet_heads = read_freenet_heads(params, update_sm,
                                            params['REQUEST_URI'])
 
@@ -980,6 +965,11 @@ def execute_insert_patch(ui_, repo, params, stored_cfg):
         request.in_params.file_name = out_file
         request.in_params.send_data = True
 
+        # Must do this here because file gets deleted.
+        chk_len = os.path.getsize(out_file)
+
+        ui_.status("Inserting %i byte patch bundle...\n" %
+                   os.path.getsize(out_file))
         update_sm.start_single_request(request)
         run_until_quiescent(update_sm, params['POLL_SECS'])
 
@@ -987,19 +977,22 @@ def execute_insert_patch(ui_, repo, params, stored_cfg):
         freenet_heads.sort()
         heads = [hexlify(head) for head in repo.heads()]
         heads.sort()
-
         if update_sm.get_state(QUIESCENT).arrived_from(((FINISHING,))):
             chk = update_sm.get_state(RUNNING_SINGLE_REQUEST).\
                   final_msg[1]['URI']
             ui_.status("Patch CHK:\n%s\n" %
                        chk)
+            # ':', '|' not in freenet base64
+            ret = ':'.join(('B', normalize(params['REQUEST_URI']), str(chk_len),
+                            ':'.join([base[:12] for base in freenet_heads]),
+                            '|', ':'.join([head[:12] for head in heads]), chk))
 
-            ui_.status("\nNotification:\n%s\n" %
-                       patch_msg(normalize(params['REQUEST_URI']),
-                                 freenet_heads, heads, chk) + '\n')
+            ui_.status("\nNotification:\n%s\n" % ret
+                        + '\n')
+            return ret
 
-        else:
-            ui_.status("Insert failed.\n")
+        raise util.Abort("Patch CHK insert failed.")
+
     finally:
         # Cleans up out file.
         cleanup(update_sm)
