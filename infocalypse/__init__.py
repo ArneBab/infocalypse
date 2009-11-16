@@ -501,7 +501,7 @@ def infocalypse_info(ui_, repo, **opts):
             return
 
     params['REQUEST_URI'] = request_uri
-    execute_info(ui_, params, stored_cfg)
+    execute_info(ui_, repo, params, stored_cfg)
 
 def parse_trust_args(params, opts):
     """ INTERNAL: Helper function to parse  --hash and --fmsid. """

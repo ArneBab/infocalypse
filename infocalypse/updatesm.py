@@ -45,7 +45,7 @@ from topkey import bytes_to_top_key_tuple, top_key_tuple_to_bytes, \
 
 from statemachine import StatefulRequest, RequestQueueState, StateMachine, \
      Quiescent, Canceling, RetryingRequestList, CandidateRequest, \
-     require_state, delete_client_file
+     DecisionState, RunningSingleRequest, require_state, delete_client_file
 
 from insertingbundles import InsertingBundles
 from requestingbundles import RequestingBundles
@@ -631,6 +631,34 @@ class RequestingUri(StaticRequestList):
                 self.ordered[0][0].find('.R1') != -1)
         return get_usk_for_usk_version(self.ordered[0][0],
                                        max_version)
+class RequiresGraph(DecisionState):
+    """ State which decides whether the graph data is required. """
+    def __init__(self, parent, name, yes_state, no_state):
+        DecisionState.__init__(self, parent, name)
+        self.yes_state = yes_state
+        self.no_state = no_state
+        self.top_key_tuple = None
+
+    def reset(self):
+        """ Implementation of State virtual. """
+        self.top_key_tuple = None
+
+    def decide_next_state(self, from_state):
+        """ Returns yes_state if the graph is required, no_state otherwise. """
+        assert hasattr(from_state, 'get_top_key_tuple')
+        self.top_key_tuple = from_state.get_top_key_tuple()
+        if not self.top_key_tuple[1][0][5]:
+            # The top key data doesn't contain the full head list for
+            # the repository in Freenet, so we need to request the
+            # graph.
+            return self.yes_state
+        return self.no_state
+
+    def get_top_key_tuple(self):
+        """ Return the cached top key tuple. """
+        assert not self.top_key_tuple is None
+        return self.top_key_tuple
+
 
 class InvertingUri(RequestQueueState):
     """ A state to compute the request URI corresponding to a Freenet
@@ -715,9 +743,9 @@ class RequestingGraph(StaticRequestList):
 
     def enter(self, from_state):
         """ Implementation of State virtual. """
-        require_state(from_state, REQUESTING_URI_4_INSERT)
-        top_key_tuple = (self.parent.get_state(REQUESTING_URI_4_INSERT).
-                         get_top_key_tuple())
+
+        assert hasattr(from_state, "get_top_key_tuple")
+        top_key_tuple = from_state.get_top_key_tuple()
 
         #top_key_tuple = self.get_top_key_tuple() REDFLAG: remove
         #print "TOP_KEY_TUPLE", top_key_tuple
@@ -779,6 +807,16 @@ REQUESTING_URI = 'REQUESTING_URI'
 REQUESTING_BUNDLES = 'REQUESTING_BUNDLES'
 REQUESTING_URI_4_COPY = 'REQUESTING_URI_4_COPY'
 
+REQUESTING_URI_4_HEADS = 'REQUESTING_URI_4_HEADS'
+REQUIRES_GRAPH_4_HEADS  = 'REQUIRES_GRAPH'
+REQUESTING_GRAPH_4_HEADS = 'REQUESTING_GRAPH_4_HEADS'
+
+RUNNING_SINGLE_REQUEST = 'RUNNING_SINGLE_REQUEST'
+# REDFLAG: DRY out (after merging wiki stuff)
+# 1. write state_name(string) func to create state names by inserting them
+#    into globals.
+# 2. Helper func to add states to states member so you don't have to repeat
+#    the name
 class UpdateStateMachine(RequestQueue, StateMachine):
     """ A StateMachine implementaion to create, push to and pull from
         Infocalypse repositories. """
@@ -832,6 +870,26 @@ class UpdateStateMachine(RequestQueue, StateMachine):
 
             FINISHING:CleaningUp(self, FINISHING, QUIESCENT),
 
+
+            # Requesting head info from freenet
+            REQUESTING_URI_4_HEADS:RequestingUri(self, REQUESTING_URI_4_HEADS,
+                                                 REQUIRES_GRAPH_4_HEADS,
+                                                 FAILING),
+
+            REQUIRES_GRAPH_4_HEADS:RequiresGraph(self, REQUIRES_GRAPH_4_HEADS,
+                                                 REQUESTING_GRAPH_4_HEADS,
+                                                 FINISHING),
+
+            REQUESTING_GRAPH_4_HEADS:RequestingGraph(self,
+                                                     REQUESTING_GRAPH_4_HEADS,
+                                                     FINISHING,
+                                                     FAILING),
+
+            # Run and arbitrary StatefulRequest.
+            RUNNING_SINGLE_REQUEST:RunningSingleRequest(self,
+                                                        RUNNING_SINGLE_REQUEST,
+                                                        FINISHING,
+                                                        FAILING),
 
             # Copying.
             # This doesn't verify that the graph chk(s) are fetchable.
@@ -911,6 +969,26 @@ class UpdateStateMachine(RequestQueue, StateMachine):
         self.ctx['REQUEST_URI'] = request_uri
         self.transition(REQUESTING_URI)
 
+    def start_requesting_heads(self, request_uri):
+        """ Start fetching the top key and graph if necessary to retrieve
+            the list of the latest heads in Freenet.
+        """
+        self.require_state(QUIESCENT)
+        self.reset()
+        self.ctx.graph = None
+        self.ctx['REQUEST_URI'] = request_uri
+        self.transition(REQUESTING_URI_4_HEADS)
+
+    def start_single_request(self, stateful_request):
+        """ Run a single StatefulRequest on the state machine.
+        """
+        assert not stateful_request is None
+        assert not stateful_request.in_params is None
+        assert not stateful_request.in_params.definition is None
+        self.require_state(QUIESCENT)
+        self.reset()
+        self.get_state(RUNNING_SINGLE_REQUEST).request = stateful_request
+        self.transition(RUNNING_SINGLE_REQUEST)
 
     def start_copying(self, from_uri, to_insert_uri):
         """ Start pulling changes from an Infocalypse repository URI

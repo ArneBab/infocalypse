@@ -27,21 +27,29 @@ import os
 import socket
 import time
 
+from binascii import hexlify
+
 from mercurial import util
+from mercurial import commands
 
 from fcpclient import parse_progress, is_usk, is_ssk, get_version, \
      get_usk_for_usk_version, FCPClient, is_usk_file, is_negative_usk
-
 from fcpconnection import FCPConnection, PolledSocket, CONNECTION_STATES, \
      get_code, FCPError
+from fcpmessage import PUT_FILE_DEF
+
 from requestqueue import RequestRunner
 
-from graph import UpdateGraph
-from bundlecache import BundleCache, is_writable
+from graph import UpdateGraph, get_heads, has_version
+from bundlecache import BundleCache, is_writable, make_temp_file
 from updatesm import UpdateStateMachine, QUIESCENT, FINISHING, REQUESTING_URI, \
      REQUESTING_GRAPH, REQUESTING_BUNDLES, INVERTING_URI, \
      REQUESTING_URI_4_INSERT, INSERTING_BUNDLES, INSERTING_GRAPH, \
-     INSERTING_URI, FAILING, REQUESTING_URI_4_COPY, CANCELING, CleaningUp
+     INSERTING_URI, FAILING, REQUESTING_URI_4_COPY, CANCELING, \
+     REQUIRES_GRAPH_4_HEADS, REQUESTING_GRAPH_4_HEADS, \
+     RUNNING_SINGLE_REQUEST, CleaningUp
+
+from statemachine import StatefulRequest
 
 from config import Config, DEFAULT_CFG_PATH, FORMAT_VERSION, normalize
 
@@ -79,6 +87,8 @@ MSG_TABLE = {(QUIESCENT, REQUESTING_URI_4_INSERT)
              :"Fetching URI...",
              (REQUESTING_URI, REQUESTING_BUNDLES)
              :"Fetching bundles...",
+             (REQUIRES_GRAPH_4_HEADS, REQUESTING_GRAPH_4_HEADS)
+             :"Head list not in top key, fetching graph...",
              }
 
 class UICallbacks:
@@ -700,6 +710,28 @@ def execute_pull(ui_, repo, params, stored_cfg):
     finally:
         cleanup(update_sm)
 
+
+# Note: doesn't close the socket, but its ok because cleanup() does.
+def read_freenet_heads(params, update_sm, request_uri):
+    """ Helper function reads the know heads from Freenet. """
+    update_sm.start_requesting_heads(request_uri)
+    run_until_quiescent(update_sm, params['POLL_SECS'], False)
+    if update_sm.get_state(QUIESCENT).arrived_from(((FINISHING,))):
+        if update_sm.ctx.graph is None:
+            # Heads are in the top key.
+            top_key_tuple = update_sm.get_state(REQUIRES_GRAPH_4_HEADS).\
+                            get_top_key_tuple()
+            assert top_key_tuple[1][0][5] # heads list complete
+            return top_key_tuple[1][0][2] # stored in first update
+
+        else:
+            # Have to pull the heads from the graph.
+            assert not update_sm.ctx.graph is None
+            return get_heads(update_sm.ctx.graph)
+
+    raise util.Abort("Couldn't read heads from Freenet.")
+
+
 NO_INFO_FMT = """There's no stored information about this USK.
 USK hash: %s
 """
@@ -714,9 +746,11 @@ Request URI:
 %s
 Insert URI:
 %s
+
+Reading repo state from Freenet...
 """
 
-def execute_info(ui_, params, stored_cfg):
+def execute_info(ui_, repo, params, stored_cfg):
     """ Run the info command. """
     request_uri = params['REQUEST_URI']
     if request_uri is None or not is_usk_file(request_uri):
@@ -742,6 +776,16 @@ def execute_info(ui_, params, stored_cfg):
 
     ui_.status(INFO_FMT %
                (usk_hash, max_index or -1, trusted, request_uri, insert_uri))
+
+    update_sm = setup(ui_, repo, params, stored_cfg)
+    try:
+        ui_.status('Freenet head(s): %s\n' %
+                   ' '.join([ver[:12] for ver in
+                             read_freenet_heads(params, update_sm,
+                                                request_uri)]))
+    finally:
+        cleanup(update_sm)
+
 
 def setup_tmp_dir(ui_, tmp):
     """ INTERNAL: Setup the temp directory. """
@@ -872,3 +916,90 @@ Default private key:
 
 """ % (host, port, tmp, cfg_file, default_private_key))
 
+
+def create_patch_bundle(ui_, repo, freenet_heads, out_file):
+    """ Creates an hg bundle file containing all the changesets
+        later than freenet_heads. """
+
+    freenet_heads = list(freenet_heads)
+    freenet_heads.sort()
+    # Make sure you have them all locally
+    for head in freenet_heads:
+        if not has_version(repo, head):
+            raise util.Abort("The local repository isn't up to date. " +
+                             "Run hg fn-pull.")
+
+    heads = [hexlify(head) for head in repo.heads()]
+    heads.sort()
+
+    if freenet_heads == heads:
+        raise util.Abort("All local changesets already in the repository " +
+                         "in Freenet.")
+
+    # Create a bundle using the freenet_heads as bases.
+    ui_.pushbuffer()
+    try:
+        #print 'PARENTS:', freenet_heads
+        #print 'HEADS:', heads
+        commands.bundle(ui_, repo, out_file,
+                        None, base=list(freenet_heads),
+                        rev=heads)
+    finally:
+        ui_.popbuffer()
+
+
+    # explicitly specify heads?
+
+    # insert it into freenet as a CHK
+
+# ':', '|' not in freenet base64
+def patch_msg(usk_hash, bases, heads, chk, kind='B'):
+    """ Return a machine readable patch notification suitable for posting
+        via FMS. """
+    return ':'.join((kind, usk_hash, ':'.join([base[:12] for base in bases]),
+                     '|', ':'.join([head[:12] for head in heads]), chk))
+def execute_insert_patch(ui_, repo, params, stored_cfg):
+    """ Create and hg bundle containing all changes not already in the
+        infocalypse repo in Freenet and insert it to a CHK. """
+    try:
+        update_sm = setup(ui_, repo, params, stored_cfg)
+        out_file = make_temp_file(update_sm.ctx.bundle_cache.base_dir)
+        freenet_heads = read_freenet_heads(params, update_sm,
+                                           params['REQUEST_URI'])
+
+        # This may eventually change to support other patch types.
+        create_patch_bundle(ui_, repo, freenet_heads, out_file)
+
+        # Make an FCP file insert request which will run on the
+        # on the state machine.
+        request = StatefulRequest(update_sm)
+        request.tag = 'patch_bundle_insert'
+        request.in_params.definition = PUT_FILE_DEF
+        request.in_params.fcp_params = update_sm.params.copy()
+        request.in_params.fcp_params['URI'] = 'CHK@'
+        request.in_params.file_name = out_file
+        request.in_params.send_data = True
+
+        update_sm.start_single_request(request)
+        run_until_quiescent(update_sm, params['POLL_SECS'])
+
+        freenet_heads = list(freenet_heads)
+        freenet_heads.sort()
+        heads = [hexlify(head) for head in repo.heads()]
+        heads.sort()
+
+        if update_sm.get_state(QUIESCENT).arrived_from(((FINISHING,))):
+            chk = update_sm.get_state(RUNNING_SINGLE_REQUEST).\
+                  final_msg[1]['URI']
+            ui_.status("Patch CHK:\n%s\n" %
+                       chk)
+
+            ui_.status("\nNotification:\n%s\n" %
+                       patch_msg(normalize(params['REQUEST_URI']),
+                                 freenet_heads, heads, chk) + '\n')
+
+        else:
+            ui_.status("Insert failed.\n")
+    finally:
+        # Cleans up out file.
+        cleanup(update_sm)

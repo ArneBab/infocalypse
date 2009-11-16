@@ -25,6 +25,7 @@
 
 import os
 
+from fcpconnection import SUCCESS_MSGS
 from requestqueue import QueueableRequest
 
 # Move this to fcpconnection?
@@ -135,6 +136,89 @@ class RequestQueueState(State):
     def request_done(self, client, msg):
         """ Handle terminal FCP messages for running requests. """
         pass
+
+class DecisionState(RequestQueueState):
+    """ Synthetic State which drives a transition to another state
+        in enter()."""
+    def __init__(self, parent, name):
+        RequestQueueState.__init__(self, parent, name)
+
+    def enter(self, from_state):
+        """ Immediately drive transition to decide_next_state(). """
+        target_state =  self.decide_next_state(from_state)
+        assert target_state != self
+        assert target_state != from_state
+        self.parent.transition(target_state)
+
+    def decide_next_state(self, dummy_from_state):
+        """ Pure virtual.
+
+            Return the state to transition into. """
+        print "ENOTIMPL:" + self.name
+        return ""
+
+    # Doesn't handle FCP requests.
+    def next_runnable(self):
+        """ Illegal. """
+        assert False
+
+    def request_progress(self, dummy_client, dummy_msg):
+        """ Illegal. """
+        assert False
+
+    def request_done(self, dummy_client, dummy_msg):
+        """ Illegal. """
+        assert False
+
+class RunningSingleRequest(RequestQueueState):
+    """ RequestQueueState to run a single StatefulRequest.
+
+        Caller MUST set request field.
+    """
+    def __init__(self, parent, name, success_state, failure_state):
+        RequestQueueState.__init__(self, parent, name)
+        self.success_state = success_state
+        self.failure_state = failure_state
+        self.request = None
+        self.queued = False
+        self.final_msg = None
+
+    def enter(self, dummy_from_state):
+        """ Implementation of State virtual. """
+        assert not self.queued
+        assert len(self.pending) == 0
+        assert not self.request is None
+        assert not self.request.tag is None
+
+    def reset(self):
+        """ Implementation of State virtual. """
+        RequestQueueState.reset(self)
+        self.request = None
+        self.queued = False
+        self.final_msg = None
+
+    def next_runnable(self):
+        """ Send request for the file once."""
+        if self.queued:
+            return None
+
+        # REDFLAG: sucky code, weird coupling
+        self.parent.ctx.set_cancel_time(self.request)
+
+        self.queued = True
+        self.pending[self.request.tag] = self.request
+        return self.request
+
+    def request_done(self, client, msg):
+        """ Implement virtual. """
+        assert self.request == client
+        del self.pending[self.request.tag]
+        self.final_msg = msg
+        if msg[0] in SUCCESS_MSGS:
+            self.parent.transition(self.success_state)
+            return
+
+        self.parent.transition(self.failure_state)
 
 class Quiescent(RequestQueueState):
     """ The quiescent state for the state machine. """
