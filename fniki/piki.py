@@ -33,9 +33,11 @@ from cStringIO import StringIO
 
 PIKI_PNG = 'pikipiki-logo.png'
 PIKI_CSS = 'piki.css'
+ACTIVELINK = 'activelink.png'
+#FAVICON = 'favicon.ico'
 
 # HTTP server doesn't need to serve any other files to make piki work.
-PIKI_REQUIRED_FILES = (PIKI_PNG, PIKI_CSS)
+PIKI_REQUIRED_FILES = (PIKI_PNG, PIKI_CSS, ACTIVELINK)
 
 scrub_links = False
 def scrub(link_text, ss_class=None):
@@ -340,7 +342,8 @@ def _macro_RecentChanges():
 
     return buf.getvalue()
 
-
+def _macro_ActiveLink():
+    return '<img src="%s" />' % scrub('/' + ACTIVELINK)
 
 # ----------------------------------------------------------
 class PageFormatter:
@@ -466,7 +469,7 @@ class PageFormatter:
 
             + r"|(?P<pre>(\{\{\{|\}\}\}))"
             + r"|(?P<macro>\[\[(TitleSearch|FullSearch|WordIndex"
-                            + r"|TitleIndex|RecentChanges|GoTo)\]\])"
+                            + r"|TitleIndex|RecentChanges|ActiveLink|GoTo)\]\])"
             + r")")
         blank_re = re.compile("^\s*$")
         bullet_re = re.compile("^\s+\*")

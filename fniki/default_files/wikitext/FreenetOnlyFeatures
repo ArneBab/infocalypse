@@ -10,4 +10,18 @@ Images with links to Freenet URIs are supported, but you can only see them when 
 
 [[[freenet:USK@qd-hk0vHYg7YvK2BQsJMcUD5QSF0tDkgnnF6lnWUH0g,xTFOV9ddCQQk6vQ6G~jfL6IzRUgmfMcZJ6nuySu~NUc,AQACAAE/activelink-index-text/81/activelink.png|(alt tag for image)|(title tag for image]]]
 
+The file:
+
+{{{
+wiki_root/www/activelink.png
+}}}
+
+Is used for the Freenet active link image.
+
+There's a markup macro that allows you to embed it in any wiki page, like this:
+
+[[ActiveLink]]
+
+
+
 Use the edit text link below to view the markup for these features.
