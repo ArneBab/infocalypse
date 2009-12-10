@@ -217,7 +217,7 @@ def default_out(text):
 
 def dump_top_key_tuple(top_key_tuple, out_func=default_out):
     """ Debugging function to print a top_key_tuple. """
-    out_func("---top key tuple---\n")
+    out_func("--- %s top key tuple---\n" % HDR_BYTES)
     for index, chk in enumerate(top_key_tuple[0]):
         out_func("graph_%s:%s\n" % (chr(ord('a') + index), chk))
     for index, update in enumerate(top_key_tuple[1]):

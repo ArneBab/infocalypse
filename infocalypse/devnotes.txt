@@ -1,4 +1,21 @@
 !!! experimental branch for testing wiki over hg idea !!!
+See:
+USK@kRM~jJVREwnN2qnA8R0Vt8HmpfRzBZ0j4rHC2cQ-0hw,2xcoQVdQLyqfTpF2DpkdUIbHFCeL4W~2X1phUYymnhM,AQACAAE/fniki_demo/3/
+!!!
+
+djk20091208
+Failed attempt to DRY out:
+   
+THIS_IS_A_CONSTANT = 'THIS_IS_A_CONSTANT'
+
+constant defs.
+
+# pylint doesn't infer the names so it reports them as undefined
+# def str_constant(name):
+#    assert not name is globals()
+#    globals()[name] = name
+#str_constant('ARC_REQUESTING_URI')
+
 
 djk20091111
 Remember to test pathhacks under windows.  If it works, use it to clean

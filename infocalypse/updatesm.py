@@ -40,8 +40,6 @@ from graph import INSERT_NORMAL, INSERT_PADDED, INSERT_SALTED_METADATA, \
      pull_bundle, hex_version
 from graphutil import minimal_graph, graph_to_string, parse_graph
 from choose import get_top_key_updates
-from topkey import bytes_to_top_key_tuple, top_key_tuple_to_bytes, \
-     dump_top_key_tuple
 
 from statemachine import StatefulRequest, RequestQueueState, StateMachine, \
      Quiescent, Canceling, RetryingRequestList, CandidateRequest, \
@@ -49,6 +47,8 @@ from statemachine import StatefulRequest, RequestQueueState, StateMachine, \
 
 from insertingbundles import InsertingBundles
 from requestingbundles import RequestingBundles
+
+import topkey
 
 HG_MIME_TYPE = 'application/mercurial-bundle'
 HG_MIME_TYPE_FMT = HG_MIME_TYPE + ';%i'
@@ -58,7 +58,7 @@ PAD_BYTE = '\xff'
 
 MAX_SSK_LEN = 1024
 
-class UpdateContext(dict):
+class UpdateContextBase(dict):
     """ A class to hold inter-state data used while the state machine is
         running. """
 
@@ -69,23 +69,47 @@ class UpdateContext(dict):
         self.parent = parent
 
         # Merurial state
-        self.repo = None
         self.ui_ = None
+        self.repo = None
         self.bundle_cache = None
 
         # Orphaned request handling hmmm...
         self.orphaned = {}
 
-        # UpdateGraph instance.
-        self.graph = None
-
         # If this is True states can use the results of index searches on the
         # public key to update the private key.
         self['IS_KEYPAIR'] = False
 
-        self['TARGET_VERSIONS'] = None
         self['INSERT_URI'] = 'CHK@'
         self['REQUEST_URI'] = None
+
+    def set_cancel_time(self, request):
+        """ Sets the timeout on a QueueableRequest. """
+        request.cancel_time_secs = time.time() \
+                                   + self.parent.params['CANCEL_TIME_SECS']
+
+    def orphan_requests(self, from_state):
+        """ Give away requests that should be allowed to keep running. """
+        if not hasattr(from_state, 'pending') or len(from_state.pending) == 0:
+            return
+
+        for tag in from_state.pending:
+            request = from_state.pending[tag]
+            request.tag = "orphaned_%s_%s" % (str(request.tag), from_state.name)
+            assert not request.tag in self.orphaned
+            self.orphaned[request.tag] = request
+        from_state.pending.clear()
+
+
+class UpdateContext(UpdateContextBase):
+    """ A class to hold inter-state data used while the state machine is
+        running. """
+
+    def __init__(self, parent):
+        UpdateContextBase.__init__(self, parent)
+
+        self.graph = None
+        self['TARGET_VERSIONS'] = None
 
     def has_versions(self, versions):
         """ Returns True if all versions are already in the hg repository,
@@ -109,10 +133,6 @@ class UpdateContext(dict):
         finally:
             self.ui_.popbuffer()
 
-    def set_cancel_time(self, request):
-        """ Sets the timeout on a QueueableRequest. """
-        request.cancel_time_secs = time.time() \
-                                   + self.parent.params['CANCEL_TIME_SECS']
     # REDFLAG: get rid of tag arg?
     def make_splitfile_metadata_request(self, edge, tag):
         """ Makes a StatefulRequest for the Freenet metadata for the
@@ -221,17 +241,6 @@ class UpdateContext(dict):
 
         return (tmp_file, mime_type)
 
-    def orphan_requests(self, from_state):
-        """ Give away requests that should be allowed to keep running. """
-        if not hasattr(from_state, 'pending') or len(from_state.pending) == 0:
-            return
-
-        for tag in from_state.pending:
-            request = from_state.pending[tag]
-            request.tag = "orphaned_%s_%s" % (str(request.tag), from_state.name)
-            assert not request.tag in self.orphaned
-            self.orphaned[request.tag] = request
-        from_state.pending.clear()
 
 
 class CleaningUp(Canceling):
@@ -439,7 +448,7 @@ class InsertingGraph(StaticRequestList):
         # fit in an ssk.
         index = len(updates) - 1
         zorch_base = True
-        while (len(top_key_tuple_to_bytes((chks, updates))) >= MAX_SSK_LEN
+        while (len(topkey.top_key_tuple_to_bytes((chks, updates))) >= MAX_SSK_LEN
                and index >= 0):
             victim = list(updates[index])
             # djk20090628 -- There was a bad b_ug here until c47cb6a56d80 which
@@ -456,7 +465,7 @@ class InsertingGraph(StaticRequestList):
                 continue
             zorch_base = False
 
-        assert len(top_key_tuple_to_bytes((chks, updates))) < MAX_SSK_LEN
+        assert len(topkey.top_key_tuple_to_bytes((chks, updates))) < MAX_SSK_LEN
 
         return (chks, updates)
 
@@ -473,6 +482,8 @@ class InsertingUri(StaticRequestList):
     def __init__(self, parent, name, success_state, failure_state):
         StaticRequestList.__init__(self, parent, name, success_state,
                              failure_state)
+        self.topkey_funcs = topkey
+        self.cached_top_key_tuple = None
 
     def enter(self, from_state):
         """ Implementation of State virtual.
@@ -483,6 +494,12 @@ class InsertingUri(StaticRequestList):
         if not hasattr(from_state, 'get_top_key_tuple'):
             raise Exception("Illegal Transition from: %s" % from_state.name)
 
+
+        # DCI: Retest non-archive stuff!
+        # Cache *before* the possible transition below.
+        top_key_tuple = from_state.get_top_key_tuple()
+        self.cached_top_key_tuple = top_key_tuple # hmmmm...
+
         if (self.parent.ctx['INSERT_URI'] is None
             and self.parent.ctx.get('REINSERT', 0) > 0):
             # Hmmmm... hackery to deal with reinsert w/o insert uri
@@ -491,10 +508,9 @@ class InsertingUri(StaticRequestList):
 
         assert not self.parent.ctx['INSERT_URI'] is None
 
-        top_key_tuple = from_state.get_top_key_tuple()
         if self.parent.params.get('DUMP_TOP_KEY', False):
-            dump_top_key_tuple(top_key_tuple,
-                               self.parent.ctx.ui_.status)
+            self.topkey_funcs.dump_top_key_tuple(top_key_tuple,
+                                                 self.parent.ctx.ui_.status)
 
         salt = {0:0x00, 1:0xff} # grrr.... less code.
         insert_uris = make_frozen_uris(self.parent.ctx['INSERT_URI'],
@@ -504,7 +520,8 @@ class InsertingUri(StaticRequestList):
             if self.parent.params.get('DUMP_URIS', False):
                 self.parent.ctx.ui_.status("INSERT_URI: %s\n" % uri)
             self.queue([uri, 0, True,
-                        top_key_tuple_to_bytes(top_key_tuple, salt[index]),
+                        self.topkey_funcs.top_key_tuple_to_bytes(top_key_tuple,
+                                                                 salt[index]),
                         None, None])
         self.required_successes = len(insert_uris)
 
@@ -534,6 +551,10 @@ class InsertingUri(StaticRequestList):
             ret.append(uri)
         return ret
 
+    def get_top_key_tuple(self):
+        """ Return the top key tuple that it inserted from. """
+        return self.cached_top_key_tuple
+
 class RequestingUri(StaticRequestList):
     """ A state to request the top level URI for an Infocalypse
         repository. """
@@ -541,6 +562,10 @@ class RequestingUri(StaticRequestList):
         StaticRequestList.__init__(self, parent, name, success_state,
                                    failure_state)
         self.try_all = True # Hmmmm...
+
+        # hmmmm... Does C module as namespace idiom really belong in Python?
+        # Git'r done for now.
+        self.topkey_funcs = topkey
 
     def enter(self, dummy):
         """ Implementation of State virtual. """
@@ -593,8 +618,8 @@ class RequestingUri(StaticRequestList):
             # Allow pending requests to run to completion.
             self.parent.ctx.orphan_requests(self)
             if self.parent.params.get('DUMP_TOP_KEY', False):
-                dump_top_key_tuple(self.get_top_key_tuple(),
-                                   self.parent.ctx.ui_.status)
+                self.topkey_funcs.dump_top_key_tuple(self.get_top_key_tuple(),
+                                                     self.parent.ctx.ui_.status)
 
     def get_top_key_tuple(self):
         """ Get the python rep of the data in the URI. """
@@ -603,7 +628,7 @@ class RequestingUri(StaticRequestList):
             result = candidate[5]
             if result is None or result[0] != 'AllData':
                 continue
-            top_key_tuple = bytes_to_top_key_tuple(result[2])[0]
+            top_key_tuple = self.topkey_funcs.bytes_to_top_key_tuple(result[2])[0]
             break
         assert not top_key_tuple is None
         return top_key_tuple
@@ -821,10 +846,11 @@ class UpdateStateMachine(RequestQueue, StateMachine):
     """ A StateMachine implementaion to create, push to and pull from
         Infocalypse repositories. """
 
-    def __init__(self, runner, repo, ui_, bundle_cache):
+    def __init__(self, runner, ctx):
         RequestQueue.__init__(self, runner)
         StateMachine.__init__(self)
-
+        self.ctx = None
+        self.set_context(ctx) # Do early. States might depend on ctx.
         self.states = {
             QUIESCENT:Quiescent(self, QUIESCENT),
 
@@ -905,12 +931,12 @@ class UpdateStateMachine(RequestQueue, StateMachine):
         # Must not change any state!
         self.monitor_callback = lambda parent, client, msg: None
 
-        self.ctx = UpdateContext(self)
-        self.ctx.repo = repo
-        self.ctx.ui_ = ui_
-        self.ctx.bundle_cache = bundle_cache
-
         runner.add_queue(self)
+
+    def set_context(self, new_ctx):
+        """ Set the context. """
+        self.ctx = new_ctx
+        self.ctx.parent = self
 
     def reset(self):
         """ StateMachine override. """

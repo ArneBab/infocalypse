@@ -45,7 +45,9 @@ from updatesm import UpdateStateMachine, QUIESCENT, FINISHING, REQUESTING_URI, \
      REQUESTING_URI_4_INSERT, INSERTING_BUNDLES, INSERTING_GRAPH, \
      INSERTING_URI, FAILING, REQUESTING_URI_4_COPY, CANCELING, \
      REQUIRES_GRAPH_4_HEADS, REQUESTING_GRAPH_4_HEADS, \
-     RUNNING_SINGLE_REQUEST, CleaningUp
+     RUNNING_SINGLE_REQUEST, CleaningUp, UpdateContext
+
+from archivesm import ArchiveStateMachine, ArchiveUpdateContext
 
 from statemachine import StatefulRequest
 
@@ -287,6 +289,7 @@ class PatchedCleaningUp(CleaningUp):
         CleaningUp.enter(self, from_state)
 
 # REDFLAG: remove store_cfg
+# DCI: retest! esp. infocalypse stuff
 def setup(ui_, repo, params, stored_cfg):
     """ INTERNAL: Setup to run an Infocalypse extension command. """
     # REDFLAG: choose another name. Confusion w/ fcp param
@@ -315,7 +318,8 @@ def setup(ui_, repo, params, stored_cfg):
     callbacks = UICallbacks(ui_)
     callbacks.verbosity = verbosity
 
-    cache = BundleCache(repo, ui_, params['TMP_DIR'])
+    if not repo is None:
+        cache = BundleCache(repo, ui_, params['TMP_DIR'])
 
     try:
         async_socket = PolledSocket(params['FCP_HOST'], params['FCP_PORT'])
@@ -331,7 +335,20 @@ def setup(ui_, repo, params, stored_cfg):
         raise err
 
     runner = RequestRunner(connection, params['N_CONCURRENT'])
-    update_sm = UpdateStateMachine(runner, repo, ui_, cache)
+
+    if repo is None:
+        # For incremental archives.
+        ctx = ArchiveUpdateContext()
+        update_sm = ArchiveStateMachine(runner, ctx)
+    else:
+        # For Infocalypse repositories
+        ctx = UpdateContext(None)
+        ctx.repo = repo
+        ctx.ui_ = ui_
+        ctx.bundle_cache = cache
+        update_sm = UpdateStateMachine(runner, ctx)
+
+
     update_sm.params = params.copy()
     update_sm.transition_callback = callbacks.transition_callback
     update_sm.monitor_callback = callbacks.monitor_callback
@@ -399,7 +416,9 @@ def cleanup(update_sm):
     if not update_sm.runner is None:
         update_sm.runner.connection.close()
 
-    update_sm.ctx.bundle_cache.remove_files()
+    # DCI: what will force cleanup of archive temp files?
+    if not update_sm.ctx.bundle_cache is None:
+        update_sm.ctx.bundle_cache.remove_files()
 
 # This function needs cleanup.
 # REDFLAG: better name. 0) inverts 1) updates indices from cached state.
@@ -506,7 +525,6 @@ def handle_updating_config(repo, update_sm, params, stored_cfg,
         stored_cfg.update_dir(repo.root, updated_uri)
         #print "UPDATED STORED CONFIG(1)"
         Config.to_file(stored_cfg)
-
 
 def is_redundant(uri):
     """ Return True if uri is a file USK and ends in '.R1',

@@ -146,10 +146,11 @@ class DecisionState(RequestQueueState):
     def enter(self, from_state):
         """ Immediately drive transition to decide_next_state(). """
         target_state =  self.decide_next_state(from_state)
-        assert target_state != self
+        assert target_state != self.name
         assert target_state != from_state
         self.parent.transition(target_state)
 
+    # State instance NOT name.
     def decide_next_state(self, dummy_from_state):
         """ Pure virtual.
 

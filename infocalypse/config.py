@@ -393,7 +393,6 @@ def read_freesite_cfg(ui_, repo, params, stored_cfg):
     ui_.status('Using config file:\n%s\n' % cfg_file)
     if not os.path.exists(cfg_file):
         ui_.warn("Can't read: %s\n" % cfg_file)
-        # REDFLAG: DCI TEST
         raise util.Abort(no_cfg_err)
 
     parser = ConfigParser()
@@ -405,7 +404,6 @@ def read_freesite_cfg(ui_, repo, params, stored_cfg):
 
     # wiki specific
     if params['ISWIKI']:
-        # REDFLAG: DCI test error
         params['WIKI_ROOT'] = parser.get('default', 'wiki_root')
     else:
         params['SITE_DIR'] = parser.get('default', 'site_dir')

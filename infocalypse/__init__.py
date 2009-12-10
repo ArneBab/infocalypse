@@ -290,6 +290,28 @@ If you see 'abort: Connection refused' when you run
 fn-fmsread or fn-fmsnotify, check fms_host and
 fms_port in the config file.
 
+EXPERIMENTAL STUFF:
+The following commands are experimental and undocumented:
+fn-wiki
+fn-archive
+
+See:
+USK@kRM~jJVREwnN2qnA8R0Vt8HmpfRzBZ0j4rHC2cQ-0hw, \\
+2xcoQVdQLyqfTpF2DpkdUIbHFCeL4W~2X1phUYymnhM,AQACAAE/fniki_demo/-3/
+
+Also, see:
+hg help fn-wiki
+hg help fn-archive
+
+BE CAREFUL, these commands may delete local files and directories:
+hg fn-archive
+hg fn-archive --pull
+
+
+See:
+USK@kRM~jJVREwnN2qnA8R0Vt8HmpfRzBZ0j4rHC2cQ-0hw, \\
+2xcoQVdQLyqfTpF2DpkdUIbHFCeL4W~2X1phUYymnhM,AQACAAE/fniki_demo/3/
+
 MORE DOCUMENTATION:
 See doc/infocalypse_howto.html in the directory this
 extension was installed into.
@@ -343,6 +365,8 @@ from fmscmds import execute_fmsread, execute_fmsnotify, get_uri_from_hash
 
 from sitecmds import execute_putsite, execute_genkey
 from wikicmds import execute_wiki
+from arccmds import execute_arc_create, execute_arc_pull, execute_arc_push, \
+     execute_arc_reinsert
 
 from config import read_freesite_cfg
 from validate import is_hex_string, is_fms_id
@@ -655,6 +679,97 @@ def infocalypse_setup(ui_, **opts):
                   opts['fcpport'],
                   opts['tmpdir'])
 
+#----------------------------------------------------------"
+def do_archive_create(ui_, opts, params, stored_cfg):
+    """ fn-archive --create."""
+    insert_uri = opts['uri']
+    if insert_uri == '':
+        raise util.Abort("Please set the insert URI with --uri.")
+
+    params['INSERT_URI'] = insert_uri
+    params['FROM_DIR'] = os.getcwd()
+    execute_arc_create(ui_, params, stored_cfg)
+
+def do_archive_push(ui_, opts, params, stored_cfg):
+    """ fn-archive --push."""
+    insert_uri = opts['uri']
+    if insert_uri == '':
+        insert_uri = (
+            stored_cfg.get_dir_insert_uri(params['ARCHIVE_CACHE_DIR']))
+        if not insert_uri:
+            ui_.warn("There is no stored insert URI for this archive.\n"
+                     "Please set one with the --uri option.\n")
+            raise util.Abort("No Insert URI.")
+
+    params['INSERT_URI'] = insert_uri
+    params['FROM_DIR'] = os.getcwd()
+
+    execute_arc_push(ui_, params, stored_cfg)
+
+def do_archive_pull(ui_, opts, params, stored_cfg):
+    """ fn-archive --pull."""
+    request_uri = opts['uri']
+
+    if request_uri == '':
+        request_uri = (
+            stored_cfg.get_request_uri(params['ARCHIVE_CACHE_DIR']))
+        if not request_uri:
+            ui_.warn("There is no stored request URI for this archive.\n"
+                     "Please set one with the --uri option.\n")
+            raise util.Abort("No request URI.")
+
+    params['REQUEST_URI'] = request_uri
+    params['TO_DIR'] = os.getcwd()
+    execute_arc_pull(ui_,  params, stored_cfg)
+
+ILLEGAL_FOR_REINSERT = ('uri', 'aggressive', 'nosearch')
+def do_archive_reinsert(ui_, opts, params, stored_cfg):
+    """ fn-archive --reinsert."""
+    illegal = [value for value in ILLEGAL_FOR_REINSERT
+               if value in opts and opts[value]]
+    if illegal:
+        raise util.Abort("--uri, --aggressive, --nosearch illegal " +
+                         "for reinsert.")
+    request_uri = stored_cfg.get_request_uri(params['ARCHIVE_CACHE_DIR'])
+    if request_uri is None:
+        ui_.warn("There is no stored request URI for this archive.\n" +
+                 "Run fn-archive --pull first!.\n")
+        raise util.Abort(" No request URI, can't re-insert")
+
+    insert_uri = stored_cfg.get_dir_insert_uri(params['ARCHIVE_CACHE_DIR'])
+    params['REQUEST_URI'] = request_uri
+    params['INSERT_URI'] = insert_uri
+    params['FROM_DIR'] = os.getcwd() # hmmm not used.
+    params['REINSERT_LEVEL'] = 3
+    execute_arc_reinsert(ui_, params, stored_cfg)
+
+ARCHIVE_SUBCMDS = {'create':do_archive_create,
+                   'push':do_archive_push,
+                   'pull':do_archive_pull,
+                   'reinsert':do_archive_reinsert}
+ARCHIVE_CACHE_DIR = '.ARCHIVE_CACHE'
+def infocalypse_archive(ui_, **opts):
+    """ Commands to maintain a non-hg incremental archive."""
+    subcmd = [value for value in ARCHIVE_SUBCMDS if opts[value]]
+    if len(subcmd) > 1:
+        raise util.Abort("--create, --pull, --push are mutally exclusive. " +
+                         "Only specify one.")
+    if len(subcmd) > 0:
+        subcmd = subcmd[0]
+    else:
+        subcmd = "pull"
+
+    params, stored_cfg = get_config_info(ui_, opts)
+    params['ARCHIVE_CACHE_DIR'] = os.path.join(os.getcwd(), ARCHIVE_CACHE_DIR)
+
+    if not subcmd in ARCHIVE_SUBCMDS:
+        raise util.Abort("Unhandled subcommand: " + subcmd)
+
+    # 2 qt?
+    ARCHIVE_SUBCMDS[subcmd](ui_, opts, params, stored_cfg)
+
+#----------------------------------------------------------"
+
 # Can't use None as a default? Means "takes no argument'?
 FCP_OPTS = [('', 'fcphost', '', 'fcp host'),
             ('', 'fcpport', 0, 'fcp port'),
@@ -758,9 +873,27 @@ cmdtable = {
                  [('', 'tmpdir', '~/infocalypse_tmp', 'temp directory'),]
                  + FCP_OPTS,
                 "[options]"),
+
+
+    "fn-archive": (infocalypse_archive,
+                  [('', 'uri', '', 'Request URI for --pull, Insert URI ' +
+                    'for --create, --push'),
+                   ('', 'create', None, 'Create a new archive using the ' +
+                    'Insert URI --uri'),
+                   ('', 'push', None, 'Push incremental updates into the ' +
+                    'archive in Freenet'),
+                   ('', 'pull', None, 'Pull incremental updates from the ' +
+                    'archive in Freenet'),
+                   ('', 'reinsert', None, 'Re-insert the entire archive. '),
+                   ]
+                   + FCP_OPTS
+                   + NOSEARCH_OPT
+                   + AGGRESSIVE_OPT,
+                   "[options]"),
+
     }
 
 
 commands.norepo += ' fn-setup'
 commands.norepo += ' fn-genkey'
-
+commands.norepo += ' fn-archive'

@@ -1,0 +1,44 @@
+djk20091209 -- Block redundancy in InsertingRedundantBlocks, RequestingRedundantBlocks
+               (for hg fn-archive, infocalypse stuff, works somewhat differently)
+
+See: archivesm.py
+     test_block_redundancy.py
+
+m == block size == 32K
+h == max single block top key saltable splitfile size ~= 7M
+l = actual data length
+
+INSERTION:
+CASE l < m:
+0) Insert first block unmodified with no metadata
+1) Insert second block with a trailing '\xff' pad byte with no metadata
+CASE l == m:
+0) Insert first block with a trailing '\xff' pad byte, and metadata
+   with mime type: 'application/archive-block;0'
+1) Request the splitfile top block from 0) and re-insert it twiddling
+   the embedded metadata string to: 'application/archive-block;1'
+CASE l > m < h:
+0) Insert first block unmodified and metadata
+   with mime type: 'application/archive-block;0'
+1) Request the splitfile top block from 0) and re-insert it twiddling
+   the embedded metadata string to: 'application/archive-block;1'
+
+Case l >= h:
+0) Insert first block unmodified and metadata
+   with mime type: 'application/archive-block;0'
+1) Don't insert a second redundant block.
+
+REQUEST:
+CASE l < m:
+ Request both blocks in parallel
+ TRUNCATE the redundant block to l.
+CASE l == m:
+ Randomly pick on full request, just request the top block
+ for the other block.
+ TRUNCATE the both blocks to l.
+CASE l > m < h:
+ Randomly pick on full request, just request the top block
+ for the other block.
+ Don't need to truncate (but I do anyway in the impl.)
+Case l >= h:
+ Normal full request.
