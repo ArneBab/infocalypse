@@ -1,0 +1,74 @@
+djk20091206 -- personal notes, probably not very useful to anyone else.
+
+OVERVIEW:
+Git/hg lite. file is a linear change of delta encoded patches. patches
+referenced by sha(parent + data) Archive is a collection of patches,
+has one "root object" patch chain head.  FileManifest is an arbitrary
+mapping of human readable names to patch chain heads
+
+patch
+ HASA *one* parent (but multiple patches can have the same parent)
+ HASA sha1
+ HASA age
+
+patch chain
+ HASA ordered sequences of patch'es
+
+file
+ ISA patch chain
+
+Manifest
+ ISA file
+ HASA file sha -> patchchain map
+
+ can determine every referenced patch by walking all the patch chains
+ can generate new patches for an update from  a file list
+
+Archive
+ HASA unordered collection of patches
+ HASA "special" patch chain sha1 which points to the root object.
+
+
+ can partition patches across a bounded number of read only files
+ can map patch sha1s to patches (via Blocks, LinkMap)
+ tries to write as little as possible
+ tries to update the oldest files as little as possible
+ knows to drop unreferenced patch chains
+ could incrementally update a local directory based on locally cached archive state
+   ??? COOL, BUT REALLY REQUIRED?, requires age
+   i.e. rsync like behaviour
+top key
+ HASA ordered sequence of bundle CHKS
+ HASA root object sha
+
+ Is the in Freenet rep of an Archive
+
+
+PROS:
+sites load fully in a bounded number of freenet fetches
+CHKs for older content used in newer updates.
+Easy to implement top key redundancy, reinsertion
+
+CONS:
+Slower in typical use case?
+ offset by local caching of old bundles
+ fast binary patching algo
+Requires either lots of memory or fast random access to encrypted storage.
+"Defrag" usability issue.  Inserts are usually fast, but could take a long time.
+Inserting is stateful.  i.e. you must be able to fetch the previous version.
+Complexity.  Need to disable diffs for static files (e.g. images)
+
+USES:
+Wiki
+Freesites
+PyFreenetHg
+git?
+
+Important Classes:
+WORMBlockArchive -- The archive
+Blocks -- Delegate of WORMBBlockArchive to handle reading / 
+   writing patch chains to files.
+BlockNames -- Delegate of Blocks to abstract ordinal to file name mapping.
+LinkMap -- Delegate of Blocks to keep a SHA1 addressable map of patch chain links
+ManifestFile -- Map of human readable names to patch chain head SHA1s
+
