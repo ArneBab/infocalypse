@@ -205,11 +205,6 @@ def bundle_wikitext(overlay, version, submitter):
     names = (set(overlay.list_pages(wiki_text)).
              union(overlay.list_pages(wiki_text, True)))
 
-    illegal_writes = names.intersection(get_read_only_list(overlay))
-    if len(illegal_writes) > 0:
-        raise SubmitError("Can't modify read only page(s): %s" %
-                          ','.join(illegal_writes), True)
-
     # Catch illegal names.
     for name in names:
         if not WIKINAME_REGEX.match(name):
@@ -225,6 +220,8 @@ def bundle_wikitext(overlay, version, submitter):
                      if overlay.has_overlay(os.path.join(wiki_text, name))],
                  names,
                  OverlayHasher(overlay).hexdigest)
+
+    illegal_writes = get_read_only_list(overlay)
 
     buf = StringIO.StringIO()
     arch = ZipFile(buf, 'w')
@@ -251,6 +248,9 @@ def bundle_wikitext(overlay, version, submitter):
             # even if we have a copy of them in the overlay
             # directory.
             continue
+
+        if name in illegal_writes:
+            raise SubmitError("Can't modify read only page: %s" % name, True)
 
         # Make patch.
         delta = unicode_make_patch(original_raw, new_raw)

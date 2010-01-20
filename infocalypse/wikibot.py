@@ -543,6 +543,9 @@ class WikiBot(FMSBot, RequestQueue):
         if not long_msg.endswith('\n'):
             long_msg += '\n'
 
+        self.trace("_send_status_notification -- [%s] [%s]" %
+                   (short_msg, long_msg))
+
         self.parent.queue_msg((self.params['FMS_ID'],
                                self.params['FMS_GROUP'],
                                'wikibot[%s]:%s' % (self.params['USK_HASH'],
