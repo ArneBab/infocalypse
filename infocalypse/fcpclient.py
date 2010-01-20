@@ -353,6 +353,7 @@ def prefetch_usk(client, usk_uri, allowed_redirects = 3,
             client.message_callback = message_callback
         client.in_params.default_fcp_params['ReturnType'] = 'none'
         try:
+            # BUG: HANGS
             version = get_version(client.get(usk_uri,
                                              allowed_redirects)[1]['URI'])
         except FCPError:
@@ -681,43 +682,56 @@ class FCPClient(MinimalClient):
         self.in_params.definition = PUT_COMPLEX_DIR_DEF
         self.in_params.fcp_params = {'URI': uri}
 
-        for field in self.in_params.default_fcp_params:
-            if field.startswith("Files"):
-                raise ValueError("You can't set file entries via "
-                                 + " default_fcp_params.")
-        if 'DefaultName' in self.in_params.default_fcp_params:
-            raise ValueError("You can't set 'DefaultName' via "
-                             + "default_fcp_params.")
-
-        files = {}
-        index = 0
-        for info in file_infos:
-            mime_type = info[2]
-            if not mime_type:
-                # First try to guess from the extension.
-                type_tuple = mimetypes.guess_type(info[0])
-                if type_tuple:
-                    mime_type = type_tuple[0]
-            if not mime_type:
-                # Fall back to the default.
-                mime_type = default_mime_type
-
-            files['Files.%i.Name' % index] = info[0]
-            files['Files.%i.UploadFrom' % index] = 'direct'
-            files['Files.%i.DataLength' % index] = info[1]
-            files['Files.%i.Metadata.ContentType' % index] = mime_type
-
-            index += 1
-
-        self.in_params.fcp_params['Files'] = files
-        self.in_params.fcp_params['DefaultName'] = file_infos[0][0]
-
-        #REDFLAG: Fix
-        self.in_params.send_data = True
-
         # IMPORTANT: Don't set the data length.
         return self.conn.start_request(self,
-                                       FileInfoDataSource(file_infos), False)
+                                       dir_data_source(file_infos,
+                                                       self.in_params,
+                                                       default_mime_type),
+                                       False)
+
+
+# Break out implementation helper so I can use it elsewhere.
+def dir_data_source(file_infos, in_params, default_mime_type):
+    """ Return an IDataSource for a list of file_infos.
+
+        NOTE: Also sets up Files.* fields in in_params as a
+              side effect. """
+
+    for field in in_params.default_fcp_params:
+        if field.startswith("Files"):
+            raise ValueError("You can't set file entries via "
+                             + " default_fcp_params.")
+    if 'DefaultName' in in_params.default_fcp_params:
+        raise ValueError("You can't set 'DefaultName' via "
+                         + "default_fcp_params.")
+
+    files = {}
+    index = 0
+    for info in file_infos:
+        mime_type = info[2]
+        if not mime_type:
+            # First try to guess from the extension.
+            type_tuple = mimetypes.guess_type(info[0])
+            if type_tuple:
+                mime_type = type_tuple[0]
+        if not mime_type:
+            # Fall back to the default.
+            mime_type = default_mime_type
+
+        files['Files.%i.Name' % index] = info[0]
+        files['Files.%i.UploadFrom' % index] = 'direct'
+        files['Files.%i.DataLength' % index] = info[1]
+        files['Files.%i.Metadata.ContentType' % index] = mime_type
+
+        index += 1
+
+    in_params.fcp_params['Files'] = files
+    in_params.fcp_params['DefaultName'] = file_infos[0][0]
+
+    #REDFLAG: Fix
+    in_params.send_data = True
+
+    return FileInfoDataSource(file_infos)
 
 ############################################################
 # Helper function for hg changeset bundle handling.

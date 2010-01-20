@@ -216,6 +216,7 @@ def get_file_sha(full_path):
     """ Return the 20 byte sha1 hash digest of a file. """
     in_file = open(full_path, 'rb')
     try:
+        # Bug: why doesn't this use sha_func?
         sha_value = sha1()
         while True:
             bytes = in_file.read(READ_CHUNK_LEN)

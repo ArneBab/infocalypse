@@ -19,6 +19,8 @@
 
     Author: djk@isFiaD04zgAgnrEC5XJt1i4IE7AkNPqhBG5bONi6Yks
 """
+
+# REDFLAG: Go back and fix all the places where you return instead of Abort()
 from mercurial import util
 
 from fcpclient import get_usk_hash
@@ -26,10 +28,11 @@ from fcpclient import get_usk_hash
 from knownrepos import KNOWN_REPOS
 
 from fms import recv_msgs, to_msg_string, MSG_TEMPLATE, send_msgs, \
-     USKNotificationParser, show_table
+     USKNotificationParser, show_table, get_connection
 
 from config import Config, trust_id_for_repo, untrust_id_for_repo, known_hashes
 from infcmds import do_key_setup, setup, cleanup, execute_insert_patch
+from wikicmds import execute_wiki_submit
 
 def handled_list(ui_, params, stored_cfg):
     """ INTERNAL: HACKED"""
@@ -46,8 +49,9 @@ def handled_list(ui_, params, stored_cfg):
 
     parser = USKNotificationParser(trust_map)
     parser.add_default_repos(KNOWN_REPOS)
-    recv_msgs(stored_cfg.defaults['FMS_HOST'],
-              stored_cfg.defaults['FMS_PORT'],
+    recv_msgs(get_connection(stored_cfg.defaults['FMS_HOST'],
+                             stored_cfg.defaults['FMS_PORT'],
+                             None),
               parser,
               stored_cfg.fmsread_groups)
     show_table(parser, ui_.status)
@@ -132,8 +136,9 @@ def execute_fmsread(ui_, params, stored_cfg):
 
     ui_.status("Raking through fms messages. This may take a while...\n")
     parser = USKNotificationParser()
-    recv_msgs(stored_cfg.defaults['FMS_HOST'],
-              stored_cfg.defaults['FMS_PORT'],
+    recv_msgs(get_connection(stored_cfg.defaults['FMS_HOST'],
+                             stored_cfg.defaults['FMS_PORT'],
+                             None),
               parser,
               stored_cfg.fmsread_groups)
 
@@ -184,6 +189,29 @@ def is_none(value):
     """ Return True if value is None or 'None',  False otherwise. """
     return value is None or value == 'None'
 
+def check_fms_cfg(ui_, params, stored_cfg):
+    """ INTERNAL: Helper aborts on bad fms configuration. """
+    if (is_none(stored_cfg.defaults['FMS_ID']) or
+        stored_cfg.defaults['FMS_ID'].strip() == ''):
+        ui_.warn("Can't notify because the fms ID isn't set in the "
+                 + "config file.\n")
+        raise util.Abort("Fix the fms_id = line in the config file and " +
+                         "and try again.\n")
+
+    if stored_cfg.defaults['FMS_ID'].find('@') != -1:
+        ui_.warn("The fms_id line should only "
+                 + "contain the part before the '@'.\n")
+        raise util.Abort("Fix the fms_id = line in the config file and " +
+                         "and try again.\n")
+
+    if (is_none(stored_cfg.defaults['FMSNOTIFY_GROUP']) or
+        (stored_cfg.defaults['FMSNOTIFY_GROUP'].strip() == '') and
+        not params.get('SUBMIT_WIKI', False)):
+        ui_.warn("Can't notify because fms group isn't set in the "
+                 + "config file.\n")
+        raise util.Abort("Update the fmsnotify_group = line and try again.\n")
+
+
 def execute_fmsnotify(ui_, repo, params, stored_cfg):
     """ Run fmsnotify command. """
     update_sm = None
@@ -192,41 +220,38 @@ def execute_fmsnotify(ui_, repo, params, stored_cfg):
         update_sm = setup(ui_, repo, params, stored_cfg)
         request_uri, dummy = do_key_setup(ui_, update_sm,
                                           params, stored_cfg)
+
         if request_uri is None: # Just assert?
             ui_.warn("Only works for USK file URIs.\n")
             return
 
+        check_fms_cfg(ui_, params, stored_cfg)
+
         usk_hash = get_usk_hash(request_uri)
         index = stored_cfg.get_index(usk_hash)
-        if index is None and not params['SUBMIT']:
+        if index is None and not (params.get('SUBMIT_BUNDLE', False) or
+                                  params.get('SUBMIT_WIKI', False)):
             ui_.warn("Can't notify because there's no stored index "
                      + "for %s.\n" % usk_hash)
             return
 
-        if is_none(stored_cfg.defaults['FMS_ID']):
-            ui_.warn("Can't notify because the fms ID isn't set in the "
-                     + "config file.\n")
-            ui_.status("Update the fms_id = line and try again.\n")
-            return
-
-        if is_none(stored_cfg.defaults['FMSNOTIFY_GROUP']):
-            ui_.warn("Can't notify because fms group isn't set in the "
-                     + "config file.\n")
-            ui_.status("Update the fmsnotify_group = line and try again.\n")
-            return
-
+        group = stored_cfg.defaults.get('FMSNOTIFY_GROUP', None)
         subject = 'Update:' + '/'.join(request_uri.split('/')[1:])
         if params['ANNOUNCE']:
             text = to_msg_string(None, (request_uri, ))
-        elif params['SUBMIT']:
-            params['REQUEST_URI'] = request_uri # REDFLAG: DCI. Think
+        elif params['SUBMIT_BUNDLE']:
+            params['REQUEST_URI'] = request_uri # REDFLAG: Think through.
             text = execute_insert_patch(ui_, repo, params, stored_cfg)
             subject = 'Patch:' + '/'.join(request_uri.split('/')[1:])
+        elif params['SUBMIT_WIKI']:
+            params['REQUEST_URI'] = request_uri # REDFLAG: Think through.
+            text, group = execute_wiki_submit(ui_, repo, params, stored_cfg)
+            subject = 'Submit:' + '/'.join(request_uri.split('/')[1:])
         else:
             text = to_msg_string(((usk_hash, index), ))
 
         msg_tuple = (stored_cfg.defaults['FMS_ID'],
-                     stored_cfg.defaults['FMSNOTIFY_GROUP'],
+                     group,
                      subject,
                      text)
 
@@ -234,23 +259,38 @@ def execute_fmsnotify(ui_, repo, params, stored_cfg):
 
         ui_.status('Sender : %s\nGroup  : %s\nSubject: %s\n%s\n' %
                    (stored_cfg.defaults['FMS_ID'],
-                    stored_cfg.defaults['FMSNOTIFY_GROUP'],
+                    group,
                     subject, text))
 
         if params['VERBOSITY'] >= 5:
-            raw_msg = MSG_TEMPLATE % (msg_tuple[0],
-                                      msg_tuple[1],
-                                      msg_tuple[2],
-                                      msg_tuple[3])
-            ui_.status('--- Raw Message ---\n%s\n---\n' % raw_msg)
+            ui_.status('--- Raw Message ---\n%s\n---\n' % (
+                MSG_TEMPLATE % (msg_tuple[0], msg_tuple[1],
+                                msg_tuple[2], msg_tuple[3])))
 
         if params['DRYRUN']:
             ui_.status('Exiting without sending because --dryrun was set.\n')
             return
 
-        send_msgs(stored_cfg.defaults['FMS_HOST'],
-                  stored_cfg.defaults['FMS_PORT'],
-                  (msg_tuple, ))
+        # REDFLAG: for testing!
+        if 'MSG_SPOOL_DIR' in params:
+            ui_.warn("DEBUG HACK!!! Writing fms msg to local spool:\n%s\n" %
+                      params['MSG_SPOOL_DIR'])
+            import fmsstub
+
+            # LATER: fix config file to store full fmsid?
+            # grrrr... hacks piled upon hacks.
+            lut = {'djk':'djk@isFiaD04zgAgnrEC5XJt1i4IE7AkNPqhBG5bONi6Yks'}
+            fmsstub.FMSStub(params['MSG_SPOOL_DIR'], group,
+                            lut).send_msgs(
+                get_connection(stored_cfg.defaults['FMS_HOST'],
+                               stored_cfg.defaults['FMS_PORT'],
+                               None),
+                (msg_tuple, ), True)
+        else:
+            send_msgs(get_connection(stored_cfg.defaults['FMS_HOST'],
+                                     stored_cfg.defaults['FMS_PORT'],
+                                     None),
+                                     (msg_tuple, ), True)
 
         ui_.status('Notification message sent.\n'
                    'Be patient.  It may take up to a day to show up.\n')
@@ -319,10 +359,13 @@ def get_uri_from_hash(ui_, dummy, params, stored_cfg):
     parser.add_default_repos(KNOWN_REPOS)
 
     ui_.status("Raking through fms messages. This may take a while...\n")
-    recv_msgs(stored_cfg.defaults['FMS_HOST'],
-              stored_cfg.defaults['FMS_PORT'],
+    recv_msgs(get_connection(stored_cfg.defaults['FMS_HOST'],
+                             stored_cfg.defaults['FMS_PORT'],
+                             None),
               parser,
-              stored_cfg.fmsread_groups)
+              stored_cfg.fmsread_groups,
+              None,
+              True)
 
     target_usk = None
     fms_id_map, announce_map, update_map = parser.invert_table()

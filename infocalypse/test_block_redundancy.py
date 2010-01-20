@@ -125,7 +125,7 @@ class FakeUI:
             print text
 
 class HoldingBlocks(State):
-    """ State to hold blockd for testing RequestingRedundantBlocks """
+    """ State to hold blocks for testing RequestingRedundantBlocks """
     def __init__(self, parent, name, next_state):
         State.__init__(self, parent, name)
         self.next_state = next_state

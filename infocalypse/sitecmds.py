@@ -31,10 +31,8 @@ from fcpclient import FCPClient, get_file_infos, set_index_file
 # HACK
 from pathhacks import add_parallel_sys_path
 add_parallel_sys_path('fniki')
-
 import piki
 
-# REDFLAG: DCI deal with loading hacks for config
 from config import write_default_config
 
 def get_insert_uri(params):
@@ -55,7 +53,7 @@ def show_request_uri(ui_, params, uri):
         request_uri = uri
     ui_.status('RequestURI:\n%s\n' % request_uri)
 
-def dump_wiki_html(wiki_root, staging_dir):
+def dump_wiki_html(wiki_root, staging_dir, overlayed):
     """ Dump the wiki as flat directory of html.
 
         wiki_root is the directory containing the wikitext and www dirs.
@@ -72,26 +70,27 @@ def dump_wiki_html(wiki_root, staging_dir):
 
     os.makedirs(staging_dir)
 
-    # REDFLAG: DCI, should be piki.
-    piki.dump(staging_dir, wiki_root)
+    piki.dump(staging_dir, wiki_root, overlayed)
 
 TMP_DUMP_DIR = '_tmp_wiki_html_deletable'
 # Hmmmm... broken out to appease pylint
 def do_freenet_insert(ui_, repo, params, insert_uri, progress_func):
-    """ INTERNAL: Helper does the actual insert. """
+    """ INTERNAL: Helper does the actual insert.
+
+                  Caller must delete TMP_DUMP_DIR!
+    """
     default_mime_type = "text/plain" # put_complex_dir() default. Hmmmm.
     if not params['ISWIKI']:
         site_root = os.path.join(repo.root, params['SITE_DIR'])
     else:
-        # REDFLAG: DCI temp file cleanup on exception
-
         # Because wiki html files have no extension to guess from.
         default_mime_type = 'text/html'
 
         ui_.status("Dumping wiki as HTML...\n")
         site_root = os.path.join(params['TMP_DIR'], TMP_DUMP_DIR)
         dump_wiki_html(os.path.join(repo.root, params['WIKI_ROOT']),
-                       site_root)
+                       site_root,
+                       params['OVERLAYED'])
 
     ui_.status('Default file: %s\n' % params['SITE_DEFAULT_FILE'])
     ui_.status('Reading files from:\n%s\n' % site_root)

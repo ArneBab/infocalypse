@@ -97,6 +97,9 @@ class InsertingBundles(RequestQueueState):
             self.set_new_edges(graph)
         except UpToDate, err:
             # REDFLAG: Later, add FORCE_INSERT parameter?
+            # REDFLAG: rework UpToDate exception to include versions, stuff
+            #      versions in  ctx?
+            self.parent.ctx['UP_TO_DATE'] = True
             self.parent.ctx.ui_.warn(str(err) + '\n') # Hmmm
             self.parent.transition(FAILING) # Hmmm... hard coded state name
             return
@@ -261,6 +264,7 @@ class InsertingBundles(RequestQueueState):
     def _check_new_edges(self, msg):
         """ INTERNAL: Helper function to raise if new_edges is empty. """
         if len(self.new_edges) == 0:
+            self.parent.ctx['UP_TO_DATE'] = True
             raise UpToDate(msg)
 
     def set_new_edges(self, graph):

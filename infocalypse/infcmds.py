@@ -43,9 +43,9 @@ from bundlecache import BundleCache, is_writable, make_temp_file
 from updatesm import UpdateStateMachine, QUIESCENT, FINISHING, REQUESTING_URI, \
      REQUESTING_GRAPH, REQUESTING_BUNDLES, INVERTING_URI, \
      REQUESTING_URI_4_INSERT, INSERTING_BUNDLES, INSERTING_GRAPH, \
-     INSERTING_URI, FAILING, REQUESTING_URI_4_COPY, CANCELING, \
+     INSERTING_URI, FAILING, REQUESTING_URI_4_COPY, \
      REQUIRES_GRAPH_4_HEADS, REQUESTING_GRAPH_4_HEADS, \
-     RUNNING_SINGLE_REQUEST, CleaningUp, UpdateContext
+     RUNNING_SINGLE_REQUEST, UpdateContext
 
 from archivesm import ArchiveStateMachine, ArchiveUpdateContext
 
@@ -61,14 +61,17 @@ DEFAULT_PARAMS = {
     'PriorityClass':1,
     'DontCompress':True, # hg bundles are already compressed.
     'Verbosity':1023, # MUST set this to get progress messages.
-    #'GetCHKOnly':True, # REDFLAG: DCI! remove
+    #'GetCHKOnly':True, # REDFLAG: For testing only. Not sure this still works.
 
     # Non-FCP stuff
     'N_CONCURRENT':4, # Maximum number of concurrent FCP requests.
     'CANCEL_TIME_SECS': 10 * 60, # Bound request time.
     'POLL_SECS':0.25, # Time to sleep in the polling loop.
+
+    # Testing HACKs
     #'TEST_DISABLE_GRAPH': True, # Disable reading the graph.
     #'TEST_DISABLE_UPDATES': True, # Don't update info in the top key.
+    #'MSG_SPOOL_DIR':'/tmp/fake_msgs', # Stub out fms
     }
 
 MSG_TABLE = {(QUIESCENT, REQUESTING_URI_4_INSERT)
@@ -128,14 +131,6 @@ class UICallbacks:
 
     def monitor_callback(self, update_sm, client, msg):
         """ FCP message status callback which writes to a ui. """
-        # REDFLAG: remove when 1209 comes out.
-        if (msg[0] == 'PutFailed' and get_code(msg) == 9 and
-            update_sm.params['FREENET_BUILD'] == '1208' and
-            update_sm.ctx.get('REINSERT', 0) > 0):
-            self.ui_.warn('There is a KNOWN BUG in 1208 which '
-                          + 'causes code==9 failures for re-inserts.\n'
-                          + 'The re-insert might actually have succeeded.\n'
-                          + 'Who knows???\n')
         if self.verbosity < 2:
             return
 
@@ -263,33 +258,20 @@ def check_uri(ui_, uri):
                        + "\nUse --aggressive instead. \n")
             raise util.Abort("Negative USK %s\n" % uri)
 
-
-def disable_cancel(updatesm, disable=True):
-    """ INTERNAL: Hack to work around 1208 cancel kills FCP connection bug. """
-    if disable:
-        if not hasattr(updatesm.runner, 'old_cancel_request'):
-            updatesm.runner.old_cancel_request = updatesm.runner.cancel_request
-        msg = ("RequestRunner.cancel_request() disabled to work around "
-               + "1208 bug\n")
-        updatesm.runner.cancel_request = (
-            lambda dummy : updatesm.ctx.ui_.status(msg))
-    else:
-        if hasattr(updatesm.runner, 'old_cancel_request'):
-            updatesm.runner.cancel_request = updatesm.runner.old_cancel_request
-            updatesm.ctx.ui_.status("Re-enabled canceling so that "
-                                    + "shutdown works.\n")
-class PatchedCleaningUp(CleaningUp):
-    """ INTERNAL: 1208 bug work around to re-enable canceling. """
-    def __init__(self, parent, name, finished_state):
-        CleaningUp.__init__(self, parent, name, finished_state)
-
-    def enter(self, from_state):
-        """ Override to back out 1208 cancel hack. """
-        disable_cancel(self.parent, False)
-        CleaningUp.enter(self, from_state)
+def set_debug_vars(verbosity, params):
+    """ Set debug dumping switch variables based on verbosity. """
+    if verbosity > 2 and params.get('DUMP_GRAPH', None) is None:
+        params['DUMP_GRAPH'] = True
+    if verbosity > 3 and params.get('DUMP_UPDATE_EDGES', None) is None:
+        params['DUMP_UPDATE_EDGES'] = True
+    if verbosity > 4 and params.get('DUMP_CANONICAL_PATHS', None) is None:
+        params['DUMP_CANONICAL_PATHS'] = True
+    if verbosity > 4 and params.get('DUMP_URIS', None) is None:
+        params['DUMP_URIS'] = True
+    if verbosity > 4 and params.get('DUMP_TOP_KEY', None) is None:
+        params['DUMP_TOP_KEY'] = True
 
 # REDFLAG: remove store_cfg
-# DCI: retest! esp. infocalypse stuff
 def setup(ui_, repo, params, stored_cfg):
     """ INTERNAL: Setup to run an Infocalypse extension command. """
     # REDFLAG: choose another name. Confusion w/ fcp param
@@ -304,21 +286,13 @@ def setup(ui_, repo, params, stored_cfg):
                          % stored_cfg.defaults['TMP_DIR'])
 
     verbosity = params.get('VERBOSITY', 1)
-    if verbosity > 2 and params.get('DUMP_GRAPH', None) is None:
-        params['DUMP_GRAPH'] = True
-    if verbosity > 3 and params.get('DUMP_UPDATE_EDGES', None) is None:
-        params['DUMP_UPDATE_EDGES'] = True
-    if verbosity > 4 and params.get('DUMP_CANONICAL_PATHS', None) is None:
-        params['DUMP_CANONICAL_PATHS'] = True
-    if verbosity > 4 and params.get('DUMP_URIS', None) is None:
-        params['DUMP_URIS'] = True
-    if verbosity > 4 and params.get('DUMP_TOP_KEY', None) is None:
-        params['DUMP_TOP_KEY'] = True
+    set_debug_vars(verbosity, params)
 
     callbacks = UICallbacks(ui_)
     callbacks.verbosity = verbosity
 
     if not repo is None:
+        # BUG:? shouldn't this be reading TMP_DIR from stored_cfg
         cache = BundleCache(repo, ui_, params['TMP_DIR'])
 
     try:
@@ -355,23 +329,6 @@ def setup(ui_, repo, params, stored_cfg):
 
     # Modify only after copy.
     update_sm.params['FREENET_BUILD'] = runner.connection.node_hello[1]['Build']
-
-    # REDFLAG: Hack to work around 1208 cancel bug. Remove.
-    if update_sm.params['FREENET_BUILD'] == '1208':
-        ui_.warn("DISABLING request canceling to work around 1208 FCP bug.\n"
-                 "This may cause requests to hang. :-(\n\n")
-        disable_cancel(update_sm)
-
-        # Patch state machine to re-enable canceling on shutdown.
-        #CANCELING:CleaningUp(self, CANCELING, QUIESCENT),
-        #FAILING:CleaningUp(self, FAILING, QUIESCENT),
-        #FINISHING:CleaningUp(self, FINISHING, QUIESCENT),
-        update_sm.states[CANCELING] = PatchedCleaningUp(update_sm,
-                                                        CANCELING, QUIESCENT)
-        update_sm.states[FAILING] = PatchedCleaningUp(update_sm,
-                                                      FAILING, QUIESCENT)
-        update_sm.states[FINISHING] = PatchedCleaningUp(update_sm,
-                                                        FINISHING, QUIESCENT)
 
     return update_sm
 
@@ -416,7 +373,6 @@ def cleanup(update_sm):
     if not update_sm.runner is None:
         update_sm.runner.connection.close()
 
-    # DCI: what will force cleanup of archive temp files?
     if not update_sm.ctx.bundle_cache is None:
         update_sm.ctx.bundle_cache.remove_files()
 
@@ -674,7 +630,10 @@ def execute_push(ui_, repo, params, stored_cfg):
                        '\n'.join(update_sm.get_state(INSERTING_URI).
                                  get_request_uris()))
         else:
-            ui_.status("Push failed.\n")
+            extra = ''
+            if update_sm.ctx.get('UP_TO_DATE', False):
+                extra = '. Local changes already in Freenet'
+            ui_.status("Push failed%s.\n" % extra)
 
         handle_updating_config(repo, update_sm, params, stored_cfg)
     finally:

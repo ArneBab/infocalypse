@@ -35,6 +35,7 @@ class QueueableRequest(MinimalClient):
         self.message_callback = None # set by RequestRunner
         # The time after which this request should be canceled.
         self.cancel_time_secs = None # RequestQueue.next_request() MUST set this
+        self.custom_data_source = None
 
 class RequestRunner:
     """ Class to run requests scheduled on one or more RequestQueues. """
@@ -110,8 +111,8 @@ class RequestRunner:
                 assert client.queue == self.request_queues[self.index]
                 client.in_params.async = True
                 client.message_callback = self.msg_callback
-                self.running[self.connection.start_request(client)] \
-                                                                        = client
+                self.running[self.connection.start_request(
+                    client, client.custom_data_source)] = client
             else:
                 idle_queues += 1
             self.index = (self.index + 1) % len(self.request_queues)

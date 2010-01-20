@@ -113,6 +113,7 @@ def detect_and_fix_default_bug(ui_, file_path):
         fixed_file.close()
     ui_.warn("Applied fix.\n")
 
+# Why didn't I subclass dict?
 # Eventually set state from fms feed. i.e. latest repo updates.
 class Config:
     """ Persisted state used by the Infocalypse mercurial extension. """
@@ -376,6 +377,22 @@ class Config:
         finally:
             out_file.close()
 
+def set_wiki_params(parser, params):
+    """ Helper reads wiki specific parameters from site config files. """
+    params['WIKI_ROOT'] = parser.get('default', 'wiki_root')
+    params['OVERLAYED'] = False
+
+    if parser.has_option('default', 'overlayedits'):
+        params['OVERLAYED'] = parser.getboolean('default', 'overlayedits')
+
+    if parser.has_option('default', 'wiki_group'):
+        params['CLIENT_WIKI_GROUP'] = parser.get('default', 'wiki_group')
+    if parser.has_option('default', 'wiki_server_id'):
+        params['CLIENT_WIKI_ID'] = parser.get('default', 'wiki_server_id')
+    if parser.has_option('default', 'wiki_repo_usk'):
+        params['CLIENT_WIKI_USK'] = parser.get('default', 'wiki_repo_usk')
+
+
 # HACK: This really belongs in sitecmds.py but I wanted
 # all ConfigParser dependencies in one file because of
 # the ConfigParser import hack. See top of file.
@@ -404,7 +421,7 @@ def read_freesite_cfg(ui_, repo, params, stored_cfg):
 
     # wiki specific
     if params['ISWIKI']:
-        params['WIKI_ROOT'] = parser.get('default', 'wiki_root')
+        set_wiki_params(parser, params)
     else:
         params['SITE_DIR'] = parser.get('default', 'site_dir')
 
@@ -497,6 +514,17 @@ site_name = default
 #
 # File to display by default.
 default_file = FrontPage
+#
+# Local editing
+# By default, write direcly into the wikitext directory.
+# If you're sending changes via hg fn-fmsnotify --submitwiki
+# this should be set True.
+overlayedits = False
+
+# Remote server configuration.
+#wiki_group = infocalypse.tst
+#wiki_server_id = <fms_id of your wikibot >
+#wiki_repo_usk = <request uri of your wikitext infocalypse repo>
 """
     if os.path.exists(file_name):
         raise util.Abort("Already exists: %s" % file_name)

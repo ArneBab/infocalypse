@@ -1,41 +1,41 @@
-Names of pages have to LookLikeThis.
-It's called a WikiName.
-If you write a word that LookLikeThis, it will be automatically turned into a link.
-
-Be aware that PikiPiki does not lock pages during editing, so if you pause for a long time on the edit screen you may overwrite somebody else's changes.
-
-Leave blank lines between paragraphs.
-
-You can also write ''italics'' and '''bold'''.
-To write italics, enclose the text in double single quotes.
-To write bold, enclose the text in triple single quotes.
-If you can't figure out what I mean, click EditText to look at the source for this page.
-
-If you indent text
-
-  like this, then it is indented in the output
-
-    you can have multiple levels of indent
-
-And if you put asterisks at the start of the line
-
-  * you get a 
-  * bulleted
-  * list
-    * which can also be indented
-      * to several levels
-
-To insert program source without reformatting in a monospace font, use three curly braces:
-
-{{{
-  public static void main(String[] args) {
-    out.println("Hello");
-  }
-}}}
-
-Just like that.
-
-Now click EditText in the footer to see the markup for this page, and try it yourself in PikiSandBox.
-
-----
+Names of pages have to LookLikeThis.
+It's called a WikiName.
+If you write a word that LookLikeThis, it will be automatically turned into a link.
+
+Be aware that PikiPiki does not lock pages during editing, so if you pause for a long time on the edit screen you may overwrite somebody else's changes.
+
+Leave blank lines between paragraphs.
+
+You can also write ''italics'' and '''bold'''.
+To write italics, enclose the text in double single quotes.
+To write bold, enclose the text in triple single quotes.
+If you can't figure out what I mean, click EditText to look at the source for this page.
+
+If you indent text
+
+  like this, then it is indented in the output
+
+    you can have multiple levels of indent
+
+And if you put asterisks at the start of the line
+
+  * you get a 
+  * bulleted
+  * list
+    * which can also be indented
+      * to several levels
+
+To insert program source without reformatting in a monospace font, use three curly braces:
+
+{{{
+  public static void main(String[] args) {
+    out.println("Hello");
+  }
+}}}
+
+Just like that.
+
+Now click EditText in the footer to see the markup for this page, and try it yourself in PikiSandBox.
+
+----
 Contributors and PikiGurus: JohnFarrell, MartinPool

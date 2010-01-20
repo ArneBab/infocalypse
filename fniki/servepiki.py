@@ -29,6 +29,7 @@ import cStringIO
 import re
 
 import piki
+from fileoverlay import remove_redundant_files
 
 # Absolute path to the cgi python script.
 SCRIPT_PATH = piki.__file__
@@ -259,7 +260,14 @@ def serve_wiki(port=8081, bind_to='localhost', out_func=default_out_func):
     out_func(piki.text_dir + " (wiki text)")
     www_dir = os.path.join(piki.data_dir, 'www')
     out_func(www_dir + " (.css, .png)")
-    print
+    if not piki.filefuncs.is_overlayed():
+        out_func("NOT OVERLAYED! Writing changes directly into wiki text dir.")
+    else:
+        out_func("Writing overlayed changes to:")
+        # Hmmm... crappy style, not polymorphic.
+        out_func(piki.filefuncs.overlay_path(piki.data_dir))
+        remove_redundant_files(piki.filefuncs, piki.text_dir, out_func)
+    out_func("")
     bound_to = bind_to
     if bound_to == '':
         bound_to = 'all interfaces!'

@@ -364,7 +364,7 @@ from infcmds import get_config_info, execute_create, execute_pull, \
 from fmscmds import execute_fmsread, execute_fmsnotify, get_uri_from_hash
 
 from sitecmds import execute_putsite, execute_genkey
-from wikicmds import execute_wiki
+from wikicmds import execute_wiki, execute_wiki_apply
 from arccmds import execute_arc_create, execute_arc_pull, execute_arc_push, \
      execute_arc_reinsert
 
@@ -588,14 +588,23 @@ def infocalypse_fmsnotify(ui_, repo, **opts):
     """
     params, stored_cfg = get_config_info(ui_, opts)
     insert_uri = stored_cfg.get_dir_insert_uri(repo.root)
-    if not insert_uri:
+    if not insert_uri and not (opts['submitbundle'] or
+                               opts['submitwiki']):
         ui_.warn("You can't notify because there's no stored "
                  + "insert URI for this repo.\n"
                  + "Run from the directory you inserted from.\n")
         return
 
     params['ANNOUNCE'] = opts['announce']
-    params['SUBMIT'] = opts['submit']
+    params['SUBMIT_BUNDLE'] = opts['submitbundle']
+    params['SUBMIT_WIKI'] = opts['submitwiki']
+    if params['SUBMIT_WIKI'] or params['SUBMIT_BUNDLE']:
+        request_uri = stored_cfg.get_request_uri(repo.root)
+        if not request_uri:
+            ui_.warn("There is no stored request URI for this repo.\n")
+            raise util.Abort("No request URI.")
+        params['REQUEST_URI'] = request_uri
+
     params['DRYRUN'] = opts['dryrun']
     params['INSERT_URI'] = insert_uri
     execute_fmsnotify(ui_, repo, params, stored_cfg)
@@ -654,13 +663,24 @@ def infocalypse_wiki(ui_, repo, **opts):
     if os.getcwd() != repo.root:
         raise util.Abort("You must be in the repository root directory.")
 
-    subcmds = ('run', 'createconfig')
+    subcmds = ('run', 'createconfig', 'apply')
     required = sum([bool(opts[cmd]) for cmd in subcmds])
     if required == 0:
-        raise util.Abort("You must specify either --run or --createconfig.")
+        raise util.Abort("You must specify either --run, " +
+                         "--createconfig, --apply")
     if required > 1:
-        raise util.Abort("Use either --run or --createconfig.")
-    # hmmmm.... useless copy? 
+        raise util.Abort("Use either --run, --createconfig, or --apply")
+
+    if opts['apply'] != '':
+        params, stored_cfg = get_config_info(ui_, opts)
+        params['REQUEST_URI'] = opts['apply']
+        execute_wiki_apply(ui_, repo, params, stored_cfg)
+        return
+
+    if opts['fcphost'] != '' or opts['fcpport'] != 0:
+        raise util.Abort("--fcphost, --fcpport only for --apply")
+
+    # hmmmm.... useless copy?
     params = {'WIKI' : [cmd for cmd in subcmds if opts[cmd]][0],
               'HTTP_PORT': opts['http_port'],
               'HTTP_BIND': opts['http_bind']}
@@ -841,8 +861,10 @@ cmdtable = {
     "fn-fmsnotify": (infocalypse_fmsnotify,
                      [('', 'dryrun', None, "don't send fms message"),
                      ('', 'announce', None, "include full URI update"),
-                     ('', 'submit', None, "insert patch bundle and send an " +
-                      "fms notification"),]
+                     ('', 'submitbundle', None, "insert patch bundle and " +
+                      "send an fms notification"),
+                      ('', 'submitwiki', None, "insert overlayed wiki " +
+                       "changes and send an fms notification"),]
                      + FCP_OPTS, # Needs to invert the insert uri
                      "[options]"),
 
@@ -856,14 +878,17 @@ cmdtable = {
                      "[options]"),
 
     "fn-wiki": (infocalypse_wiki,
-                     [('', 'run', None, "start a local http server " +
-                       "displaying a wiki"),
-                      ('', 'createconfig', None, "create default fnwiki.cfg " +
-                       "and skeleton wiki_root dir"),
-                      ('', 'http_port', 8081, "port for http server"),
-                      ('', 'http_bind', 'localhost', "interface http " +
-                       "listens on, '' to listen on all"),],
-                     "[options]"),
+                [('', 'run', None, "start a local http server " +
+                  "displaying a wiki"),
+                 ('', 'createconfig', None, "create default fnwiki.cfg " +
+                  "and skeleton wiki_root dir"),
+                 ('', 'http_port', 8081, "port for http server"),
+                 ('', 'http_bind', 'localhost', "interface http " +
+                  "listens on, '' to listen on all"),
+                 ('', 'apply', '', "apply changes to the wiki from the " +
+                  "supplied Request URI ")] +
+                FCP_OPTS,
+                "[options]"),
 
     "fn-genkey": (infocalypse_genkey,
                   FCP_OPTS,

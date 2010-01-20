@@ -22,6 +22,7 @@
 import os
 import sys
 import StringIO
+import time
 
 from fcpclient import get_usk_hash, get_version, is_usk_file, \
      get_usk_for_usk_version
@@ -53,6 +54,10 @@ except ImportError, err:
 # Can't catch ImportError? Always aborts. ???
 import nntplib
 
+def get_connection(fms_host, fms_port, user_name):
+    """ Create an fms NNTP connection. """
+    return nntplib.NNTP(fms_host, fms_port, user_name)
+
 MSG_TEMPLATE = """From: %s
 Newsgroups: %s
 Subject: %s
@@ -60,28 +65,102 @@ Subject: %s
 %s"""
 
 # Please use this function for good and not evil.
-def send_msgs(fms_host, fms_port, msg_tuples):
+def send_msgs(server, msg_tuples, send_quit=False):
     """ Send messages via fms.
-    msg_tuple format is: (sender, group, subject, text)
+    msg_tuple format is: (sender, group, subject, text, send_callback)
+
+    send_callback is optional.
+
+    If it is present and not None send_callback(message_tuple)
+    is invoked after each message is sent.
+
+    It is legal to include additional client specific fields.
     """
 
-    server = nntplib.NNTP(fms_host, fms_port)
+    for msg_tuple in msg_tuples:
+        raw_msg = MSG_TEMPLATE % (msg_tuple[0],
+                                  msg_tuple[1],
+                                  msg_tuple[2],
+                                  msg_tuple[3])
+        in_file = StringIO.StringIO(raw_msg)
+        try:
+            server.post(in_file)
 
+            if len(msg_tuple) > 4 and not msg_tuple[4] is None:
+                # Sent notifier
+                msg_tuple[4](msg_tuple)
+
+            if send_quit:
+                server.quit()
+        finally:
+            in_file.close()
+
+def get_nntp_trust(server, kind, fms_id):
+    """ INTERNAL: Helper to make a single XGETTRUST request. """
+    assert not server is None
+    result = server.shortcmd("XGETTRUST %s %s" %
+                             (kind, fms_id)).split(' ')
     try:
-        for msg_tuple in msg_tuples:
-            raw_msg = MSG_TEMPLATE % (msg_tuple[0],
-                                      msg_tuple[1],
-                                      msg_tuple[2],
-                                      msg_tuple[3])
-            in_file = StringIO.StringIO(raw_msg)
-            #print raw_msg
-            try:
-                server.post(in_file)
-            finally:
-                in_file.close()
-    finally:
-        server.quit()
+        code = int(result[0])
+    except ValueError:
+        raise nntplib.NNTPError("Couldn't parse return code from XGETTRUST.")
 
+    if code < 200 or code > 299:
+        raise nntplib.NNTPError("Unexpected return code[%i] from XGETTRUST." %
+                             code)
+    if result[1] == 'null':
+        return None
+
+    return int(result[1])
+
+def get_trust(server, fms_id):
+    """ INTERNAL: Fetch trust values via multiple XGETTRUST calls. """
+    return tuple([get_nntp_trust(server, kind, fms_id) for kind in
+                  ('MESSAGE','TRUSTLIST', 'PEERMESSAGE', 'PEERTRUSTLIST')])
+
+class TrustCache:
+    """ Cached interface to FMS trust values. """
+
+    # REQUIRES: server was connected with auth_fms_id we want trust info from.
+    def __init__(self, server, timeout_secs=1*60*60):
+        # fms_id -> (timeout_secs, trust_tuple)
+        self.table = {}
+        self.timeout_secs = timeout_secs
+        self.server = server
+
+    def flush(self):
+        """ Flush the cache. """
+        self.table = {}
+
+    def prefetch_trust(self, fms_ids):
+        """ Fetch and cache trust values as nescessary.
+
+            If you know the required fms_ids call this
+            once with the ids before get_trust() to
+            minimize load on the FMS server. """
+
+        for fms_id in fms_ids:
+            if (not self.table.get(fms_id, None) is None and
+                self.table[fms_id][0] > time.time()):
+                print "%s cached for %i more secs. (prefetch)" % (
+                    fms_id, (self.table[fms_id][0] - time.time()))
+                continue
+            self.table[fms_id] = (time.time() + self.timeout_secs,
+                                  get_trust(self.server, fms_id))
+    def get_trust(self, fms_id):
+        """ Return (MESSAGE, TRUSTLIST, PEERMESSAGE, PEERTRUSTLIST)
+            trust values.
+
+            Can contain None entries if the trust was 'null'. """
+
+        cached = self.table.get(fms_id, None)
+        if cached is None or cached[0] < time.time():
+            self.prefetch_trust((fms_id, ))
+        assert fms_id in self.table
+        print "%s cached for %i more secs. (get)" % (
+            fms_id, (self.table[fms_id][0] - time.time()))
+
+        return self.table[fms_id][1]
 
 class IFmsMessageSink:
     """ Abstract interface for an fms message handler. """
@@ -107,37 +186,115 @@ class IFmsMessageSink:
         # raise NotImplementedError()
         pass
 
-def recv_msgs(fms_host, fms_port, msg_sink, groups):
+
+def article_range(first, last, old_last):
+    """ INTERNAL: Helper to determine which articles are required. """
+    first = int(first)
+    last = int(last)
+
+    if old_last is None: # first fetch
+        return (first, last)
+
+    to_fetch = last - old_last
+    if to_fetch == 0:
+        return (last, last)
+
+    # I doubt this is a problem in practice, but if it is, at
+    # least fail explicitly.
+
+    # Couldn't find info on wrapping in RFC 977
+    assert to_fetch > 0
+
+    return (last - to_fetch + 1, last)
+
+def recv_msgs(server, msg_sink, groups, max_articles=None, send_quit=False):
     """ Read messages from fms. """
-    server = nntplib.NNTP(fms_host, fms_port)
-    try:
-        for group in groups:
-            if not group or group.strip() == '':
-                raise ValueError("Empty group names are not allowed.")
-            result = server.group(group)
-            if result[1] == '0':
-                continue
-            # Doesn't return msg lines as shown in python doc?
-            # http://docs.python.org/library/nntplib.html
-            # Is this an fms bug?
-            result, items = server.xover(result[2], result[3])
-            if result.split(' ')[0] != '224':
-                # REDFLAG: untested code path
-                raise Exception(result)
-            for item in items:
-                if not msg_sink.wants_msg(group, item):
-                    continue
-                result = server.article(item[0])
-                if result[0].split(' ')[0] != '220':
-                    # REDFLAG: untested code path
-                    raise Exception(result[0])
-                pos = result[3].index('')
-                lines = []
-                if pos != -1:
-                    lines = result[3][pos + 1:]
-                msg_sink.recv_fms_msg(group, item, lines)
-    finally:
+
+    if max_articles is None:
+        max_articles = {}
+
+    for group in groups:
+        if max_articles.get(group, 'dummy') == 'dummy':
+            #print "ADDING ", group
+            max_articles[group] = None
+
+    for group in groups:
+        recv_group_msgs(server, group, msg_sink, max_articles)
+
+    if send_quit:
         server.quit()
+
+def recv_group_msgs(server, group, msg_sink, max_articles):
+    """ INTERNAL: Helper dispatches messages for a single group. """
+    if not group or group.strip() == '':
+        raise ValueError("Empty group names are not allowed.")
+
+    try:
+        result = server.group(group)
+    except nntplib.NNTPTemporaryError, err1:
+        # Ignore 411 errors which happen before the local FMS
+        # instance has learned about the group.
+        print "Skipped: %s because of error: %s" % (group, str(err1))
+        return
+
+    if result[1] == '0':
+        return
+
+    first, last = article_range(result[2], result[3],
+                                max_articles[group])
+
+    #print "READING %s: (%i, %i, %i)" % \
+    #      (group, first, last, max(max_articles[group], -1))
+    if not max_articles[group] is None and last <= max_articles[group]:
+        #print "No articles to fetch."
+        #print "continue(0)"
+        return  # Already fetched.
+
+    # Doesn't return msg lines as shown in python doc?
+    # http://docs.python.org/library/nntplib.html
+    # Is this an fms bug?
+    result, items = server.xover(str(first), str(last))
+
+    if result.split(' ')[0] != '224':
+        # REDFLAG: untested code path
+        raise Exception(result)
+
+    for item in items:
+        if not msg_sink.wants_msg(group, item):
+            #print "continue(1)"
+            continue # Hmmmm... were does this continue?
+        try:
+            result = server.article(item[0])
+        except nntplib.NNTPProtocolError, nntp_err:
+            # REDFLAG:
+            # djk20091224 I haven't seen this trip in a month or so.
+            # Research:
+            # 0) Database corruption?
+            # 1) FMS bug?
+            # 2) nntplib bug?
+            #
+            # djk20091023 If I use execquery.htm to on the message ID
+            # that causes this I get nothing back. == db corruption?
+            print "SAW NNTPProtocolError: ", items[4]
+            if str(nntp_err) !=  '.':
+                print "CAN'T HACK AROUND IT. Sorry :-("
+                raise
+            print "TRYING TO HACK AROUND IT..."
+            msg_sink.recv_fms_msg(group, item, [])
+            print "continue(2)"
+            continue
+
+        if result[0].split(' ')[0] != '220':
+            # REDFLAG: untested code path
+            raise Exception(result[0])
+        pos = result[3].index('')
+        lines = []
+        if pos != -1:
+            lines = result[3][pos + 1:]
+        msg_sink.recv_fms_msg(group, item, lines)
+
+    # Only save if all the code above ran without error.
+    max_articles[group] = last
 
 ############################################################
 # Infocalypse specific stuff.
