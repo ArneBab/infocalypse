@@ -158,6 +158,13 @@ def committed(result):
 DEFAULT_WIKI_ROOT = 'wiki_root'
 DEFAULT_SUBMITTER = 'freenetizen@this_is_not_a_real_fms_id'
 
+# hard coded path assumptions
+def has_forks(overlay):
+    for name in overlay.list_pages(os.path.join(overlay.base_path, 'wikitext')):
+        if name.find('_') != -1:
+            return True
+    return False
+
 class NoConflictTests(RepoTests):
     def testrepo(self):
         repo = self.make_repo('foobar')
@@ -404,6 +411,157 @@ class NoConflictTests(RepoTests):
 
 
 
+    def test_nop_modify_file(self):
+        # setup the server repository
+        server_repo = self.make_repo('server')
+        original_page_bytes = 'This the default front page.\n'
+        final_page_bytes = 'This the final front page.\n'
+        self.commit_revision(server_repo,
+                             (('wiki_root/wikitext/FrontPage',
+                               original_page_bytes),),
+                             'Initial checkin of server repo.')
+
+        self.commit_revision(server_repo,
+                             (('wiki_root/wikitext/FrontPage',
+                               final_page_bytes),),
+                             'Second commit of server repo.')
+
+        # pull the client repo
+        client_repo = self.clone_repo(server_repo, 'client', '0')
+
+        # get a write overlay for the client repo
+        overlay = self.get_write_overlay(client_repo)
+
+        page_path = 'wiki_root/wikitext/FrontPage'
+        page_bytes = final_page_bytes
+
+        # write the updated file into it.
+        overlay.write(os.path.join(client_repo.root,
+                                   page_path),
+                      page_bytes)
+        # make a submission bundle
+        raw_zip_bytes = self.make_submission_zip(client_repo)
+
+        #(fms_id, usk_hash, base_version, chk, length)
+        msg_id = 'fake_msg_id_000'
+        submission_tuple = (DEFAULT_SUBMITTER,
+                            '000000000000',
+                            hex_version(server_repo)[:12],
+                            'CHK@fakechk',
+                            len(raw_zip_bytes))
+
+        server_overlay = self.get_hg_overlay(server_repo)
+        server_overlay.version = hex_version(server_repo) # tip
+        server_page_path = os.path.join(server_repo.root, page_path)
+
+        self.assertTrue(server_overlay.exists(server_page_path))
+        self.assertTrue(server_overlay.read(server_page_path) ==
+                        final_page_bytes)
+
+        # apply the submission bundle to the server repo
+        self.get_applier(server_repo).apply_submission(msg_id,
+                                                       submission_tuple,
+                                                       raw_zip_bytes,
+                                                       os.path.join(
+                                                           self.tmp_dir,
+                                                           '_tmp__applying'))
+        self.assertTrue(server_overlay.exists(server_page_path))
+        self.assertTrue(server_overlay.read(server_page_path) ==
+                        final_page_bytes)
+
+        server_overlay.version = hex_version(server_repo) # new tip
+        self.assertTrue(server_overlay.exists(server_page_path))
+
+        # check that the versions are the same
+        self.assertTrue(server_overlay.read(server_page_path) ==
+                        final_page_bytes)
+        self.assertTrue(not has_forks(server_overlay))
+
+    def test_partial_nop_apply_file(self):
+        # setup the server repository
+        server_repo = self.make_repo('server')
+        original_page_bytes = 'This the default front page.\n'
+        final_page_bytes = 'This the final front page.\n'
+        self.commit_revision(server_repo,
+                             (('wiki_root/wikitext/FrontPage',
+                               original_page_bytes),),
+                             'Initial checkin of server repo.')
+
+        self.commit_revision(server_repo,
+                             (('wiki_root/wikitext/FrontPage',
+                               final_page_bytes),),
+                             'Second commit of server repo.')
+
+        # pull the client repo
+        client_repo = self.clone_repo(server_repo, 'client', '0')
+
+        # get a write overlay for the client repo
+        overlay = self.get_write_overlay(client_repo)
+
+        page_path = 'wiki_root/wikitext/FrontPage'
+        page_bytes = final_page_bytes
+
+        new_page_path = 'wiki_root/wikitext/NewPage'
+        new_page_bytes = 'this is a new page\n'
+
+        # write the updated file into it.
+        overlay.write(os.path.join(client_repo.root,
+                                   page_path),
+                      page_bytes)
+
+        # write a new page
+        overlay.write(os.path.join(client_repo.root,
+                                   new_page_path),
+                      new_page_bytes)
+
+
+        # make a submission bundle
+        raw_zip_bytes = self.make_submission_zip(client_repo)
+
+        #(fms_id, usk_hash, base_version, chk, length)
+        msg_id = 'fake_msg_id_000'
+        submission_tuple = (DEFAULT_SUBMITTER,
+                            '000000000000',
+                            hex_version(server_repo)[:12],
+                            'CHK@fakechk',
+                            len(raw_zip_bytes))
+
+        server_overlay = self.get_hg_overlay(server_repo)
+        server_overlay.version = hex_version(server_repo) # tip
+        server_page_path = os.path.join(server_repo.root, page_path)
+        server_new_page_path = os.path.join(server_repo.root,
+                                            new_page_path)
+
+        self.assertTrue(server_overlay.exists(server_page_path))
+        self.assertTrue(server_overlay.read(server_page_path) ==
+                        final_page_bytes)
+        self.assertTrue(not server_overlay.exists(server_new_page_path))
+
+        # apply the submission bundle to the server repo
+        self.get_applier(server_repo).apply_submission(msg_id,
+                                                       submission_tuple,
+                                                       raw_zip_bytes,
+                                                       os.path.join(
+                                                           self.tmp_dir,
+                                                           '_tmp__applying'))
+        self.assertTrue(server_overlay.exists(server_page_path))
+        self.assertTrue(server_overlay.read(server_page_path) ==
+                        final_page_bytes)
+        self.assertTrue(not server_overlay.exists(server_new_page_path))
+
+        server_overlay.version = hex_version(server_repo) # new tip
+        self.assertTrue(server_overlay.exists(server_page_path))
+
+        # check that the versions are the same
+        self.assertTrue(server_overlay.read(server_page_path) ==
+                        final_page_bytes)
+
+        self.assertTrue(server_overlay.exists(server_new_page_path))
+        self.assertTrue(server_overlay.read(server_new_page_path) ==
+                        new_page_bytes)
+
+        self.assertTrue(not has_forks(server_overlay))
+
 class ConflictTests(RepoTests):
     ############################################################
     # Smoketest create, remove, modify with conflict
@@ -420,6 +578,10 @@ class ConflictTests(RepoTests):
         if new_sha(overlay.read(versioned_path)).hexdigest() != sha_value:
             print "SHA FAILS: ", versioned_path
             self.assertTrue(False)
+
+        # quick and dirty test for has forks
+        self.assertTrue(has_forks(overlay))
+
         return True
 
     def test_create_file_conflict(self):
@@ -443,13 +605,14 @@ class ConflictTests(RepoTests):
         overlay = self.get_write_overlay(client_repo)
 
         page_path = 'wiki_root/wikitext/NewPage'
+        client_page_path = os.path.join(client_repo.root, page_path)
         page_bytes = 'Conflicting client side changes.\n\n'
 
+        self.assertTrue(not overlay.exists(client_page_path))
         # write a new file into it.
-        overlay.write(os.path.join(client_repo.root,
-                                   page_path),
-                      page_bytes)
+        overlay.write(client_page_path, page_bytes)
         # make a submission bundle
+        self.assertTrue(overlay.exists(client_page_path))
         raw_zip_bytes = self.make_submission_zip(client_repo)
 
         #(fms_id, usk_hash, base_version, chk, length)

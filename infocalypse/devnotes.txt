@@ -1,7 +1,21 @@
 !!! experimental branch for testing wiki over hg idea !!!
-See:
-USK@kRM~jJVREwnN2qnA8R0Vt8HmpfRzBZ0j4rHC2cQ-0hw,2xcoQVdQLyqfTpF2DpkdUIbHFCeL4W~2X1phUYymnhM,AQACAAE/fniki_demo/3/
+See (note updated uri)
+reenet:USK@Gq-FBhpgvr11VGpapG~y0rGFOAHVfzyW1WoKGwK-fFw,MpzFUh5Rmw6N~aMKwm9h2Uk~6aTRhYaY0shXVotgBUc,AQACAAE/fniki/2/
 !!!
+
+djk20100123
+Saw error reinserting fred staging mirror:
+{4}:008c3b951f:(102, 117, 0):PutSuccessful
+Exiting because of an IO error.
+{3}:4e965d6bb1:(0, 32, 0):ProtocolError:('ProtocolError', {'CodeDescription': 'Socket closed'})
+{3}:24a632ebbe:(32, 102, 0):ProtocolError:('ProtocolError', {'CodeDescription': 'Socket closed'})
+{3}:ec68723c40:(-1, 0, 0):ProtocolError:('ProtocolError', {'CodeDescription': 'Socket closed'})
+FCP connection [CLOSED]
+abort: No such file or directory: /home/dkarbott/infocalypse_tmp/_tmp_895966490831
+
+Not reproducible.
+Bug introduced by changes to wiki_hack branch?
+
 
 djk20091208
 Failed attempt to DRY out:

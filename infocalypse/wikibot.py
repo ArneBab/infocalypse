@@ -36,7 +36,8 @@ from validate import is_hex_string
 from chk import ENCODED_CHK_SIZE
 from fms import TrustCache, to_msg_string
 from fmsbot import FMSBot
-from submission import ForkingSubmissionHandler, REJECT_NOTRUST, REJECT_FCPFAIL
+from submission import ForkingSubmissionHandler, \
+     REJECT_NOTRUST, REJECT_FCPFAIL, REJECT_APPLIED
 
 from bundlecache import BundleCache, is_writable, make_temp_file
 from updatesm import UpdateContext, UpdateStateMachine, QUIESCENT, FINISHING
@@ -249,6 +250,7 @@ class WikiBot(FMSBot, RequestQueue):
             self._send_update_notification()
 
         if not self.update_sm is None:
+            # Wait until fn-push or freesite insert finishes.
             return
 
         # DCI: Is this working as expected?
@@ -268,6 +270,16 @@ class WikiBot(FMSBot, RequestQueue):
 
         if self.ctx.should_insert_site():
             self.trace("Starting freesite insertion.")
+
+            # LATER: fix freesite insert to insert from hg instead of
+            #        local file system.
+            # HACK: Force commit, so that we can re-insert reliably.
+            #       Tricky, False keeps applier from calling the
+            #       ctx.commited callback. i.e. so we don't force
+            #       a second fn-push.
+            # S = Site insert, force commit, spurious commit ok.
+            self.applier.force_commit('S', False)
+            self.ctx.clear_timeout('COMMIT_COALESCE_SECS')
             self._start_freesite_insert()
 
     # Handle a single message
@@ -285,15 +297,22 @@ class WikiBot(FMSBot, RequestQueue):
             self.trace("recv_fms_msg -- couldn't parse submission: %s" % msg_id)
             return
 
+        self.trace("recv_fms_msg -- parsed: %s" % str(submission))
+
         if not self._has_enough_trust(msg_id, submission,
                                       self.params['NONE_TRUST']):
             self.trace("recv_fms_msg -- not enough trust: %s" % msg_id)
             return
 
-        self.trace("recv_fms_msg -- parsed: %s" % str(submission))
+        # Skip CHK's which have already been applied
+        if self._already_applied(msg_id, submission):
+            self.debug("recv_fms_msg -- skipping, already applied CHK")
+            self.trace("recv_fms_msg -- %s" % submission[3])
+            return
 
-        self.ctx.queue_submission(msg_id, submission)
         # Will get picked up by next_runnable.
+        self.ctx.queue_submission(msg_id, submission)
+
 
     #----------------------------------------------------------#
     def _cleanup_temp_files(self):
@@ -310,6 +329,22 @@ class WikiBot(FMSBot, RequestQueue):
             not self.update_sm.ctx.bundle_cache is None):
             self.update_sm.cancel()
             self.update_sm.ctx.bundle_cache.remove_files()
+
+    # I keep a separate db instead of using accepted.txt and
+    # rejected.txt because those are only for UI. i.e. can
+    # be pruned. may not be compleat.
+    def _already_applied(self, msg_id, submission):
+        """ Return True and write failure message into rejected.txt if
+            the CHK has already been applied, False otherwise. """
+
+        if not submission[3] in self.ctx.store_applied_requests:
+            return False
+
+        # Store timestamp? how will I prune these values?
+        self.ctx.store_applied_requests[submission[3]] = ''
+        self.applier.update_change_log(msg_id, submission,
+                                       REJECT_APPLIED, False)
+        return True
 
     def _has_enough_trust(self, msg_id, submission, none_trust=0):
         """ INTERNAL: Returns True if the sender is trusted enough

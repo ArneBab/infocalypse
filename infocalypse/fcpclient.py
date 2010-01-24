@@ -80,7 +80,7 @@ def get_file_infos(directory, forced_mime_type=None, accept_regex = None):
     if directory[-1] != os.path.sep:
         # Force trailing path separator.
         directory += os.path.sep
-    file_info = (directory, [], accept_regex)
+    file_info = (directory, [], accept_regex) #REDFLAG: bad variable name
     os.path.walk(directory, walk_visitor, file_info)
     return file_info[1]
 
@@ -107,6 +107,19 @@ def set_index_file(file_infos, file_name):
 
     file_infos.remove(index)
     file_infos.insert(0, index)
+
+def sort_file_infos(file_infos):
+    """ Helper function forces file infos into a fixed order.
+
+        Note: Doesn't move the first entry.
+    """
+
+    if len(file_infos) < 3:
+        return file_infos
+    rest = file_infos[1:]
+    rest.sort()
+
+    return file_infos[:1] + rest
 
 class FileInfoDataSource(IDataSource):
     """ IDataSource which concatenates files in a list of
@@ -704,6 +717,11 @@ def dir_data_source(file_infos, in_params, default_mime_type):
     if 'DefaultName' in in_params.default_fcp_params:
         raise ValueError("You can't set 'DefaultName' via "
                          + "default_fcp_params.")
+
+    # IMPORTANT: Sort the file infos so that the same set of
+    #            file_infos always yields the same inserted data blob.
+    #            file_infos[0] isn't moved.
+    file_infos = sort_file_infos(file_infos)
 
     files = {}
     index = 0

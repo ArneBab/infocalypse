@@ -73,16 +73,23 @@ class FMSStub:
         return NNTPStub()
 
     def send_msgs(self, dummy_server, msg_tuples, send_quit=False):
+        if not os.path.exists(self.base_dir):
+            print "FMSStub.send_msg -- THE MESSAGE SPOOL DIR DOESN'T EXIST!"
+            raise IOError("Message spool directory doesn't exist.")
+
         for msg_tuple in msg_tuples:
             # HACK: use lut to map partial -> full fms ids.
-            #print "msg_tuple[0]: ", msg_tuple[0]
-            #print "sender_lut: ", self.sender_lut
+            # print "msg_tuple[0]: ", msg_tuple[0]
+            # print "sender_lut: ", self.sender_lut
             sender = self.sender_lut.get(msg_tuple[0].split('@')[0],
                                          msg_tuple[0])
             print "sender: ", sender
             if sender != msg_tuple[0]:
                 print "fmsstub: FIXED UP %s->%s" % (msg_tuple[0], sender)
-            assert sender.find('@') != -1
+
+            if sender.find('@') == -1:
+                raise IOError("Couldn't fixup fms_id: %s. Add it to the LUT."
+                              % sender)
 
             full_path = os.path.join(self.base_dir,
                                      'out_going_%s.txt' % make_id())
@@ -110,6 +117,11 @@ class FMSStub:
             #print name
             mod_time = os.stat(os.path.join(self.base_dir,
                                             name))[stat.ST_MTIME]
+
+            if mod_time in by_mtime:
+                print "The msg ID hack in FMSStub failed!!!"
+                print "MANUALLY DELETE MSG FILE: ", name
+
             assert not mod_time in by_mtime
             by_mtime[mod_time] = name
 

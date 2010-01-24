@@ -496,6 +496,39 @@ def _macro_RemoteChanges():
         else:
             buf.write(reject_summary(entry, time_tuple))
     return buf.getvalue()
+
+
+def _macro_BookMark():
+    # REDFLAG: Revisit.
+    # Config file is in the directory above the data_dir directory,
+    # so I don't want to depend on that while running.
+    # Used info.txt file from the head end instead.
+
+    full_path = os.path.join(data_dir, 'info.txt')
+    try:
+        in_file = codecs.open(full_path, 'rb', 'ascii')
+        usk, desc, link_name = in_file.read().splitlines()[:3]
+
+    except ValueError:
+        return "[BookMark macro failed: couldn't parse data from info.txt]"
+    except IOError:
+        return "[BookMark macro failed: couldn't read data from info.txt]"
+    except UnicodeError:
+        # REDFLAG: Untested code path.
+        return "[BookMark macro failed: illegal encoding in info.txt]"
+
+    if (has_illegal_chars(usk) or
+        has_illegal_chars(desc) or
+        has_illegal_chars(link_name)):
+        return "[BookMark macro failed: illegal html characters in info.txt]"
+
+    if not scrub_links:
+        return '<a href="%s">%s</a>' % (LINKS_DISABLED_PAGE, link_name)
+
+    return ('<a href="/?newbookmark=%s&amp;desc=%s">%s</a>'
+            % (usk, desc, link_name))
+
+
 # ----------------------------------------------------------
 
 # REDFLAG: faster way to do this? does it matter?
@@ -638,7 +671,7 @@ class PageFormatter:
             + r"|(?P<pre>(\{\{\{|\}\}\}))"
             + r"|(?P<macro>\[\[(TitleSearch|FullSearch|WordIndex"
                             + r"|TitleIndex|ActiveLink"
-                            + r"|LocalChanges|RemoteChanges|GoTo)\]\])"
+                            + r"|LocalChanges|RemoteChanges|BookMark|GoTo)\]\])"
             + r")")
         blank_re = re.compile("^\s*$")
         bullet_re = re.compile("^\s+\*")
@@ -743,6 +776,8 @@ class Page:
         print '<hr>'
         if is_read_only(data_dir, self.page_name):
             print "<em>The bot owner has marked this page read only.</em>"
+            print (('<br><a href="?viewunmodifiedsource=%s">'  %
+                    self.page_name) + '[View page source]</a><br>')
             return
 
         if unmodified:

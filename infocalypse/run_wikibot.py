@@ -181,8 +181,13 @@ def run_wikibot(params):
     if 'MSG_SPOOL_DIR' in params:
         print "READING MESSAGES FROM SPOOL DIR INSTEAD OF FMS!"
 
+        # This table MUST map all short names to full fms_ids for
+        # all message senders. MUST contain the bot fms_id.
+        lut = {'djk':'djk@isFiaD04zgAgnrEC5XJt1i4IE7AkNPqhBG5bONi6Yks'}
+        assert params['FMS_ID'] in lut
         bot_runner.nntp = FMSStub(params['MSG_SPOOL_DIR'],
-                                  params['FMS_GROUP'])
+                                  params['FMS_GROUP'],
+                                  lut)
 
     # Install a single WikiBot instance.
     wiki_bot = WikiBot('wikibot_' + params['USK_HASH'],

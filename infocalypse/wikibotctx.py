@@ -90,6 +90,8 @@ class WikiBotContext:
             self.store_handled_ids.sync()
         if not self.store_running_requests is None:
             self.store_running_requests.sync()
+        if not self.store_applied_requests is None:
+            self.store_applied_requests.sync()
 
     def setup_dbs(self, params):
         """ Initialize the databases used for persistent storage. """
@@ -106,7 +108,9 @@ class WikiBotContext:
         self.store_running_requests = shelve.open(
             self.parent.parent.get_path(self.parent,
                                         'store_running_requests'))
-
+        self.store_applied_requests = shelve.open(
+            self.parent.parent.get_path(self.parent,
+                                        'store_applied_requests'))
         self.store_info = shelve.open(
             self.parent.parent.get_path(self.parent,
                                         'store_info'))
@@ -147,6 +151,8 @@ class WikiBotContext:
             self.store_handled_ids.close()
         if not self.store_running_requests is None:
             self.store_running_requests.close()
+        if not self.store_applied_requests is None:
+            self.store_applied_requests.close()
         if not self.store_info is None:
             self.store_info.close()
 
@@ -245,3 +251,15 @@ class WikiBotContext:
         return (len(self.store_running_requests['running']) > 0 or
                 len(self.store_running_requests['queued']) > 0)
 
+# REDFLAG: revisit during code cleanup
+# pylint error about too many public methods. grrrr...
+#     def already_applied(self, submission):
+#         """ Return True if the submissions CHK has already been applied,
+#             False otherwise.
+
+#             SIDE EFFECT: Adds submission's CHK to the applied list.
+#         """
+#         chk = submission[3]
+#         if chk in self.store_applied_requests:
+#             return True
+#         self.store_applied_requests[chk] = '' # Dummy value.

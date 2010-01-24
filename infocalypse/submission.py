@@ -1,3 +1,4 @@
+# DCI: Clean up pylint errors in this file.
 """ Functions to bundle and unbundle wiki submission zip files.
 
     Copyright (C) 2009 Darrell Karbott
@@ -132,8 +133,8 @@ class SubmitError(Exception):
 class NoChangesError(SubmitError):
     """ Exception to indicate that there are no local
         changes to be submitted. """
-    def __init__(self):
-        SubmitError. __init__(self, "No changes found." , False)
+    def __init__(self, is_illegal=False):
+        SubmitError. __init__(self, "No changes found." , is_illegal)
 
 def pack_info(version, submitter):
     """ INTERNAL: Validate and pack __INFO__ contents into 7-bit ASCII. """
@@ -349,12 +350,24 @@ def raise_if_not_merging(is_merging, msg):
 def handle_conflict(head, full_path, name, bytes, updated_sha):
     """ INTERNAL: Helper to deal with conflicting merges.  """
     assert full_path.endswith(name)
+    assert utf8_sha(bytes).digest() == updated_sha
+
+    prev_sha = EMPTY_FILE_SHA
+    if head.exists(full_path):
+        prev_sha = utf8_sha(head.read(full_path)).digest()
+
+    if updated_sha == prev_sha:
+        # Catch case where we patched to the same final file
+        # starting from a different base rev.
+        return 3, name # Already applied
+
     versioned_name = "%s_%s" % (name, hexlify(updated_sha))
     # REDFLAG: LATER: explict hg copy to minimize repo size? 
     head.write(os.path.join(os.path.split(full_path)[0],
                             versioned_name),
                bytes, 'wb')
-    return versioned_name
+
+    return 4, versioned_name
 
 def checked_read_delta(arch, name):
     """ INTERNAL: Read a raw delta from an archive."""
@@ -362,8 +375,7 @@ def checked_read_delta(arch, name):
     if len(raw_delta) < 40:
         raise SubmitError("<40 bytes: %s" % name, True)
     return raw_delta
-# DCI: BUG: Don't fork if final version == current version. i.e. already applied
-#      bug from a different base version.
+
 def forking_extract_wikitext(arch, overlay, head, name):
     """ Helper function used by merge_wikitext() to merge a single
         file. """
@@ -394,9 +406,11 @@ def forking_extract_wikitext(arch, overlay, head, name):
             # Create a versioned conflict file because the file the
             # submitter wants to create already exists in the repo.
             raw_file = unicode_apply_patch('', raw_delta, updated_sha, name)
-            # Wrote conflicting version.
-            return 4, handle_conflict(head, full_path,
-                                      name, raw_file, updated_sha)
+
+            # Note: This nops (3) instead of forking if the new file
+            #       matches the existing one.
+            return handle_conflict(head, full_path,
+                                   name, raw_file, updated_sha)
 
         raw_a = ''
         ret = 0
@@ -419,8 +433,8 @@ def forking_extract_wikitext(arch, overlay, head, name):
             # Patch against the SUBMITTER'S version!
             raw_file = unicode_apply_patch(overlay.read(full_path, 'rb'),
                                            raw_delta, updated_sha, name)
-            return 4, handle_conflict(head, full_path,
-                                      name, raw_file, updated_sha)
+            return handle_conflict(head, full_path,
+                                   name, raw_file, updated_sha)
 
         raw_a = overlay.read(full_path, 'rb')
         tmp_sha = utf8_sha(raw_a).digest()
@@ -435,8 +449,8 @@ def forking_extract_wikitext(arch, overlay, head, name):
             # submitter wants to modify already was modified in the repo.
             # Patch against the SUBMITTER'S version!
             raw_file = unicode_apply_patch(raw_a, raw_delta, updated_sha, name)
-            return 4, handle_conflict(head, full_path, name,
-                                      raw_file, updated_sha)
+            return handle_conflict(head, full_path, name,
+                                   raw_file, updated_sha)
 
         if tmp_sha == updated_sha:
             return 3, name # Already patched.
@@ -640,6 +654,10 @@ class OverlayHasher:
 def check_merges(submitted_pages, all_pages, hexdigest_func):
     """ INTERNAL: Raises a SubmitError if the merge constraints
         aren't met. """
+
+    if len(submitted_pages) == 0:
+        raise NoChangesError(True)
+
     #print "SUBMITTED_PAGES: ", submitted_pages
     conflicts = conflict_table(all_pages)
     resolved = conflict_table(submitted_pages)
@@ -738,7 +756,8 @@ class ForkingSubmissionHandler:
     def apply_submission(self, msg_id, submission_tuple, raw_zip_bytes,
                          tmp_file):
         """ Apply a submission zip bundle. """
-        code = REJECT_CONFLICT
+        # REJECT_CONFLICT isn't used anymore. We just fork.
+        code = REJECT_ILLEGAL
         try:
             self.commit_results(msg_id, submission_tuple,
                                 merge_wikitext(self.ui_,
@@ -748,6 +767,13 @@ class ForkingSubmissionHandler:
                                                StringIO.StringIO(
                                                    raw_zip_bytes)))
             return True
+
+        except NoChangesError, err:
+            self.logger.debug("apply_submission -- no changes, illegal: %s" %
+                              str(err.illegal))
+            if not err.illegal:
+                # i.e. zip contained legal changes that were already applied.
+                code = REJECT_APPLIED
 
         except SubmitError, err:
             self.logger.debug("apply_submission --  err: %s" % str(err))
@@ -762,7 +788,7 @@ class ForkingSubmissionHandler:
                               str(submission_tuple))
             raise # DCI
         self.update_change_log(msg_id, submission_tuple,
-                                code, False)
+                               code, False)
         return False
 
     # Sets needs commit on failure, but not success. Hmmm...
@@ -859,7 +885,14 @@ class ForkingSubmissionHandler:
     # IMPLIES SUCCESS.
     def commit_results(self, msg_id, submission_tuple, results):
         """ INTERNAL: Commit the results of a submission to the local repo. """
-        assert len(results[3]) == 0
+
+        print "RESULTS: ", results
+        if len(results[3]) > 0 and sum([len(results[index]) for index in
+                                        (0, 1, 2, 4)]) == 0: #HACK, fix order!
+            raise NoChangesError()
+
+        assert sum([len(results[index]) for index in (0, 1, 2, 4)]) > 0
+
         wikitext_dir = os.path.join(self.full_base_path(), 'wikitext')
         raised = True
         # grrr pylint gives spurious
@@ -902,12 +935,13 @@ class ForkingSubmissionHandler:
                 self.logger.debug("commit_results -- popped log:\n%s" % text)
 
 
-    def force_commit(self):
+    def force_commit(self, msg='F', notify=True): # F -> Failed
         """ Force a commit to the repository after failure. """
         self.logger.trace("force_commit -- Commit local changes " +
                            "after failure.")
         commands.commit(self.ui_, self.repo,
                         logfile=None, addremove=None, user=None,
                         date=None,
-                        message='F') # Must have failed.
-        self.notify_committed(False)
+                        message=msg)
+        if notify:
+            self.notify_committed(False)
