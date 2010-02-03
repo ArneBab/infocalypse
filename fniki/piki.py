@@ -497,30 +497,11 @@ def _macro_RemoteChanges():
             buf.write(reject_summary(entry, time_tuple))
     return buf.getvalue()
 
-
 def _macro_BookMark():
-    # REDFLAG: Revisit.
-    # Config file is in the directory above the data_dir directory,
-    # so I don't want to depend on that while running.
-    # Used info.txt file from the head end instead.
-
-    full_path = os.path.join(data_dir, 'info.txt')
     try:
-        in_file = codecs.open(full_path, 'rb', 'ascii')
-        usk, desc, link_name = in_file.read().splitlines()[:3]
-
-    except ValueError:
-        return "[BookMark macro failed: couldn't parse data from info.txt]"
-    except IOError:
-        return "[BookMark macro failed: couldn't read data from info.txt]"
-    except UnicodeError:
-        # REDFLAG: Untested code path.
-        return "[BookMark macro failed: illegal encoding in info.txt]"
-
-    if (has_illegal_chars(usk) or
-        has_illegal_chars(desc) or
-        has_illegal_chars(link_name)):
-        return "[BookMark macro failed: illegal html characters in info.txt]"
+        usk, desc, link_name = read_info()
+    except ValueError, err:
+        return "[BookMark macro failed: %s]" % str(err.args[0])
 
     if not scrub_links:
         return '<a href="%s">%s</a>' % (LINKS_DISABLED_PAGE, link_name)
@@ -528,6 +509,23 @@ def _macro_BookMark():
     return ('<a href="/?newbookmark=%s&amp;desc=%s">%s</a>'
             % (usk, desc, link_name))
 
+
+def _macro_FreesiteUri():
+    try:
+        usk, desc, link_name = read_info()
+        fields = usk.split('/')
+        if len(fields) > 2 and (not fields[-2].startswith('-')):
+            fields[-2] = '-' + fields[-2]
+            usk = '/'.join(fields)
+
+    except ValueError, err:
+        return "[FreesiteUri macro failed: %s]" % str(err.args[0])
+
+    if not scrub_links:
+        return '<a href="%s">freenet:%s</a>' % (LINKS_DISABLED_PAGE, usk)
+
+
+    return '<a href="/%s">freenet:%s</a>' % (usk, usk)
 
 # ----------------------------------------------------------
 
@@ -605,6 +603,36 @@ class PageFormatter:
 
         return ' <img src="%s"%s%s/> ' % (uri, alt_attrib, title_attrib)
 
+
+    def _anch_repl(self, word):
+        word = word[3:-3]
+
+        if has_illegal_chars(word):
+            return (" <br>[ILLEGAL ANCHOR IN WIKITEXT: " +
+                    " illegal characters! ]<br> ")
+
+        fields = word.strip().split('|')
+        if len(fields) != 2:
+            return (" <br>[ILLEGAL ANCHOR IN WIKITEXT: " +
+                    " needs to be in the @@@text|label@@@ format! ]<br> ")
+
+        return ('<a class="namedanchor" name="%s">%s</a>' %
+                (fields[1], fields[0]))
+
+    def _anchl_repl(self, word):
+        word = word[4:-4]
+        if has_illegal_chars(word):
+            return (" <br>[ILLEGAL ANCHOR LINK IN WIKITEXT: " +
+                    " illegal characters! ]<br> ")
+
+        fields = word.strip().split('|')
+
+        if len(fields) != 2:
+            return (" <br>[ILLEGAL ANCHOR LINK IN WIKITEXT: " +
+                    " needs to be in the @@@text|label@@@ format! ]<br> ")
+
+        return '<a href="#%s">%s</a>' % (fields[1], fields[0])
+
     def _ent_repl(self, s):
         return {'&': '&amp;',
                 '<': '&lt;',
@@ -648,7 +676,6 @@ class PageFormatter:
         self.list_indents = []
         return res
 
-
     def replace(self, match):
         for type, hit in match.groupdict().items():
             if hit:
@@ -662,6 +689,8 @@ class PageFormatter:
         scan_re = re.compile(
             r"(?:(?P<emph>'{2,3})"
             + r"|(?P<ent>[<>&])"
+            + r"|(?P<anch>@@@([^@]+)@@@)"
+            + r"|(?P<anchl>@@@@([^@]+)@@@@)"
             + r"|(?P<word>\b(?:[A-Z][a-z]+){2,}\b)"
             + r"|(?P<rule>-{4,})"
             + r"|(?P<img>\[\[\[(freenet\:[^\]]+)\]\]\])"
@@ -671,7 +700,8 @@ class PageFormatter:
             + r"|(?P<pre>(\{\{\{|\}\}\}))"
             + r"|(?P<macro>\[\[(TitleSearch|FullSearch|WordIndex"
                             + r"|TitleIndex|ActiveLink"
-                            + r"|LocalChanges|RemoteChanges|BookMark|GoTo)\]\])"
+                            + r"|LocalChanges|RemoteChanges|BookMark|"
+                            + r"FreesiteUri|GoTo)\]\])"
             + r")")
         blank_re = re.compile("^\s*$")
         bullet_re = re.compile("^\s+\*")
@@ -772,19 +802,19 @@ class Page:
     def send_footer(self, versioned, mod_string=None, page_path=None,
                     unmodified=False):
 
-        #base = get_scriptname() # Hmmm... forget what this was for.
+        base = get_scriptname()
         print '<hr>'
         if is_read_only(data_dir, self.page_name):
             print "<em>The bot owner has marked this page read only.</em>"
-            print (('<br><a href="?viewunmodifiedsource=%s">'  %
-                    self.page_name) + '[View page source]</a><br>')
+            print (('<br><a href="%s?viewunmodifiedsource=%s">'  %
+                    (base, self.page_name)) + '[View page source]</a><br>')
             return
 
         if unmodified:
             print ("<em>Read only original version " +
                    "of a locally modified page.</em>")
-            print (('<br><a href="?viewunmodifiedsource=%s">'  %
-                    self.page_name) + '[View page source]</a><br>')
+            print (('<br><a href="%s?viewunmodifiedsource=%s">'  %
+                    (base, self.page_name)) + '[View page source]</a><br>')
             return
 
         if versioned:
@@ -793,19 +823,21 @@ class Page:
                 return
 
             if filefuncs.has_overlay(page_path):
-                print (('<br><a href="?unmodified=%s">'  % self.page_name) +
+                print (('<br><a href="%s?unmodified=%s">' % (base,
+                                                             self.page_name)) +
                        '[Show original version]</a><br>')
-                print (('<a href="?deletelocal=%s">' % self.page_name) +
+                print (('<a href="%s?deletelocal=%s">' % (base,
+                                                          self.page_name)) +
                        '[Mark unresolved, without confirmation!]</a><br>')
 
             else:
                 if filefuncs.exists(page_path, True):
                     print "<em>This is an unmerged fork of another page!</em>"
-                    print (('<br><a href="?viewsource=%s">' %
-                            self.page_name) +
+                    print (('<br><a href="%s?viewsource=%s">' %
+                            (base, self.page_name)) +
                            '[View page source]</a><br>')
-                    print (('<br><a href="?removepage=%s">' %
-                            self.page_name) +
+                    print (('<br><a href="%s?removepage=%s">' %
+                            (base, self.page_name)) +
                            '[Locally mark resolved, ' +
                            'without confirmation!]</a><br>')
 
@@ -823,12 +855,12 @@ class Page:
                 print ("<strong>This page has forks: %s!</strong><br>"  %
                        get_fork_html(filefuncs, text_dir, name, fork_table))
 
-        print link_tag('?edit='+name, 'EditText')
+        print link_tag('?edit=%s' %  name, 'EditText')
         print "of this page"
         if mod_string:
             print "(last modified %s)" % mod_string
         print '<br>'
-        print link_tag('FindPage?value='+name, 'FindPage')
+        print link_tag('FindPage?value=%s' %  name, 'FindPage')
         print " by browsing, searching, or an index"
 
         if page_path is None:
@@ -836,11 +868,11 @@ class Page:
             return
 
         if filefuncs.has_overlay(page_path):
-            print (('<br><a href="?unmodified=%s">' % name) +
+            print (('<br><a href="%s?unmodified=%s">' % (base, name)) +
                    '[Show original version]</a><br>')
-            print (('<a href="?removepage=%s">' % name) +
+            print (('<a href="%s?removepage=%s">' % (base, name)) +
                    '[Locally delete this page without confirmation!]</a><br>')
-            print (('<a href="?deletelocal=%s">' % name) +
+            print (('<a href="%s?deletelocal=%s">' % (base, name)) +
                    '[Undo local edits without confirmation!]</a><br>')
 
         print "<p><em>Wiki dir: %s </em>" % data_dir
@@ -1008,6 +1040,33 @@ def is_read_only(base_dir, page_name):
                              for value in in_file.read().splitlines()]
     finally:
         in_file.close()
+
+# REDFLAG: Revisit.
+# Config file is in the directory above the data_dir directory,
+# so I don't want to depend on that while running.
+# Used info.txt file from the head end instead.
+def read_info():
+    full_path = os.path.join(data_dir, 'info.txt')
+    err_msg = None
+    try:
+        in_file = codecs.open(full_path, 'rb', 'ascii')
+        try:
+            usk, desc, link_name = in_file.read().splitlines()[:3]
+        finally:
+            in_file.close()
+    except UnicodeError: # ISA ValueError. Order important!
+        raise ValueError("Illegal encoding in info.txt")
+    except ValueError:
+        raise ValueError("Couldn't parse data from info.txt")
+    except IOError:
+        raise ValueError("Couldn't read data from info.txt")
+
+    if (has_illegal_chars(usk) or has_illegal_chars(desc) or
+        has_illegal_chars(link_name)):
+        raise ValueError("Illegal html characters in info.txt")
+
+    return usk, desc, link_name
+
 
 def read_log_file_entries(base_dir, max_entries):
     accepted = []
@@ -1190,6 +1249,4 @@ if __name__ == "__main__" or __name__ == "__builtin__":
     finally:
         sys.stdout = real_out
         print buf.getvalue().encode('utf8')
-
-
 
