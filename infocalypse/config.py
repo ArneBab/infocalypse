@@ -81,6 +81,7 @@ def norm_path(dir_name):
     fixed = split[0].replace(':', '') + split[1]
     return fixed
 
+# REDFLAG: THis is an ancient hack.  Safe to back it out?
 # NOTE:
 # The bug prevents ConfigParser from even reading
 # the file. That's why I'm operating on the file
@@ -131,7 +132,7 @@ class Config:
         self.file_name = None
 
         # Use a dict instead of members to avoid pylint R0902.
-        self.defaults = {}
+        self.defaults = {} # REDFLAG: Why is this called defaults? BAD NAME
         self.defaults['HOST'] = '127.0.0.1'
         self.defaults['PORT'] = 9481
         self.defaults['TMP_DIR'] = None

@@ -361,7 +361,8 @@ from infcmds import get_config_info, execute_create, execute_pull, \
      execute_push, execute_setup, execute_copy, execute_reinsert, \
      execute_info
 
-from fmscmds import execute_fmsread, execute_fmsnotify, get_uri_from_hash
+from fmscmds import execute_fmsread, execute_fmsnotify, get_uri_from_hash, \
+     execute_setupfms
 
 from sitecmds import execute_putsite, execute_genkey
 from wikicmds import execute_wiki, execute_wiki_apply
@@ -699,6 +700,16 @@ def infocalypse_setup(ui_, **opts):
                   opts['fcpport'],
                   opts['tmpdir'])
 
+    if not opts['nofms']:
+        execute_setupfms(ui_, opts)
+    else:
+        ui_.status("Skipped FMS configuration because --nofms was set.\n")
+
+def infocalypse_setupfms(ui_, **opts):
+    """ Setup or modify the fms configuration. """
+    # REQUIRES config file.
+    execute_setupfms(ui_, opts)
+
 #----------------------------------------------------------"
 def do_archive_create(ui_, opts, params, stored_cfg):
     """ fn-archive --create."""
@@ -794,6 +805,11 @@ def infocalypse_archive(ui_, **opts):
 FCP_OPTS = [('', 'fcphost', '', 'fcp host'),
             ('', 'fcpport', 0, 'fcp port'),
 ]
+
+FMS_OPTS = [('', 'fmshost', '', 'fms host'),
+            ('', 'fmsport', 0, 'fms port'),
+]
+
 
 AGGRESSIVE_OPT = [('', 'aggressive', None, 'aggressively search for the '
                    + 'latest USK index'),]
@@ -895,10 +911,19 @@ cmdtable = {
                   "[options]"),
 
     "fn-setup": (infocalypse_setup,
-                 [('', 'tmpdir', '~/infocalypse_tmp', 'temp directory'),]
-                 + FCP_OPTS,
+                 [('', 'tmpdir', '~/infocalypse_tmp', 'temp directory'),
+                  ('', 'nofms', None, 'skip FMS configuration'),
+                  ('', 'fmsid', '', "fmsid (only part before '@'!)"),
+                  ('', 'timeout', 30, "fms socket timeout in seconds")]
+                 + FCP_OPTS
+                 + FMS_OPTS,
                 "[options]"),
 
+    "fn-setupfms": (infocalypse_setupfms,
+                 [('', 'fmsid', '', "fmsid (only part before '@'!)"),
+                  ('', 'timeout', 30, "fms socket timeout in seconds"),]
+                 + FMS_OPTS,
+                "[options]"),
 
     "fn-archive": (infocalypse_archive,
                   [('', 'uri', '', 'Request URI for --pull, Insert URI ' +
@@ -915,10 +940,10 @@ cmdtable = {
                    + NOSEARCH_OPT
                    + AGGRESSIVE_OPT,
                    "[options]"),
-
     }
 
 
 commands.norepo += ' fn-setup'
+commands.norepo += ' fn-setupfms'
 commands.norepo += ' fn-genkey'
 commands.norepo += ' fn-archive'

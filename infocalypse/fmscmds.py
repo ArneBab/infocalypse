@@ -21,6 +21,8 @@
 """
 
 # REDFLAG: Go back and fix all the places where you return instead of Abort()
+import socket
+
 from mercurial import util
 
 from fcpclient import get_usk_hash
@@ -415,4 +417,140 @@ def get_uri_from_hash(ui_, dummy, params, stored_cfg):
                                         notifiers[fms_id])
 
     return target_usk
+
+
+CRLF = '\x0d\x0a'
+FMS_TIMEOUT_SECS = 30
+FMS_SOCKET_ERR_MSG = """
+Socket level error.
+It looks like your FMS host or port might be wrong.
+Set them with --fmshost and/or --fmsport.
+"""
+
+def connect_to_fms(ui_, fms_host, fms_port, timeout):
+    """ INTERNAL: Helper, connects to fms and reads the login msg. """
+    ui_.status("Testing FMS connection [%s:%i]...\n" % (fms_host, fms_port))
+    try:
+        old_timeout = socket.getdefaulttimeout()
+        socket.setdefaulttimeout(timeout)
+        connected_socket = None
+        try:
+            connected_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            connected_socket.connect((fms_host, fms_port))
+            bytes =  ''
+            while bytes.find(CRLF) == -1:
+                bytes = bytes + connected_socket.recv(4096)
+        finally:
+            socket.setdefaulttimeout(old_timeout)
+            if connected_socket:
+                connected_socket.close()
+
+    except socket.error: # Not an IOError until 2.6.
+        ui_.warn(FMS_SOCKET_ERR_MSG)
+        return None
+
+    except IOError:
+        ui_.warn(FMS_SOCKET_ERR_MSG)
+        return None
+
+    return bytes
+
+
+# Passing opts instead of separate args to get around pylint
+# warning about long arg list.
+def get_fms_args(cfg, opts):
+    """ INTERNAL: Helper to extract args from Config/mercurial opts. """
+    def false_to_none(value):
+        """ INTERNAL: Return None if not bool(value),  value otherwise. """
+        if value:
+            return value
+        return None
+
+    fms_id = false_to_none(opts['fmsid'])
+    fms_host = false_to_none(opts['fmshost'])
+    fms_port = false_to_none(opts['fmsport'])
+    timeout = opts['timeout']
+
+    if not cfg is None:
+        if fms_id is None:
+            fms_id = cfg.defaults.get('FMS_ID', None)
+        if fms_host is None:
+            fms_host = cfg.defaults.get('FMS_HOST', None)
+        if fms_port is None:
+            fms_port = cfg.defaults.get('FMS_PORT', None)
+
+    if fms_id is None:
+        fms_id = 'None' # hmmm
+    if fms_host is None:
+        fms_host = '127.0.0.1'
+    if fms_port is None:
+        fms_port = 1119
+
+    return (fms_id, fms_host, fms_port, timeout)
+
+# DCI: clean up defaults
+def setup_fms_config(ui_, cfg, opts):
+    """ INTERNAL: helper tests the fms connection. """
+
+    fms_id, fms_host, fms_port, timeout = get_fms_args(cfg, opts)
+
+    ui_.status("Running FMS checks...\nChecking fms_id...\n")
+    if fms_id.find('@') != -1:
+        ui_.warn("\n")
+        ui_.warn("""   The FMS id should only contain the part before the '@'!
+   You won't be able to use fn-fmsnotify until this is fixed.
+   Run: hg fn-setupfms with the --fmsid argument.
+
+""")
+    elif fms_id.lower() == 'none':
+        ui_.warn("""   FMS id isn't set!
+   You won't be able to use fn-fmsnotify until this is fixed.
+   Run: hg fn-setupfms with the --fmsid argument.
+
+""")
+    else:
+        ui_.status("OK.\n\n") # hmmm... what if they manually edited the config?
+
+    bytes = connect_to_fms(ui_, fms_host, fms_port, timeout)
+    if not bytes:
+        if not bytes is None:
+            ui_.warn("Connected but no response. Are you sure that's "
+                     "an FMS server?\n")
+        return None
+
+    fields = bytes.split(' ')
+    if fields[0] != '200':
+        ui_.warn("Didn't get expected response from FMS server!\n")
+        return None
+
+    if not bytes.lower().find("posting allowed"):
+        ui_.warn("Didn't see expected 'posting allowed' message.\n")
+        ui_.warn("Check that FMS is setup to allow outgoing message.\n")
+        return None # Hmmm.. feeble, relying on message text.
+    else:
+        ui_.status("Got expected response from FMS. Looks good.\n")
+
+    return (fms_host, fms_port, fms_id)
+
+def execute_setupfms(ui_, opts):
+    """ Execute the fn-setupfms command. """
+    cfg = Config.from_ui(ui_)
+    result = setup_fms_config(ui_, cfg, opts)
+    if result:
+        cfg.defaults['FMS_ID'] = result[2]
+        cfg.defaults['FMS_HOST'] = result[0]
+        cfg.defaults['FMS_PORT'] = result[1]
+        ui_.status("""Updating config file:
+fms_id = %s
+fms_host = %s
+fms_port = %i
+""" % (result[2], result[0], result[1]))
+        Config.to_file(cfg)
+    else:
+        ui_.warn("""
+Run:
+   hg fn-setupfms
+with the appropriate arguments to try to fix the problem.
+
+""")
 

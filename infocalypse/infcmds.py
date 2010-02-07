@@ -768,6 +768,7 @@ def setup_tmp_dir(ui_, tmp):
             ui_.warn(err)
     return tmp
 
+
 MSG_HGRC_SET = \
 """Read the config file name from the:
 
@@ -788,8 +789,13 @@ want to re-run setup.
 Consider before deleting it. It may contain
 the *only copy* of your private key.
 
-"""
+If you're just trying to update the FMS configuration run:
 
+hg fn-setupfms
+
+instead.
+
+"""
 def execute_setup(ui_, host, port, tmp, cfg_file = None):
     """ Run the setup command. """
     def connection_failure(msg):
@@ -797,6 +803,7 @@ def execute_setup(ui_, host, port, tmp, cfg_file = None):
         ui_.warn(msg)
         ui_.warn("It looks like your FCP host or port might be wrong.\n")
         ui_.warn("Set them with --fcphost and/or --fcpport and try again.\n")
+        raise util.Abort("Connection to FCP server failed.")
 
     # Fix defaults.
     if host == '':
@@ -820,8 +827,7 @@ def execute_setup(ui_, host, port, tmp, cfg_file = None):
     tmp = setup_tmp_dir(ui_, tmp)
 
     if not is_writable(tmp):
-        ui_.warn("Can't write to temp dir: %s\n" % tmp)
-        return
+        raise util.Abort("Can't write to temp dir: %s\n" % tmp)
 
     # Test FCP connection.
     timeout_secs = 20
@@ -841,7 +847,6 @@ def execute_setup(ui_, host, port, tmp, cfg_file = None):
         if not connection.is_connected():
             connection_failure(("\nGave up after waiting %i secs for an "
                                + "FCP NodeHello.\n") % timeout_secs)
-            return
 
         ui_.status("Looks good.\nGenerating a default private key...\n")
 
@@ -854,17 +859,14 @@ def execute_setup(ui_, host, port, tmp, cfg_file = None):
     except FCPError:
         # Protocol error.
         connection_failure("\nMaybe that's not an FCP server?\n")
-        return
 
     except socket.error: # Not an IOError until 2.6.
         # Horked.
         connection_failure("\nSocket level error.\n")
-        return
 
     except IOError:
         # Horked.
         connection_failure("\nSocket level error.\n")
-        return
 
     cfg = Config()
     cfg.defaults['HOST'] = host
@@ -881,6 +883,8 @@ cfg file: %s
 
 Default private key:
 %s
+
+The config file was successfully written!
 
 """ % (host, port, tmp, cfg_file, default_private_key))
 

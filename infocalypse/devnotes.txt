@@ -1,7 +1,10 @@
 !!! experimental branch for testing wiki over hg idea !!!
 See (note updated uri)
-reenet:USK@Gq-FBhpgvr11VGpapG~y0rGFOAHVfzyW1WoKGwK-fFw,MpzFUh5Rmw6N~aMKwm9h2Uk~6aTRhYaY0shXVotgBUc,AQACAAE/fniki/2/
+reenet:USK@Gq-FBhpgvr11VGpapG~y0rGFOAHVfzyW1WoKGwK-fFw,MpzFUh5Rmw6N~aMKwm9h2Uk~6aTRhYaY0shXVotgBUc,AQACAAE/fniki/-22/
 !!!
+
+djk20100207
+BUG: fn-wiki will run without .infocalypse. audit other new commands, should abort cleanly.
 
 djk20100123
 Saw error reinserting fred staging mirror:
