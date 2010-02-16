@@ -548,6 +548,7 @@ class PageFormatter:
         self.is_em = self.is_b = 0
         self.list_indents = []
         self.in_pre = 0
+        self.in_table = 0
 
 
     def _emph_repl(self, word):
@@ -656,7 +657,110 @@ class PageFormatter:
         macro_name = word[2:-2]
         # TODO: Somehow get the default value into the search field
         return apply(globals()['_macro_' + macro_name], ())
+        
+    def _tablerow_repl(self, word):
+        if word[0:2] == '||':
+            # strip off the beginning and ending ||
+            word = word[2:-2]
+            rval = ''
 
+            # start the table if we aren't inside one yet
+            if self.in_table == 0:
+                self.in_table = 1
+                rval = rval + '<table'
+                
+                table_re = re.compile(
+                r"(?:(?P<tableborder>\<tableborder:(?P<borderval>\d+(%|px)?)\>)"
+                + r"|(?P<tablebordercolor>\<tablebordercolor:(?P<bordercolorval>#[0-9A-Fa-f]{6})\>)"
+                + r"|(?P<tablewidth>\<tablewidth:(?P<widthval>\d+(%|px)?)\>)"
+                + r"|(?P<tableheight>\<tableheight:(?P<heightval>\d+(%|px)?)\>)"
+                + r"|(?P<collapse>\<collapse\>)"
+                + r")")
+                
+                stylestr = ''
+                
+                for match in table_re.finditer(word):
+                    stylestr = stylestr + self.table_replace(match)
+                    
+                # replace all matches with empty string
+                word = re.sub(table_re,'',word)
+                
+                if stylestr != '':
+                    rval = rval + ' style="' + stylestr + '"'
+                
+                rval = rval + '>'
+
+            # start a new table row
+            colspan = 1
+            rval = rval + '<tr>'
+            for line in word.split('||'):
+                if line == '':
+                    colspan = colspan + 1
+                else:
+                    if colspan > 1:
+                        rval = rval + '<td colspan="' + str(colspan) + '"'
+                    else:
+                        rval = rval + '<td'
+                        
+                    td_re = re.compile(
+                    r"(?:(?P<tdborder>\<border:(?P<borderval>\d+(%|px)?)\>)"
+                    + r"|(?P<tdbordercolor>\<bordercolor:(?P<bordercolorval>#[0-9A-Fa-f]{6})\>)"
+                    + r"|(?P<tdwidth>\<width:(?P<widthval>\d+(%|px)?)\>)"
+                    + r"|(?P<tdheight>\<height:(?P<heightval>\d+(%|px)?)\>)"
+                    + r"|(?P<tdbgcolor>\<bgcolor:(?P<bgcolorval>#[0-9A-Fa-f]{6})\>)"
+                    + r"|(?P<tdalign>\<align:(?P<alignval>(left|center|right))\>)"
+                    + r")")
+                    
+                    stylestr = ''
+                    
+                    for match in td_re.finditer(line):
+                        stylestr = stylestr + self.table_replace(match)
+                        
+                    # replace all matches with empty string
+                    line = re.sub(td_re,'',line)
+                    
+                    if stylestr != '':
+                        rval = rval + ' style="' + stylestr + '"'
+                        
+                    rval = rval + '>'
+                        
+                    # recursive call to pageformatter to format any code within the table data
+                    # is there a better way to do this??
+                    rval = rval + PageFormatter(line).return_html() + '</td>'
+                    colspan = 1
+
+            # end the current table row - make sure to close final td if one is open
+            if colspan > 1:
+                rval = rval + '<td colspan="' + str(colspan-1) + '"></td>'
+            
+            rval = rval + '</tr>'
+            return rval
+        elif self.in_table == 1:
+            self.in_table = 0
+            return '</table>'
+        else:
+            return ''
+            
+    def table_replace(self, match):
+        replaced = ''
+        for type, hit in match.groupdict().items():
+            if hit:
+                if type == 'tableborder' or type == 'tdborder':
+                    replaced = 'border-style:solid;border-width:'+match.group('borderval')+';'
+                elif type == 'tablebordercolor' or type == 'tdbordercolor':
+                    replaced = 'border-color:'+match.group('bordercolorval')+';'
+                elif type == 'tablewidth' or type == 'tdwidth':
+                    replaced = 'width:'+match.group('widthval')+';'
+                elif type == 'tableheight' or type == 'tdheight':
+                    replaced = 'height:'+match.group('heightval')+';'
+                elif type == 'tdbgcolor':
+                    replaced = 'background-color:'+match.group('bgcolorval')+';'
+                elif type == 'tdalign':
+                    replaced = 'text-align:'+match.group('alignval')+';'
+                elif type == 'collapse':
+                    replaced = 'border-collapse:collapse;'
+        return replaced
+            
 
     def _indent_level(self):
         return len(self.list_indents) and self.list_indents[-1]
@@ -679,11 +783,15 @@ class PageFormatter:
     def replace(self, match):
         for type, hit in match.groupdict().items():
             if hit:
-                return apply(getattr(self, '_' + type + '_repl'), (hit,))
+                replaced = ''
+                if self.in_table == 1 and type != 'tablerow':
+                    replaced = self._tablerow_repl(hit)
+                return replaced + apply(getattr(self, '_' + type + '_repl'), (hit,))
         else:
             raise "Can't handle match " + `match`
-
-    def print_html(self):
+            
+    def return_html(self):
+        returnval = ''
         # For each line, we scan through looking for magic
         # strings, outputting verbatim any intervening text
         scan_re = re.compile(
@@ -702,6 +810,7 @@ class PageFormatter:
                             + r"|TitleIndex|ActiveLink"
                             + r"|LocalChanges|RemoteChanges|BookMark|"
                             + r"FreesiteUri|GoTo)\]\])"
+            + r"|(?P<tablerow>^\|\|.*\|\|$)"
             + r")")
         blank_re = re.compile("^\s*$")
         bullet_re = re.compile("^\s+\*")
@@ -712,13 +821,19 @@ class PageFormatter:
             if not self.in_pre:
                 # XXX: Should we check these conditions in this order?
                 if blank_re.match(line):
-                    print '<p>'
+                    if self.in_table:
+                        returnval = returnval + self._tablerow_repl('')
+                    returnval = returnval + '<p>\n'
                     continue
                 indent = indent_re.match(line)
-                print self._indent_to(len(indent.group(0)))
-            print re.sub(scan_re, self.replace, line)
-        if self.in_pre: print '</pre>'
-        print self._undent()
+                returnval = returnval + self._indent_to(len(indent.group(0)))
+            returnval = returnval + re.sub(scan_re, self.replace, line) + '\n'
+        if self.in_pre: returnval = returnval + '</pre>\n'
+        returnval = returnval + self._undent() + '\n'
+        return returnval
+
+    def print_html(self):
+        print self.return_html()
 
 # ----------------------------------------------------------
 class Page:
