@@ -692,15 +692,34 @@ class PageFormatter:
 
             # start a new table row
             colspan = 1
+            rowspan = 1
             rval = rval + '<tr>'
             for line in word.split('||'):
                 if line == '':
                     colspan = colspan + 1
                 else:
+                    
+                    span_re = re.compile(
+                    r"(?:(?P<colspan>\<-(?P<csval>\d+)\>)"
+                    + r"|(?P<rowspan>\<\|(?P<rsval>\d+)\>)"
+                    + r")")
+                    
+                    for match in span_re.finditer(line):
+                        for type, hit in match.groupdict().items():
+                            if hit:
+                                if type == 'colspan':
+                                    colspan = colspan + int(match.group('csval')) - 1
+                                elif type == 'rowspan':
+                                    rowspan = rowspan + int(match.group('rsval')) - 1
+                            
+                    line = re.sub(span_re,'',line)
+                
+                    rval = rval + '<td'
+                
                     if colspan > 1:
-                        rval = rval + '<td colspan="' + str(colspan) + '"'
-                    else:
-                        rval = rval + '<td'
+                        rval = rval + ' colspan="' + str(colspan) + '"'
+                    if rowspan > 1:
+                        rval = rval + ' rowspan="' + str(rowspan) + '"'
                         
                     td_re = re.compile(
                     r"(?:(?P<tdborder>\<border:(?P<borderval>\d+(%|px)?)\>)"
@@ -709,6 +728,7 @@ class PageFormatter:
                     + r"|(?P<tdheight>\<height:(?P<heightval>\d+(%|px)?)\>)"
                     + r"|(?P<tdbgcolor>\<bgcolor:(?P<bgcolorval>#[0-9A-Fa-f]{6})\>)"
                     + r"|(?P<tdalign>\<align:(?P<alignval>(left|center|right))\>)"
+                    + r"|(?P<tdvalign>\<valign:(?P<valignval>(top|middle|bottom))\>)"
                     + r")")
                     
                     stylestr = ''
@@ -728,6 +748,7 @@ class PageFormatter:
                     # is there a better way to do this??
                     rval = rval + PageFormatter(line).return_html() + '</td>'
                     colspan = 1
+                    rowspan = 1
 
             # end the current table row - make sure to close final td if one is open
             if colspan > 1:
@@ -757,6 +778,8 @@ class PageFormatter:
                     replaced = 'background-color:'+match.group('bgcolorval')+';'
                 elif type == 'tdalign':
                     replaced = 'text-align:'+match.group('alignval')+';'
+                elif type == 'tdvalign':
+                    replaced = 'vertical-align:'+match.group('valignval')+';'
                 elif type == 'collapse':
                     replaced = 'border-collapse:collapse;'
         return replaced
