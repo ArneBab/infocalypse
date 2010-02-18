@@ -24,7 +24,6 @@
 #pylint: disable-msg=C0111, W0331, W0106, C0103
 __version__ = '$Revision: 1.62 $'[11:-2];
 
-
 import cgi, codecs, sys, string, os, re, errno, time
 from os import path, environ
 from socket import gethostbyaddr
@@ -95,10 +94,8 @@ command_re_str = "(search|edit|fullsearch|titlesearch)\=(.*)"
 
 # Formatting stuff --------------------------------------------------
 
-
 def get_scriptname():
     return environ.get('SCRIPT_NAME', '')
-
 
 def send_title(text, link=None, msg=None, is_forked=False):
     print "<head><title>%s</title>" % text
@@ -119,8 +116,6 @@ def send_title(text, link=None, msg=None, is_forked=False):
     print '</h1>'
     if msg: print msg
     print '<hr>'
-
-
 
 def link_tag(params, text=None, ss_class=None):
     if text is None:
@@ -169,7 +164,7 @@ def do_titlesearch(needle):
     # RE
 
     send_title("Title search for \"" + needle + '"')
-    
+
     needle_re = re.compile(needle, re.IGNORECASE)
     all_pages = page_list()
     hits = filter(needle_re.search, all_pages)
@@ -285,7 +280,7 @@ def _macro_search(type):
     else:
         default = ''
     return """<form method=get accept-charset="UTF-8">
-    <input name=%s size=30 value="%s"> 
+    <input name=%s size=30 value="%s">
     <input type=submit value="Go">
     </form>""" % (type, default)
 
@@ -657,7 +652,7 @@ class PageFormatter:
         macro_name = word[2:-2]
         # TODO: Somehow get the default value into the search field
         return apply(globals()['_macro_' + macro_name], ())
-        
+
     def _tablerow_repl(self, word):
         if word[0:2] == '||':
             # strip off the beginning and ending ||
@@ -668,7 +663,7 @@ class PageFormatter:
             if self.in_table == 0:
                 self.in_table = 1
                 rval = rval + '<table'
-                
+
                 table_re = re.compile(
                 r"(?:(?P<tableborder>\<tableborder:(?P<borderval>\d+(%|px)?)\>)"
                 + r"|(?P<tablebordercolor>\<tablebordercolor:(?P<bordercolorval>#[0-9A-Fa-f]{6})\>)"
@@ -676,18 +671,18 @@ class PageFormatter:
                 + r"|(?P<tableheight>\<tableheight:(?P<heightval>\d+(%|px)?)\>)"
                 + r"|(?P<collapse>\<collapse\>)"
                 + r")")
-                
+
                 stylestr = ''
-                
+
                 for match in table_re.finditer(word):
                     stylestr = stylestr + self.table_replace(match)
-                    
+
                 # replace all matches with empty string
                 word = re.sub(table_re,'',word)
-                
+
                 if stylestr != '':
                     rval = rval + ' style="' + stylestr + '"'
-                
+
                 rval = rval + '>'
 
             # start a new table row
@@ -698,12 +693,11 @@ class PageFormatter:
                 if line == '':
                     colspan = colspan + 1
                 else:
-                    
                     span_re = re.compile(
                     r"(?:(?P<colspan>\<-(?P<csval>\d+)\>)"
                     + r"|(?P<rowspan>\<\|(?P<rsval>\d+)\>)"
                     + r")")
-                    
+
                     for match in span_re.finditer(line):
                         for type, hit in match.groupdict().items():
                             if hit:
@@ -711,16 +705,16 @@ class PageFormatter:
                                     colspan = colspan + int(match.group('csval')) - 1
                                 elif type == 'rowspan':
                                     rowspan = rowspan + int(match.group('rsval')) - 1
-                            
+
                     line = re.sub(span_re,'',line)
-                
+
                     rval = rval + '<td'
-                
+
                     if colspan > 1:
                         rval = rval + ' colspan="' + str(colspan) + '"'
                     if rowspan > 1:
                         rval = rval + ' rowspan="' + str(rowspan) + '"'
-                        
+
                     td_re = re.compile(
                     r"(?:(?P<tdborder>\<border:(?P<borderval>\d+(%|px)?)\>)"
                     + r"|(?P<tdbordercolor>\<bordercolor:(?P<bordercolorval>#[0-9A-Fa-f]{6})\>)"
@@ -730,20 +724,20 @@ class PageFormatter:
                     + r"|(?P<tdalign>\<align:(?P<alignval>(left|center|right))\>)"
                     + r"|(?P<tdvalign>\<valign:(?P<valignval>(top|middle|bottom))\>)"
                     + r")")
-                    
+
                     stylestr = ''
-                    
+
                     for match in td_re.finditer(line):
                         stylestr = stylestr + self.table_replace(match)
-                        
+
                     # replace all matches with empty string
                     line = re.sub(td_re,'',line)
-                    
+
                     if stylestr != '':
                         rval = rval + ' style="' + stylestr + '"'
-                        
+
                     rval = rval + '>'
-                        
+
                     # recursive call to pageformatter to format any code within the table data
                     # is there a better way to do this??
                     rval = rval + PageFormatter(line).return_html() + '</td>'
@@ -753,7 +747,7 @@ class PageFormatter:
             # end the current table row - make sure to close final td if one is open
             if colspan > 1:
                 rval = rval + '<td colspan="' + str(colspan-1) + '"></td>'
-            
+
             rval = rval + '</tr>'
             return rval
         elif self.in_table == 1:
@@ -761,7 +755,7 @@ class PageFormatter:
             return '</table>'
         else:
             return ''
-            
+
     def table_replace(self, match):
         replaced = ''
         for type, hit in match.groupdict().items():
@@ -783,7 +777,6 @@ class PageFormatter:
                 elif type == 'collapse':
                     replaced = 'border-collapse:collapse;'
         return replaced
-            
 
     def _indent_level(self):
         return len(self.list_indents) and self.list_indents[-1]
@@ -812,7 +805,7 @@ class PageFormatter:
                 return replaced + apply(getattr(self, '_' + type + '_repl'), (hit,))
         else:
             raise "Can't handle match " + `match`
-            
+
     def return_html(self):
         returnval = ''
         # For each line, we scan through looking for magic
