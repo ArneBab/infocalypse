@@ -444,8 +444,8 @@ def _macro_RemoteChanges():
                 wiki_names.sort()
 
                 tmps.append("%s:%s" % (words[index],
-                                       ','.join([(Page(name).link_to() + " " +
-                                                  get_fork_html(filefuncs,
+                                       ', '.join([(Page(name).link_to() + " " +
+                                                get_fork_html(filefuncs,
                                                                 text_dir,
                                                                 name,
                                                                 change))
@@ -453,9 +453,9 @@ def _macro_RemoteChanges():
                 continue
 
             tmps.append("%s:%s" % (words[index],
-                                   ','.join([get_page_ref(name)
-                                             for name in change])))
-        return ','.join(tmps)
+                                   ', '.join([get_page_ref(name)
+                                              for name in change])))
+        return ', '.join(tmps)
 
     def accept_summary(entry, time_tuple):
         return ('<strong>%s accepted from %s</strong><br>%s</br>' %
