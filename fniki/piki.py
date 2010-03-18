@@ -538,13 +538,13 @@ class PageFormatter:
     All formatting commands can be parsed one line at a time, though
     some state is carried over between lines.
     """
-    def __init__(self, raw):
+    def __init__(self, raw, allow_images):
         self.raw = raw
+        self.allow_images = allow_images
         self.is_em = self.is_b = 0
         self.list_indents = []
         self.in_pre = 0
         self.in_table = 0
-
 
     def _emph_repl(self, word):
         if len(word) == 3:
@@ -573,6 +573,9 @@ class PageFormatter:
         return '<a href="%s">%s</a>' % (scrub(word), word)
 
     def _img_repl(self, word):
+        if not self.allow_images:
+            return (" <br>[ILLEGAL IMAGE MACRO IN WIKITEXT: " +
+                    " Images are not allowed on this page.]<br> ")
         # REDFLAG:  Can't handle URIs with '|'. Do better.
         # [[[freenet:keyvalue|alt text|title text]]]
         word = word[3:-3] # grrrrr... _macro_repl is doing this too.
@@ -740,7 +743,7 @@ class PageFormatter:
 
                     # recursive call to pageformatter to format any code within the table data
                     # is there a better way to do this??
-                    rval = rval + PageFormatter(line).return_html() + '</td>'
+                    rval = rval + PageFormatter(line, self.allow_images).return_html() + '</td>'
                     colspan = 1
                     rowspan = 1
 
@@ -914,15 +917,16 @@ class Page:
 
         link = get_scriptname() + '?fullsearch=' + self.wiki_name()
         send_title(self.split_title(), link, msg, bool(self.version()))
+        allow_images = not is_no_image(data_dir, self.wiki_name())
         if unmodified:
-            PageFormatter(self.get_raw_body(unmodified)).print_html()
+            PageFormatter(self.get_raw_body(unmodified), allow_images).print_html()
         else:
             if removed:
                 print "<b>Already resolved.</b>"
             elif resolved:
                 print "<b>Locally marked resolved.</b>"
             else:
-                PageFormatter(self.get_raw_body(unmodified)).print_html()
+                PageFormatter(self.get_raw_body(unmodified), allow_images).print_html()
 
         self.send_footer(True,
                          self._last_modified(),
@@ -1015,7 +1019,8 @@ class Page:
 
         link = get_scriptname() + '?fullsearch=' + self.wiki_name()
         send_title(self.split_title(), link, msg, bool(self.version()))
-        PageFormatter(self.get_raw_body(unmodified)).print_html()
+        PageFormatter(self.get_raw_body(unmodified),
+                      not is_no_image(data_dir, self.wiki_name())).print_html()
         self.send_footer(False, self._last_modified(),
                          self._text_filename(), unmodified)
 
@@ -1163,6 +1168,17 @@ def make_fork_list(versioned_names):
 
 def is_read_only(base_dir, page_name):
     full_path = os.path.join(base_dir, 'readonly.txt')
+    if not os.path.exists(full_path):
+        return False
+    in_file = open(full_path, 'rb')
+    try:
+        return page_name in [value.strip()
+                             for value in in_file.read().splitlines()]
+    finally:
+        in_file.close()
+
+def is_no_image(base_dir, page_name):
+    full_path = os.path.join(base_dir, 'noimage.txt')
     if not os.path.exists(full_path):
         return False
     in_file = open(full_path, 'rb')
