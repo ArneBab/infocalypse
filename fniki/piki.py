@@ -545,6 +545,9 @@ class PageFormatter:
         self.list_indents = []
         self.in_pre = 0
         self.in_table = 0
+        self.table_striped = 0
+        self.table_stripe_cols = ["#ffffff","#f0f0f0"]
+        self.table_row_num = 0
 
     def _emph_repl(self, word):
         if len(word) == 3:
@@ -665,6 +668,8 @@ class PageFormatter:
             # start the table if we aren't inside one yet
             if self.in_table == 0:
                 self.in_table = 1
+                self.table_striped = 0
+                self.table_row_num = 0
                 rval = rval + '<table'
 
                 table_re = re.compile(
@@ -673,6 +678,7 @@ class PageFormatter:
                 + r"|(?P<tablewidth>\<tablewidth:(?P<widthval>\d+(%|px)?)\>)"
                 + r"|(?P<tableheight>\<tableheight:(?P<heightval>\d+(%|px)?)\>)"
                 + r"|(?P<collapse>\<collapse\>)"
+                + r"|(?P<stripe>\<stripe:(?P<stripecol1>#[0-9A-Fa-f]{6}),(?P<stripecol2>#[0-9A-Fa-f]{6})\>)"
                 + r")")
 
                 stylestr = ''
@@ -691,7 +697,13 @@ class PageFormatter:
             # start a new table row
             colspan = 1
             rowspan = 1
-            rval = rval + '<tr>'
+            rval = rval + '<tr'
+            if self.table_striped == 1:
+                if self.table_row_num % 2 == 0:
+                    rval = rval + ' style="background-color:' + self.table_stripe_cols[0] + ';"'
+                else:
+                    rval = rval + ' style="background-color:' + self.table_stripe_cols[1] + ';"'
+            rval = rval + '>'
             for line in word.split('||'):
                 if line == '':
                     colspan = colspan + 1
@@ -752,6 +764,7 @@ class PageFormatter:
                 rval = rval + '<td colspan="' + str(colspan-1) + '"></td>'
 
             rval = rval + '</tr>'
+            self.table_row_num = self.table_row_num + 1
             return rval
         elif self.in_table == 1:
             self.in_table = 0
@@ -779,7 +792,15 @@ class PageFormatter:
                     replaced = 'vertical-align:'+match.group('valignval')+';'
                 elif type == 'collapse':
                     replaced = 'border-collapse:collapse;'
+                elif type == 'stripe':
+                    self.table_striped = 1
+                    self.table_stripe_cols[0] = match.group('stripecol1')
+                    self.table_stripe_cols[1] = match.group('stripecol2')
+                    
         return replaced
+        
+    def _br_repl(self, word):
+        return '<br />'
 
     def _indent_level(self):
         return len(self.list_indents) and self.list_indents[-1]
@@ -815,6 +836,7 @@ class PageFormatter:
         # strings, outputting verbatim any intervening text
         scan_re = re.compile(
             r"(?:(?P<emph>'{2,3})"
+            + r"|(?P<br>\<br\>)"
             + r"|(?P<ent>[<>&])"
             + r"|(?P<anch>@@@([^@]+)@@@)"
             + r"|(?P<anchl>@@@@([^@]+)@@@@)"
