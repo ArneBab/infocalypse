@@ -245,6 +245,11 @@ class WikiBot(FMSBot, RequestQueue):
         """
         self.trace(context_to_str(self.ctx))
         self.ctx.synch_dbs()
+        if self.params.get('CATCH_UP', False):
+            self.debug("Exiting because CATCH_UP was set.")
+            self.warn("REQUESTING BOT SHUTDOWN!")
+            self.exit = True
+            return
 
         if self.ctx.should_notify():
             self._send_update_notification()
@@ -289,6 +294,10 @@ class WikiBot(FMSBot, RequestQueue):
         self.trace("recv_fms_msg -- called: %s" % msg_id)
         # Hmmm... accessor? ctx.mark_recvd() or put in ctx.wants() ???
         self.ctx.store_handled_ids[msg_id] = "" # (ab)use as hashset
+
+        if self.params.get('CATCH_UP', False):
+            # Ignore all messages.
+            return
 
         sender_fms_id = items[2]
         submission = parse_submission(sender_fms_id, lines,

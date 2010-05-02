@@ -28,6 +28,11 @@ import time
 import fms
 from fms import IFmsMessageSink
 
+def make_bot_path(storage_dir, bot_name, file_name):
+    """ Helper function makes to make a bot instance specific file name. """
+    assert file_name.find(os.path.sep) == -1
+    return os.path.join(storage_dir, "%s_%s" %(bot_name, file_name))
+
 class FMSBotRunner(IFmsMessageSink):
     """ Container class which owns and runs one or more FMSBots. """
     def __init__(self, params):
@@ -166,9 +171,9 @@ class FMSBotRunner(IFmsMessageSink):
 
     def get_path(self, bot, fname):
         """ Get a bot specific path. """
-        assert fname.find(os.path.sep) == -1
-        return os.path.join(self.params['BOT_STORAGE_DIR'],
-                            "%s_%s" %(bot.name, fname))
+        return make_bot_path(self.params['BOT_STORAGE_DIR'],
+                             bot.name,
+                             fname)
 
     def queue_msg(self, msg_tuple):
         """ Queue an outgoing message.
