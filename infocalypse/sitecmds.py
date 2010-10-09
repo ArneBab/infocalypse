@@ -171,6 +171,9 @@ RequestURI:
 
 This is what you need to put in a site_key_file file:
 %s
+
+And this is what needs to go into fn-create --uri, fn-push --uri, or fn-copy --inserturi:
+%s
 """
 
 def execute_genkey(ui_, params):
@@ -181,4 +184,5 @@ def execute_genkey(ui_, params):
     client.message_callback = lambda x, y : None # silence.
     resp = client.generate_ssk()
     ui_.status(MSG_FMT % (resp[1]['InsertURI'], resp[1]['RequestURI'],
-                          resp[1]['InsertURI'].split('/')[0] +'/'))
+                          resp[1]['InsertURI'].split('/')[0] +'/',
+                          "U" + resp[1]['InsertURI'].split('/')[0][1:] +'/NAME/0'))
