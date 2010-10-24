@@ -1,4 +1,5 @@
 #! /usr/bin/env python
+# coding=utf-8
 
 # ATTRIBUTION: Pierre Quentel
 # http://code.activestate.com/recipes/511454/
