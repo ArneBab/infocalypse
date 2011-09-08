@@ -50,7 +50,7 @@ Example .hgrc entry:
 [infocalypse]
 cfg_file = /mnt/usbkey/s3kr1t/infocalypse.cfg
 
-The default temp file dirctory is set to:
+The default temp file directory is set to:
 ~/infocalypse_tmp. It will be created if
 it doesn't exist.
 
