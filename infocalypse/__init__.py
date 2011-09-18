@@ -20,7 +20,7 @@ a running FMS server.
 
 For more information on FMS see:
 USK@0npnMrqZNKRCRoGojZV93UNHCMN-6UU3rRSAmP6jNLE,
-   ~BG-edFtdCC1cSH4O3BWdeIYa8Sw5DfyrSV-TKdO5ec,AQACAAE/fms/106/
+   ~BG-edFtdCC1cSH4O3BWdeIYa8Sw5DfyrSV-TKdO5ec,AQACAAE/fms/128/
 
 ADDING THE EXTENSION:
 Add the following to your .hgrc/mercurial.ini file.
@@ -158,7 +158,7 @@ Here's an example trust map config entry:
 2 = test1@SH1BCHw-47oD9~B56SkijxfE35M9XUvqXLX1aYyZNyA|fab7c8bd2fc3
 
 You MUST update the trust map to enable index updating for
-repos other than the one this code lives in (be68e8feccdd).
+repos other than the one this code lives in (c856b1653f0b).
 You can edit the config file directly if you want.
 
 However, the easiest way to update the trust map is by using the
@@ -200,7 +200,7 @@ repository hash.
 e.g. to pull this code, cd to an empty directory and type:
 
 hg init
-hg fn-pull --hash be68e8feccdd --aggressive
+hg fn-pull --hash c856b1653f0b --aggressive
 
 The command:
 
@@ -290,28 +290,6 @@ If you see 'abort: Connection refused' when you run
 fn-fmsread or fn-fmsnotify, check fms_host and
 fms_port in the config file.
 
-EXPERIMENTAL STUFF:
-The following commands are experimental and undocumented:
-fn-wiki
-fn-archive
-
-See:
-USK@kRM~jJVREwnN2qnA8R0Vt8HmpfRzBZ0j4rHC2cQ-0hw, \\
-2xcoQVdQLyqfTpF2DpkdUIbHFCeL4W~2X1phUYymnhM,AQACAAE/fniki_demo/-3/
-
-Also, see:
-hg help fn-wiki
-hg help fn-archive
-
-BE CAREFUL, these commands may delete local files and directories:
-hg fn-archive
-hg fn-archive --pull
-
-
-See:
-USK@kRM~jJVREwnN2qnA8R0Vt8HmpfRzBZ0j4rHC2cQ-0hw, \\
-2xcoQVdQLyqfTpF2DpkdUIbHFCeL4W~2X1phUYymnhM,AQACAAE/fniki_demo/3/
-
 MORE DOCUMENTATION:
 See doc/infocalypse_howto.html in the directory this
 extension was installed into.
@@ -321,9 +299,11 @@ The authoritative repository for this code is hosted in Freenet.
 
 hg fn-fmsread -v
 hg fn-pull --debug --aggressive \\
---uri USK@kRM~jJVREwnN2qnA8R0Vt8HmpfRzBZ0j4rHC2cQ-0hw,\\
-2xcoQVdQLyqfTpF2DpkdUIbHFCeL4W~2X1phUYymnhM,AQACAAE/\\
-infocalypse.hgext.R1/41
+--uri USK@kRM~jJVREwnN2qnA8R0Vt8HmpfRzBZ0j4rHC2cQ-0hw,2xcoQVdQLyqfTpF2DpkdUIbHFCeL4W~2X1phUYymnhM,\\
+      AQACAAE/wiki_hacking.R1/20
+
+NOTE: This repository has some other unmaintained and abandoned stuff in it.
+      e.g. the pre jfniki python server based wiki code, python incremental archive stuff.
 
 
 CONTACT:
