@@ -32,6 +32,7 @@ from fcpmessage import GETNODE_DEF, GENERATE_SSK_DEF, \
 # Defaults for commonly used FCP parameters.
 FCP_PARAM_DEFAULTS = {
     'ReturnType':'direct',
+    'RealTimeFlag':'true',
     'IgnoreDS':False,
     'MaxRetries':3,
     'DontCompress':True, # Hmmmm...
