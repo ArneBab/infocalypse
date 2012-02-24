@@ -449,8 +449,8 @@ def get_huge_top_key_edges(graph, extant=False):
     """ Get the list of edges in the top key edges (and
         alternates) that are too big to salt.
 
-        If extent is True, return existing edges.
-        If extent is False, return edges that could be added. """
+        If extant is True, return existing edges.
+        If extant is False, return edges that could be added. """
     ret = []
     edges = graph.get_top_key_edges()
     edges += find_redundant_edges(graph, edges, False)[0]
