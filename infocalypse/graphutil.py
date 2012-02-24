@@ -188,7 +188,7 @@ def should_add_head(repo, version_table, head, to_index):
 
 # TRICKY:
 # You need the repository changeset DAG in order to determine
-# the base revs. because new changes might have branched from
+# the base revs, because new changes might have branched from
 # a change in the middle of a previous index which doesn't
 # appear explictly in the graph.
 #
