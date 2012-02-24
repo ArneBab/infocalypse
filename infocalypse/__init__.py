@@ -78,7 +78,7 @@ hg fn-push --uri USK@/test.R1/0
 Pushes incremental changes from the local
 directory into the existing repository.
 
-You can ommit the --uri argument when
+You can omit the --uri argument when
 you run from the same directory the fn-create
 was run in because the insert key -> dir
 mapping is saved in the config file.
@@ -90,7 +90,7 @@ hg fn-pull --uri <request uri from steps above>
 to pull from the repository in Freenet.
 
 The request uri -> dir mapping is saved after
-the first pull, so you can ommit the --uri
+the first pull, so you can omit the --uri
 argument for subsequent fn-pull invocations.
 
 
