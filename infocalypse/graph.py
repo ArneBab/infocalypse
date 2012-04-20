@@ -52,7 +52,7 @@ FREENET_BLOCK_LEN = 32 * 1024
 # Hmmm... arbitrary.
 MAX_REDUNDANT_LENGTH = 128 * 1024
 
-# HACK: Approximate multi-level splitfile boundry
+# HACK: Approximate multi-level splitfile boundary
 MAX_METADATA_HACK_LEN = 7 * 1024 * 1024
 
 ############################################################
