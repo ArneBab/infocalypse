@@ -1,3 +1,6 @@
+from binascii import hexlify
+from mercurial import util, hg
+
 from infcmds import get_config_info, execute_create, execute_pull, \
      execute_push, execute_setup, execute_copy, execute_reinsert, \
      execute_info

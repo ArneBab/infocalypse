@@ -356,8 +356,7 @@ import os
 
 from commands import *
 
-from binascii import hexlify
-from mercurial import commands, util, hg
+from mercurial import commands
 
 import freenetrepo
 
