@@ -356,7 +356,7 @@ import os
 
 from commands import *
 
-from mercurial import commands, extensions, util, hg, dispatch
+from mercurial import commands, extensions, util, hg, dispatch, discovery
 from mercurial.i18n import _
 
 import freenetrepo
@@ -518,47 +518,83 @@ commands.norepo += ' fn-archive'
 
 
 ## Wrap core commands for use with freenet keys.
+## Explicitely wrap functions to change local commands in case the remote repo is an FTP repo. See mercurial.extensions for more information.
+# Get the module which holds the functions to wrap
+# the new function: gets the original function as first argument and the originals args and kwds.
+def findcommonoutgoing(orig, *args, **opts):
+    repo = args[0]
+    remoterepo = args[1]
+    capable = getattr(remoterepo, 'capable', lambda x: False)
+    if capable('infocalypse'):
+        class fakeoutgoing(object):
+            def __init__(self):
+                self.excluded = []
+                self.missing = repo.heads()
+                self.missingheads = []
+                self.commonheads = []
+        return fakeoutgoing()
+    else:
+        return orig(*args, **opts)
+# really wrap the functions
+extensions.wrapfunction(discovery, 'findcommonoutgoing', findcommonoutgoing)
+
+# wrap the commands
 
 def freenetpathtouri(path):
+    path = path.replace("%7E", "~").replace("%2C", ",")
     if path.startswith("freenet://"):
         return path[len("freenet://"):]
     if path.startswith("freenet:"):
         return path[len("freenet:"):]
     return path
 
-def isfreenetpath(path):
-    if path and path.startswith("freenet:") or path.startswith("USK@"):
-        return True
-    return False
-
-def parsepushargs(ui, repo, path=None):
-    return ui, repo, path
-
 def freenetpull(orig, *args, **opts):
+    def parsepushargs(ui, repo, path=None):
+        return ui, repo, path
+    def isfreenetpath(path):
+        if path and path.startswith("freenet:") or path.startswith("USK@"):
+            return True
+        return False
     ui, repo, path = parsepushargs(*args)
     if not path:
         path = ui.expandpath('default', 'default-push')
+    else:
+        path = ui.expandpath(path)
     # only act differently, if the target is an infocalypse repo.
     if not isfreenetpath(path):
         return orig(*args, **opts)
     uri = freenetpathtouri(path)
     opts["uri"] = uri
     opts["aggressive"] = True # always search for the latest revision.
-    infocalypse_pull(ui, repo, **opts)
+    return infocalypse_pull(ui, repo, **opts)
 
 def freenetpush(orig, *args, **opts):
+    def parsepushargs(ui, repo, path=None):
+        return ui, repo, path
+    def isfreenetpath(path):
+        if path and path.startswith("freenet:") or path.startswith("USK@"):
+            return True
+        return False
     ui, repo, path = parsepushargs(*args)
     if not path:
         path = ui.expandpath('default-push', 'default')
+    else:
+        path = ui.expandpath(path)
     # only act differently, if the target is an infocalypse repo.
     if not isfreenetpath(path):
         return orig(*args, **opts)
     uri = freenetpathtouri(path)
     opts["uri"] = uri
     opts["aggressive"] = True # always search for the latest revision.
-    infocalypse_push(ui, repo, **opts)
+    return infocalypse_push(ui, repo, **opts)
 
 def freenetclone(orig, *args, **opts):
+    def parsepushargs(ui, repo, path=None):
+        return ui, repo, path
+    def isfreenetpath(path):
+        if path and path.startswith("freenet:") or path.startswith("USK@"):
+            return True
+        return False
     ui, source, dest = parsepushargs(*args)
     # only act differently, if dest or source is an infocalypse repo.
     if not isfreenetpath(source) and not isfreenetpath(dest):
@@ -592,12 +628,11 @@ def freenetclone(orig, *args, **opts):
         raise util.Abort("""Can't clone without source and target. This message should not be reached. If you see it, this is a bug.""")
 
     if action == "copy":
-        opts["requesturi"] = pulluri
-        opts["inserturi"] = pushuri
-        return infocalypse_copy(ui, repo, **opts)
+        raise util.Abort("""Cloning without intermediate local repo not yet supported in the simplified commands. Use fn-copy directly.""")
     
     if action == "create":
         opts["uri"] = pushuri
+        repo = hg.repository(ui, ui.expandpath(source))
         return infocalypse_create(ui, repo, **opts)
 
     if action == "pull":
@@ -614,7 +649,12 @@ def freenetclone(orig, *args, **opts):
         # store the request uri for future updates
         with destrepo.opener("hgrc", "a", text=True) as f:
             f.write("""[paths]
-default = freenet://""" + pulluri + "\n")
+default = freenet://""" + pulluri + """
+
+[ui]
+username = anonymous
+""" )
+        ui.warn("As basic protection, infocalypse automatically set the username 'anonymous' for commits in this repo. To change this, edit " + str(os.path.join(destrepo.root, ".hg", "hgrc")))
         # and update the repo
         return hg.update(destrepo, None)
 
@@ -627,3 +667,76 @@ entry[1].extend(PULL_OPTS)
 entry[1].extend(FCP_OPTS)
 entry = extensions.wrapcommand(commands.table, "clone", freenetclone)
 entry[1].extend(FCP_OPTS)
+
+
+# Starting an FTP repo. Not yet used, except for throwing errors for missing commands and faking the lock.
+
+from mercurial import repo, util
+try:
+    from mercurial.error import RepoError
+except ImportError:
+    from mercurial.repo import RepoError
+
+class InfocalypseRepository(repo.repository):
+    def __init__(self, ui, path, create):
+        self.create = create
+        self.ui = ui
+        self.path = path
+        self.capabilities = set(["infocalypse"])
+        self.branchmap = {}
+
+    def lock(self):
+        """We cannot really lock Infocalypse repos, yet.
+
+        TODO: Implement as locking the repo in the static site folder."""
+        class DummyLock:
+            def release(self):
+                pass
+        l = DummyLock()
+        return l
+
+    def url(self):
+        return self.path
+
+    def lookup(self, key):
+        return key
+
+    def cancopy(self):
+        return False
+
+    def heads(self, *args, **opts):
+        """
+        Whenever this function is hit, we abort. The traceback is useful for
+        figuring out where to intercept the functionality.
+        """
+        raise util.Abort('command heads unavailable for Infocalypse repositories')
+
+    def pushkey(self, namespace, key, old, new):
+        return False
+
+    def listkeys(self, namespace):
+        return {}
+
+    def push(self, remote, force=False, revs=None, newbranch=None):
+        raise util.Abort('command push unavailable for Infocalypse repositories')
+    
+    def pull(self, remote, heads=[], force=False):
+        raise util.Abort('command pull unavailable for Infocalypse repositories')
+    
+    def findoutgoing(self, remote, base=None, heads=None, force=False):
+        raise util.Abort('command findoutgoing unavailable for Infocalypse repositories')
+
+
+class RepoContainer(object):
+    def __init__(self):
+        pass
+
+    def __repr__(self):
+        return '<InfocalypseRepository>'
+
+    def instance(self, ui, url, create):
+        # Should this use urlmod.url(), or is manual parsing better?
+        #context = {}
+        return InfocalypseRepository(ui, url, create)
+
+hg.schemes["freenet"] = RepoContainer()
