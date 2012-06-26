@@ -356,7 +356,8 @@ import os
 
 from commands import *
 
-from mercurial import commands
+from mercurial import commands, extensions, util, hg, dispatch
+from mercurial.i18n import _
 
 import freenetrepo
 
@@ -382,12 +383,14 @@ NOSEARCH_OPT = [('', 'nosearch', None, 'use USK version in URI'), ]
 # Allow mercurial naming convention for command table.
 # pylint: disable-msg=C0103
 
+PULL_OPTS = [('', 'hash', [], 'repo hash of repository to pull from'),
+             ('', 'onlytrusted', None, 'only use repo announcements from '
+              + 'known users')]
+
 cmdtable = {
     "fn-pull": (infocalypse_pull,
-                [('', 'uri', '', 'request URI to pull from'),
-                 ('', 'hash', [], 'repo hash of repository to pull from'),
-                 ('', 'onlytrusted', None, 'only use repo announcements from '
-                  + 'known users')]
+                [('', 'uri', '', 'request URI to pull from')]
+                + PULL_OPTS
                 + FCP_OPTS
                 + NOSEARCH_OPT
                 + AGGRESSIVE_OPT,
@@ -512,3 +515,115 @@ commands.norepo += ' fn-setup'
 commands.norepo += ' fn-setupfms'
 commands.norepo += ' fn-genkey'
 commands.norepo += ' fn-archive'
+
+
+## Wrap core commands for use with freenet keys.
+
+def freenetpathtouri(path):
+    if path.startswith("freenet://"):
+        return path[len("freenet://"):]
+    if path.startswith("freenet:"):
+        return path[len("freenet:"):]
+    return path
+
+def isfreenetpath(path):
+    if path and path.startswith("freenet:") or path.startswith("USK@"):
+        return True
+    return False
+
+def parsepushargs(ui, repo, path=None):
+    return ui, repo, path
+
+def freenetpull(orig, *args, **opts):
+    ui, repo, path = parsepushargs(*args)
+    if not path:
+        path = ui.expandpath('default', 'default-push')
+    # only act differently, if the target is an infocalypse repo.
+    if not isfreenetpath(path):
+        return orig(*args, **opts)
+    uri = freenetpathtouri(path)
+    opts["uri"] = uri
+    opts["aggressive"] = True # always search for the latest revision.
+    infocalypse_pull(ui, repo, **opts)
+
+def freenetpush(orig, *args, **opts):
+    ui, repo, path = parsepushargs(*args)
+    if not path:
+        path = ui.expandpath('default-push', 'default')
+    # only act differently, if the target is an infocalypse repo.
+    if not isfreenetpath(path):
+        return orig(*args, **opts)
+    uri = freenetpathtouri(path)
+    opts["uri"] = uri
+    opts["aggressive"] = True # always search for the latest revision.
+    infocalypse_push(ui, repo, **opts)
+
+def freenetclone(orig, *args, **opts):
+    ui, source, dest = parsepushargs(*args)
+    # only act differently, if dest or source is an infocalypse repo.
+    if not isfreenetpath(source) and not isfreenetpath(dest):
+        return orig(*args, **opts)
+
+    if not dest:
+        if not isfreenetpath(source):
+            dest = hg.defaultdest(source)
+        else: # this is a freenet key.  It has a /# at the end and
+              # could contain .R1 or .R0 as pure technical identifiers
+              # which we do not need in the local name.
+            dest = source.split("/")[-2]
+            if dest.endswith(".R1") or dest.endswith(".R0"):
+                dest = dest[:-3]
+
+    # check whether to create, pull or copy
+    pulluri, pushuri = None, None
+    if isfreenetpath(source):
+        pulluri = freenetpathtouri(source)
+    if isfreenetpath(dest):
+        pushuri = freenetpathtouri(dest)
+
+    # decide which infocalypse command to use.
+    if pulluri and pushuri:
+        action = "copy"
+    elif pulluri:
+        action = "pull"
+    elif pushuri:
+        action = "create"
+    else: 
+        raise util.Abort("""Can't clone without source and target. This message should not be reached. If you see it, this is a bug.""")
+
+    if action == "copy":
+        opts["requesturi"] = pulluri
+        opts["inserturi"] = pushuri
+        return infocalypse_copy(ui, repo, **opts)
+    
+    if action == "create":
+        opts["uri"] = pushuri
+        return infocalypse_create(ui, repo, **opts)
+
+    if action == "pull":
+        if os.path.exists(dest):
+            raise util.Abort(_("destination " + dest + " already exists."))
+        # create the repo
+        req = dispatch.request(["init", dest], ui=ui)
+        dispatch.dispatch(req)
+        # pull the data from freenet
+        origdest = ui.expandpath(dest)
+        dest, branch = hg.parseurl(origdest)
+        destrepo = hg.repository(ui, dest)
+        infocalypse_pull(ui, destrepo, aggressive=True, hash=None, uri=pulluri, **opts)
+        # store the request uri for future updates
+        with destrepo.opener("hgrc", "a", text=True) as f:
+            f.write("""[paths]
+default = freenet://""" + pulluri + "\n")
+        # and update the repo
+        return hg.update(destrepo, None)
+
+
+# really wrap the command
+entry = extensions.wrapcommand(commands.table, "push", freenetpush)
+entry[1].extend(FCP_OPTS)
+entry = extensions.wrapcommand(commands.table, "pull", freenetpull)
+entry[1].extend(PULL_OPTS)
+entry[1].extend(FCP_OPTS)
+entry = extensions.wrapcommand(commands.table, "clone", freenetclone)
+entry[1].extend(FCP_OPTS)
