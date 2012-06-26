@@ -185,4 +185,4 @@ def execute_genkey(ui_, params):
     resp = client.generate_ssk()
     ui_.status(MSG_FMT % (resp[1]['InsertURI'], resp[1]['RequestURI'],
                           resp[1]['InsertURI'].split('/')[0] +'/',
-                          "U" + resp[1]['InsertURI'].split('/')[0][1:] +'/NAME/0'))
+                          "U" + resp[1]['InsertURI'].split('/')[0][1:] +'/NAME.R1/0'))
