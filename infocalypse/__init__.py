@@ -631,6 +631,18 @@ def freenetclone(orig, *args, **opts):
         raise util.Abort("""Cloning without intermediate local repo not yet supported in the simplified commands. Use fn-copy directly.""")
     
     if action == "create":
+        # if the pushuri is the short form (USK@/name/#), generate the key.
+        if pushuri.startswith("USK@/"):
+            ui.status("creating a new private key for the repo. If you want to use your default private key instead, call fn-create directly.\n")
+            from sitecmds import genkeypair
+            fcphost, fcpport = opts["fcphost"], opts["fcpport"]
+            if fcphost == '':
+                fcphost = '127.0.0.1'
+            if fcpport == 0:
+                fcpport = 9481
+
+            insert, request = genkeypair(fcphost, fcpport)
+            pushuri = "USK"+insert[3:]+pushuri[5:]
         opts["uri"] = pushuri
         repo = hg.repository(ui, ui.expandpath(source))
         return infocalypse_create(ui, repo, **opts)
