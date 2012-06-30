@@ -639,17 +639,13 @@ def freenetclone(orig, *args, **opts):
     
     if action == "create":
         # if the pushuri is the short form (USK@/name/#), generate the key.
-        if pushuri.startswith("USK@/"):
-            ui.status("creating a new private key for the repo. If you want to use your default private key instead, call fn-create directly.\n")
-            from sitecmds import genkeypair
-            fcphost, fcpport = opts["fcphost"], opts["fcpport"]
-            if fcphost == '':
-                fcphost = '127.0.0.1'
-            if fcpport == 0:
-                fcpport = 9481
+        def fixnamepart(namepart):
+            """use redundant keys by default, except if explicitely
+            requested otherwise.
 
-            # use redundant keys by default, except if explicitely requested otherwise.
-            namepart = pushuri[5:]
+            parse the short form USK@/reponame to upload to a key
+            in the form USK@<key>/reponame.R1/0 - avoids the very easy
+            to make error of forgetting the .R1"""
             nameparts = namepart.split("/")
             name = nameparts[0]
             if nameparts[1:]: # user supplied a number
@@ -658,8 +654,37 @@ def freenetclone(orig, *args, **opts):
             if not name.endswith(".R0") and not name.endswith(".R1"):
                 name = name + ".R1"
             namepart = name + "/" + number
+            return namepart
+
+        if pushuri.startswith("USK@/"):
+            ui.status("creating a new private key for the repo. If you want to use your default private key instead, call fn-create directly.\n")
+            from sitecmds import genkeypair
+            fcphost, fcpport = opts["fcphost"], opts["fcpport"]
+            if fcphost == '':
+                fcphost = '127.0.0.1'
+            if fcpport == 0:
+                fcpport = 9481
+            
+            # use redundant keys by default, except if explicitely requested otherwise.
+            namepart = pushuri[5:]
+            namepart = fixnamepart(namepart)
             insert, request = genkeypair(fcphost, fcpport)
             pushuri = "USK"+insert[3:]+namepart
+        elif pushuri.endswith("/0"): # initial create, catch the no-.R1 error
+            pass
+            # this rewriting is dangerous here since it could make it
+            # impossible to update old repos when they drop
+            # out. Leaving it commented out for now. TODO: Always
+            # treat a name without .R0 as requesting redundancy *in
+            # the backend*. Keep it as /name/#, but add /name.Rn/0
+            # backup repos. Needs going into the backend.
+
+            #namepart = pushuri.split("/")[-2] + "/0"
+            #namepartpos = -len(namepart)
+            #namepart2 = fixnamepart(namepart)
+            # if namepart2 != namepart:
+            # ui.status("changed the repo name to " + namepart2 + " to have more redundancy and longer lifetime. This is a small tweak on infocalypse to avoid the frequent error of forgetting to add .R1 to the name. If you really want no additional redundancy for your repo, use NAME.R0 or call hg fn-create directly.\n")
+            #pushuri = pushuri[:namepartpos] + namepart
         opts["uri"] = pushuri
         repo = hg.repository(ui, ui.expandpath(source))
         return infocalypse_create(ui, repo, **opts)
