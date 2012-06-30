@@ -552,8 +552,11 @@ def freenetpull(orig, *args, **opts):
     def parsepushargs(ui, repo, path=None):
         return ui, repo, path
     def isfreenetpath(path):
-        if path and path.startswith("freenet:") or path.startswith("USK@"):
-            return True
+        try:
+            if path.startswith("freenet:") or path.startswith("USK@"):
+                return True
+        except AttributeError:
+            return False
         return False
     ui, repo, path = parsepushargs(*args)
     if not path:
