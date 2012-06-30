@@ -594,9 +594,13 @@ def freenetpush(orig, *args, **opts):
 def freenetclone(orig, *args, **opts):
     def parsepushargs(ui, repo, path=None):
         return ui, repo, path
+
     def isfreenetpath(path):
-        if path and path.startswith("freenet:") or path.startswith("USK@"):
-            return True
+        try:
+            if path.startswith("freenet:") or path.startswith("USK@"):
+                return True
+        except AttributeError:
+            return False
         return False
     ui, source, dest = parsepushargs(*args)
     # only act differently, if dest or source is an infocalypse repo.
