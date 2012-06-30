@@ -648,8 +648,18 @@ def freenetclone(orig, *args, **opts):
             if fcpport == 0:
                 fcpport = 9481
 
+            # use redundant keys by default, except if explicitely requested otherwise.
+            namepart = pushuri[5:]
+            nameparts = namepart.split("/")
+            name = nameparts[0]
+            if nameparts[1:]: # user supplied a number
+                number = nameparts[1]
+            else: number = "0"
+            if not name.endswith(".R0") and not name.endswith(".R1"):
+                name = name + ".R1"
+            namepart = name + "/" + number
             insert, request = genkeypair(fcphost, fcpport)
-            pushuri = "USK"+insert[3:]+pushuri[5:]
+            pushuri = "USK"+insert[3:]+namepart
         opts["uri"] = pushuri
         repo = hg.repository(ui, ui.expandpath(source))
         return infocalypse_create(ui, repo, **opts)
