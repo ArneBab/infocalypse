@@ -24,19 +24,15 @@
 
 from fcpclient import get_usk_hash
 
-# Not sure about this. Flat text file instead?
-INFOCALYPSE_INDEX = 38
-FRED_STAGING_INDEX = 96
+# LATER: remove this file
+# djk20110918:  Bad out of date info is worse than none at all.
+INFOCALYPSE_INDEX = 20
 
 KNOWN_REPOS = (
     ('djk@isFiaD04zgAgnrEC5XJt1i4IE7AkNPqhBG5bONi6Yks',
      'USK@kRM~jJVREwnN2qnA8R0Vt8HmpfRzBZ0j4rHC2cQ-0hw,'
      + '2xcoQVdQLyqfTpF2DpkdUIbHFCeL4W~2X1phUYymnhM,AQACAAE/'
-     + 'infocalypse.hgext.R1/%i' % INFOCALYPSE_INDEX), # This code.
-    ('djk@isFiaD04zgAgnrEC5XJt1i4IE7AkNPqhBG5bONi6Yks',
-     'USK@kRM~jJVREwnN2qnA8R0Vt8HmpfRzBZ0j4rHC2cQ-0hw,'
-     + '2xcoQVdQLyqfTpF2DpkdUIbHFCeL4W~2X1phUYymnhM,AQACAAE/'
-     + 'fred_staging.R1/%i' % FRED_STAGING_INDEX), # Experimental git->hg mirror
+     + 'wiki_hacking.R1/%i' % INFOCALYPSE_INDEX), # This code.
     )
 
 
