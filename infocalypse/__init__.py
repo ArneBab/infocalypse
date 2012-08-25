@@ -551,6 +551,23 @@ def freenetpull(orig, *args, **opts):
     opts["aggressive"] = True # always search for the latest revision.
     return infocalypse_pull(ui, repo, **opts)
 
+def fixnamepart(namepart):
+    """use redundant keys by default, except if explicitely
+    requested otherwise.
+    
+    parse the short form USK@/reponame to upload to a key
+    in the form USK@<key>/reponame.R1/0 - avoids the very easy
+    to make error of forgetting the .R1"""
+    nameparts = namepart.split("/")
+    name = nameparts[0]
+    if nameparts[1:]: # user supplied a number
+        number = nameparts[1]
+    else: number = "0"
+    if not name.endswith(".R0") and not name.endswith(".R1"):
+        name = name + ".R1"
+    namepart = name + "/" + number
+    return namepart
+
 def freenetpush(orig, *args, **opts):
     def parsepushargs(ui, repo, path=None):
         return ui, repo, path
@@ -567,6 +584,21 @@ def freenetpush(orig, *args, **opts):
     if not isfreenetpath(path):
         return orig(*args, **opts)
     uri = freenetpathtouri(path)
+    # if the uri is the short form (USK@/name/#), generate the key and preprocess the uri.
+    if uri.startswith("USK@/"):
+        ui.status("creating a new key for the repo. For an existing key use USK@<privkey>/repo/0.\n")
+        from sitecmds import genkeypair
+        fcphost, fcpport = opts["fcphost"], opts["fcpport"]
+        if fcphost == '':
+            fcphost = '127.0.0.1'
+        if fcpport == 0:
+            fcpport = 9481
+            
+        # use redundant keys by default, except if explicitely requested otherwise.
+        namepart = uri[5:]
+        namepart = fixnamepart(namepart)
+        insert, request = genkeypair(fcphost, fcpport)
+        uri = "USK"+insert[3:]+namepart
     opts["uri"] = uri
     opts["aggressive"] = True # always search for the latest revision.
     return infocalypse_push(ui, repo, **opts)
@@ -619,25 +651,8 @@ def freenetclone(orig, *args, **opts):
     
     if action == "create":
         # if the pushuri is the short form (USK@/name/#), generate the key.
-        def fixnamepart(namepart):
-            """use redundant keys by default, except if explicitely
-            requested otherwise.
-
-            parse the short form USK@/reponame to upload to a key
-            in the form USK@<key>/reponame.R1/0 - avoids the very easy
-            to make error of forgetting the .R1"""
-            nameparts = namepart.split("/")
-            name = nameparts[0]
-            if nameparts[1:]: # user supplied a number
-                number = nameparts[1]
-            else: number = "0"
-            if not name.endswith(".R0") and not name.endswith(".R1"):
-                name = name + ".R1"
-            namepart = name + "/" + number
-            return namepart
-
         if pushuri.startswith("USK@/"):
-            ui.status("creating a new private key for the repo. If you want to use your default private key instead, call fn-create directly.\n")
+            ui.status("creating a new key for the repo. To use your default key, call fn-create.\n")
             from sitecmds import genkeypair
             fcphost, fcpport = opts["fcphost"], opts["fcpport"]
             if fcphost == '':
@@ -655,7 +670,7 @@ def freenetclone(orig, *args, **opts):
             # this rewriting is dangerous here since it could make it
             # impossible to update old repos when they drop
             # out. Leaving it commented out for now. TODO: Always
-            # treat a name without .R0 as requesting redundancy *in
+            # treat a name without .R0 as requesting redundancy *in.
             # the backend*. Keep it as /name/#, but add /name.Rn/0
             # backup repos. Needs going into the backend.
 
