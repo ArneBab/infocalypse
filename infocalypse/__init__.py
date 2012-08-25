@@ -586,7 +586,7 @@ def freenetpush(orig, *args, **opts):
     uri = freenetpathtouri(path)
     # if the uri is the short form (USK@/name/#), generate the key and preprocess the uri.
     if uri.startswith("USK@/"):
-        ui.status("creating a new key for the repo. For an existing key use USK@<privkey>/repo/0.\n")
+        ui.status("creating a new key for the repo. For an existing key use USK@<privkey>/repo/0\n")
         from sitecmds import genkeypair
         fcphost, fcpport = opts["fcphost"], opts["fcpport"]
         if fcphost == '':
