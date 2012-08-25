@@ -586,7 +586,7 @@ def freenetpush(orig, *args, **opts):
     uri = freenetpathtouri(path)
     # if the uri is the short form (USK@/name/#), generate the key and preprocess the uri.
     if uri.startswith("USK@/"):
-        ui.status("creating a new key for the repo. For an existing key use USK@<privkey>/repo/0\n")
+        ui.status("creating a new key for the repo. For a new repo with an existing key, use clone.\n")
         from sitecmds import genkeypair
         fcphost, fcpport = opts["fcphost"], opts["fcpport"]
         if fcphost == '':
@@ -599,6 +599,9 @@ def freenetpush(orig, *args, **opts):
         namepart = fixnamepart(namepart)
         insert, request = genkeypair(fcphost, fcpport)
         uri = "USK"+insert[3:]+namepart
+        opts["uri"] = uri
+        opts["aggressive"] = True # always search for the latest revision.
+        return infocalypse_create(ui, repo, **opts)
     opts["uri"] = uri
     opts["aggressive"] = True # always search for the latest revision.
     return infocalypse_push(ui, repo, **opts)
