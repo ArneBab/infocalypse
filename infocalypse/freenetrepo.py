@@ -8,13 +8,17 @@
 # This software may be used and distributed according to the terms
 # of the GNU General Public License, incorporated herein by reference.
 
-from mercurial import repo, util
+from mercurial import util
+try:
+    from mercurial.peer import peerrepository
+except ImportError:
+    from mercurial.repo import repository as peerrepository
 try:
     from mercurial.error import RepoError
 except ImportError:
     from mercurial.repo import RepoError
 
-class freenetrepo(repo.repository):
+class freenetrepo(peerrepository):
     capabilities = ['lookup']
 
     def __init__(self, ui, path, create):

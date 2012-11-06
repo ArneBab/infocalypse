@@ -723,13 +723,17 @@ entry[1].extend(FCP_OPTS)
 
 # Starting an FTP repo. Not yet used, except for throwing errors for missing commands and faking the lock.
 
-from mercurial import peer, util
+from mercurial import util
+try:
+    from mercurial.peer import peerrepository
+except ImportError:
+    from mercurial.repo import repository as peerrepository
 try:
     from mercurial.error import RepoError
 except ImportError:
     from mercurial.repo import RepoError
 
-class InfocalypseRepository(peer.peerrepository):
+class InfocalypseRepository(peerrepository):
     def __init__(self, ui, path, create):
         self.create = create
         self.ui = ui
