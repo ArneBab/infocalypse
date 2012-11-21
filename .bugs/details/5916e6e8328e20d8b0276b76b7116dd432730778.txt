@@ -1,0 +1,76 @@
+# Lines starting with '#' and sections without content
+# are not displayed by a call to 'details'
+#
+[paths]
+# Paths related to this bug.
+# suggested format: REPO_PATH:LINENUMBERS
+
+
+[details]
+# Additional details
+
+<ArneBab> toad_: I get Does not look like a MIME type: "application/mercurial-bundle;0"
+<ArneBab> when trying to pull with infocalypse
+<ArneBab> freenet.client.MetadataParseException: Does not look like a MIME type: "application/mercurial-bundle;0"
+<TheSeeker> ArneBab: because of the ;0 ?
+<SeekingFor> that may actually be the error
+<ArneBab> yes… 
+<ArneBab> but I think ;x is an allowed symbol in headers.
+<SeekingFor> also in mime types?
+<SeekingFor> there is a special rfc which defines the syntax of mime types. i didn't read it yet
+<SeekingFor> the rfc for HTTP 1.0 and HTTP 1.1 say that mime types must be based on that MIME type RFC
+<SeekingFor> that's at least how i remember it
+<SeekingFor> ^ well, prepare for a run from spanish (it is spanish, right?) speaking people :)
+<SeekingFor> its a nice and short tutorial for newcomers
+<SeekingFor> wait, just 33 warnings on current fred-staging? :)
+<SeekingFor> and most of them are generic related or "not used" warnings
+<ArneBab> ech… FCP2.0 doesn't have support for user defined metadata, so we
+<ArneBab>         jam the metadata we need into the mime type field.
+<SeekingFor> for my infocalypse repo for flircp fproxy shows this:
+<SeekingFor>     Filename: flircp.R1-5.bin
+<SeekingFor>     Size: unknown
+<SeekingFor>     Expected type: application/octet-stream
+<SeekingFor> why don't you use application/octet-stream too?
+<ArneBab>      content := "Content-Type" ":" type "/" subtype
+<ArneBab>                 *(";" parameter)
+<ArneBab> the ; is the allowed separator for parameters
+<ArneBab> so freenet is being too zealous here
+<ArneBab> http://www.ietf.org/rfc/rfc2045.txt
+<ArneBab> as far as I can tell, infocalypse uses the mime-type to supply additional information… 
+<ArneBab> SeekingFor: Did the content-type handling in freenet change in the last few months?
+<ArneBab> toad_: maybe I should ask you that: : Did the content-type handling in freenet change in the last few months?
+<SeekingFor> from freenet.client.DefaultMIMETypes.java:789
+<SeekingFor> private static final String TOP_LEVEL = "(?>[a-zA-Z-]+)";
+<SeekingFor>         private static final String CHARS = "(?>[a-zA-Z0-9+_\\-\\.]+)";
+<SeekingFor> private static final String PARAM = "(?>;\\s*"+CHARS+"="+"(("+CHARS+")|(\".*\")))";
+<SeekingFor>         private static Pattern MIME_TYPE = Pattern.compile(TOP_LEVEL+"/"+CHARS+"\\s*"+PARAM+"*");
+<SeekingFor>         public static boolean isPlausibleMIMEType(String mimeType) {
+<SeekingFor>                 return MIME_TYPE.matcher(mimeType).matches();
+<SeekingFor>         }
+<SeekingFor> this looks like it should be ok to use *(";" paramater)
+<SeekingFor> so the error must be triggered somewhere else
+<ArneBab> yes… 
+<ArneBab> does it have a list of allowed mime types?
+<SeekingFor> yes, same file
+<SeekingFor>         /* From toad's /etc/mime.types
+<SeekingFor>          * cat /etc/mime.types | sed "/^$/d;/#/d" | tr --squeeze '\t' ' ' |
+<SeekingFor>          * (y=0; while read x; do echo "$x" |
+<SeekingFor>          * sed -n "s/^\([^ ]*\)$/addMIMEType\($y, \"\1\"\);/p;s/^\([^ (),]\+\) \(.*\)$/addMIMEType\($y, \"\1\", \"\2\"\);/p;"; y=$((y+1)); done)
+<SeekingFor>          */
+<SeekingFor> but that list does not contain any application/mercurial type
+
+
+[expected]
+# The expected result
+
+
+[actual]
+# What happened instead
+
+
+[reproduce]
+# Reproduction steps
+
+
+[comments]
+# Comments and updates - leave your name
