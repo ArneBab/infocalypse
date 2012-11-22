@@ -248,7 +248,8 @@ class InsertingBundles(RequestQueueState):
                                                (str(edge), chk1))
                     self.parent.ctx.ui_.warn("CHK for reinserted edge doesn't "
                                              + "match!\nPossibly inserted with a different version of Mercurial.\n")
-                    return self.parent.transition(FAILING)
+                    self.parent.transition(FAILING)
+                    return 
 
         else:
             # REDFLAG: retrying?
