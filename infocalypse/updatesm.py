@@ -51,9 +51,9 @@ from requestingbundles import RequestingBundles
 import topkey
 
 HG_MIME_TYPE = 'application/mercurial-bundle'
-HG_MIME_TYPE_FMT = HG_MIME_TYPE + ';%i'
+HG_MIME_TYPE_FMT = HG_MIME_TYPE + ';s=%i'
 
-METADATA_MARKER = HG_MIME_TYPE + ';'
+METADATA_MARKER = HG_MIME_TYPE + ';s='
 PAD_BYTE = '\xff'
 
 MAX_SSK_LEN = 1024
