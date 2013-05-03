@@ -13,4 +13,4 @@ and many other features.
 
 And it works transparently: To publish, just clone to freenet:
 
-    hg push REPO freenet://USK@/REPO
+    hg clone REPO freenet://USK@/REPO
