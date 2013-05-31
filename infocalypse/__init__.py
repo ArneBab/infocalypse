@@ -68,10 +68,14 @@ USAGE EXAMPLES:
 
 hg fn-create --uri USK@/test.R1/0
 
+hg fn-create --wot nickname/test.R1/0
+
 Inserts the local hg repository into a new
 USK in Freenet, using the private key in your
 config file.  You can use a full insert URI
-value if you want.
+value if you want, or --wot for inserting
+under a WoT ID. It takes enough of a WoT
+nickname required to be unambiguous.
 
 hg fn-push --uri USK@/test.R1/0
 
@@ -372,11 +376,91 @@ def infocalypse_create(ui_, repo, **opts):
     """ Create a new Infocalypse repository in Freenet. """
     params, stored_cfg = get_config_info(ui_, opts)
 
-    insert_uri = opts['uri']
-    if insert_uri == '':
-        # REDFLAG: fix parameter definition so that it is required?
-        ui_.warn("Please set the insert URI with --uri.\n")
+    insert_uri = ''
+    if opts['uri'] != '' and opts['wot'] != '':
+        ui_.warn("Please specify only one of --uri or --wot.\n")
         return
+    elif opts['uri'] != '':
+        insert_uri = opts['uri']
+    elif opts['wot'] != '':
+        # Expecting nick_prefix/repo_name.R<redundancy num>/edition/
+        nick_prefix, repo_desc = opts['wot'].split('/', 1)
+
+        ui_.status("Querying WoT for own identities.\n")
+        import fcp
+        node = fcp.FCPNode()
+        own_response =\
+            node.fcpPluginMessage(async=False,
+                                  plugin_name="plugins.WebOfTrust.WebOfTrust",
+                                  plugin_params={'Message':
+                                                 'GetOwnIdentities'})[0]
+
+        if own_response['header'] != 'FCPPluginReply' or\
+                'Replies.Message' not in own_response or\
+                own_response['Replies.Message'] != 'OwnIdentities':
+            ui_.warn("Unexpected reply. Got {0}\n.".format(own_response))
+            return
+
+        # TODO: Does not support duplicate nicknames between own identities.
+        # Could support looking at identity to resolve further.
+        # TODO: Single function to resolve identity used for own and remote.
+
+        # Find nicknames starting with the supplied nickname prefix.
+        prefix = 'Replies.Nickname'
+        nickname = None
+        id_num = 0
+        for key in own_response.iterkeys():
+            if key.startswith(prefix) and\
+                    own_response[key].startswith(nick_prefix):
+                if nickname is not None:
+                    # More than one matched.
+                    ui_.warn("Nickname prefix '{0}' is ambiguous.\n")
+                    return
+
+                nickname = own_response[key]
+                # Key is Replies.Nickname<number>, where number is used in
+                # the other attributes returned for that identity.
+                id_num = key[len(prefix):]
+
+        if nickname is None:
+            ui_.warn("No nicknames start with '{0}'.\n".format(nick_prefix))
+            return
+
+        ui_.status("Using WoT identity '{0}'.\n".format(nickname))
+
+        insert_uri = own_response['Replies.InsertURI{0}'.format(id_num)]
+
+        # LCWoT returns URIs with a "freenet:" prefix, and WoT does not. The
+        # rest of Infocalypse does not support the prefix. The local way to fix
+        # this is to remove it here, but the more flexible way that is also
+        # more work is to expand support to the rest of Infocalypse.
+        # TODO: More widespread support for "freenet:" URI prefix.
+        prefix = "freenet:"
+        if insert_uri.startswith(prefix):
+            insert_uri = insert_uri[len(prefix):]
+
+        # URI is USK@key/WebOfTrust/<edition>, but we only want USK@key
+        insert_uri = insert_uri.split('/', 1)[0]
+        insert_uri += '/' + repo_desc
+
+        # Add "vcs" context. No-op if the identity already has it.
+        msg_params = {'Message':'AddContext',
+                      'Identity':
+                          own_response['Replies.Identity{0}'.format(id_num)],
+                      'Context': 'vcs'}
+
+        vcs_response =\
+            node.fcpPluginMessage(async=False,
+                                  plugin_name="plugins.WebOfTrust.WebOfTrust",
+                                  plugin_params=msg_params)[0]
+
+        if vcs_response['header'] != 'FCPPluginReply' or\
+                'Replies.Message' not in vcs_response or\
+                vcs_response['Replies.Message'] != 'ContextAdded':
+            ui_.warn("Failed to add context. Got {0}\n.".format(vcs_response))
+            return
+    else:
+        ui_.warn("Please set the insert key with either --uri or --wot.\n")
 
     set_target_version(ui_, repo, opts, params,
                        "Only inserting to version(s): %s\n")
@@ -819,6 +903,7 @@ cmdtable = {
 
     "fn-create": (infocalypse_create,
                   [('', 'uri', '', 'insert URI to create on'),
+                   ('', 'wot', '', 'WoT nickname to create on'),
                    ('r', 'rev', [],'maximum rev to push'),]
                   + FCP_OPTS,
                 "[options]"),
