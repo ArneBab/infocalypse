@@ -3,18 +3,18 @@ import fcp
 # Support for querying WoT for own identities and identities meeting various
 # criteria.
 
-def resolve_own_identity(ui, nickname_prefix=None):
+def resolve_local_identity(ui, nickname_prefix=None):
     """
     Mercurial ui for status updates and error messages.
     Nickname prefix should be enough to not be ambiguous.
-    # TODO: Does not support duplicate nicknames between own identities.
+    # TODO: Does not support duplicate nicknames between local identities.
     # Could support looking at identity to resolve further.
 
     Returns a dictionary of the nickname, insert and request URIs,
     and identity that match the given criteria.
     In the case of an error prints a message and returns None.
     """
-    ui.status("Querying WoT for own identities.\n")
+    ui.status("Querying WoT for local identities.\n")
     node = fcp.FCPNode()
     response =\
         node.fcpPluginMessage(async=False,
