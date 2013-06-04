@@ -40,7 +40,7 @@ def resolve_own_identity(ui, nickname_prefix=None):
                 own_response[key].startswith(nickname_prefix):
             if nickname is not None:
                 # More than one matched.
-                ui.warn("Prefix '{0}' is ambiguous.\n", nickname_prefix)
+                ui.warn("Prefix '{0}' is ambiguous.\n".format(nickname_prefix))
                 return
 
             nickname = own_response[key]
