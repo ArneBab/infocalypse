@@ -5,7 +5,7 @@ import fcp
 
 def resolve_local_identity(ui, nickname_prefix=None):
     """
-    Mercurial ui for status updates and error messages.
+    Mercurial ui for error messages.
     Nickname prefix should be enough to not be ambiguous.
     # TODO: Does not support duplicate nicknames between local identities.
     # Could support looking at identity to resolve further.
@@ -14,7 +14,6 @@ def resolve_local_identity(ui, nickname_prefix=None):
     and identity that match the given criteria.
     In the case of an error prints a message and returns None.
     """
-    ui.status("Querying WoT for local identities.\n")
     node = fcp.FCPNode()
     response =\
         node.fcpPluginMessage(async=False,

@@ -387,6 +387,9 @@ def infocalypse_create(ui_, repo, **opts):
         nick_prefix, repo_desc = opts['wot'].split('/', 1)
 
         import wot
+
+        ui_.status("Querying WoT for local identities.\n")
+
         attributes = wot.resolve_local_identity(ui_, nick_prefix)
         if attributes is None:
             # Something went wrong; the function already printed an error.
