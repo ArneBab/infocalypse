@@ -395,6 +395,9 @@ def infocalypse_create(ui_, repo, **opts):
             # Something went wrong; the function already printed an error.
             return
 
+        ui_.status('Found {0}@{1}\n'.format(attributes['Nickname'],
+                                            attributes['Identity']))
+
         insert_uri = attributes['InsertURI']
 
         # LCWoT returns URIs with a "freenet:" prefix, and WoT does not. The
