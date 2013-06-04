@@ -386,49 +386,13 @@ def infocalypse_create(ui_, repo, **opts):
         # Expecting nick_prefix/repo_name.R<redundancy num>/edition/
         nick_prefix, repo_desc = opts['wot'].split('/', 1)
 
-        ui_.status("Querying WoT for own identities.\n")
-        import fcp
-        node = fcp.FCPNode()
-        own_response =\
-            node.fcpPluginMessage(async=False,
-                                  plugin_name="plugins.WebOfTrust.WebOfTrust",
-                                  plugin_params={'Message':
-                                                 'GetOwnIdentities'})[0]
-
-        if own_response['header'] != 'FCPPluginReply' or\
-                'Replies.Message' not in own_response or\
-                own_response['Replies.Message'] != 'OwnIdentities':
-            ui_.warn("Unexpected reply. Got {0}\n.".format(own_response))
+        import wot
+        attributes = wot.resolve_own_identity(ui_, nick_prefix)
+        if attributes is None:
+            # Something went wrong; the function already printed an error.
             return
 
-        # TODO: Does not support duplicate nicknames between own identities.
-        # Could support looking at identity to resolve further.
-        # TODO: Single function to resolve identity used for own and remote.
-
-        # Find nicknames starting with the supplied nickname prefix.
-        prefix = 'Replies.Nickname'
-        nickname = None
-        id_num = 0
-        for key in own_response.iterkeys():
-            if key.startswith(prefix) and\
-                    own_response[key].startswith(nick_prefix):
-                if nickname is not None:
-                    # More than one matched.
-                    ui_.warn("Nickname prefix '{0}' is ambiguous.\n")
-                    return
-
-                nickname = own_response[key]
-                # Key is Replies.Nickname<number>, where number is used in
-                # the other attributes returned for that identity.
-                id_num = key[len(prefix):]
-
-        if nickname is None:
-            ui_.warn("No nicknames start with '{0}'.\n".format(nick_prefix))
-            return
-
-        ui_.status("Using WoT identity '{0}'.\n".format(nickname))
-
-        insert_uri = own_response['Replies.InsertURI{0}'.format(id_num)]
+        insert_uri = attributes['InsertURI']
 
         # LCWoT returns URIs with a "freenet:" prefix, and WoT does not. The
         # rest of Infocalypse does not support the prefix. The local way to fix
@@ -445,10 +409,11 @@ def infocalypse_create(ui_, repo, **opts):
 
         # Add "vcs" context. No-op if the identity already has it.
         msg_params = {'Message':'AddContext',
-                      'Identity':
-                          own_response['Replies.Identity{0}'.format(id_num)],
+                      'Identity': attributes['Identity'],
                       'Context': 'vcs'}
 
+        import fcp
+        node = fcp.FCPNode()
         vcs_response =\
             node.fcpPluginMessage(async=False,
                                   plugin_name="plugins.WebOfTrust.WebOfTrust",
