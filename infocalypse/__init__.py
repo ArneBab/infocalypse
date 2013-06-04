@@ -430,6 +430,9 @@ def infocalypse_create(ui_, repo, **opts):
                 vcs_response['Replies.Message'] != 'ContextAdded':
             ui_.warn("Failed to add context. Got {0}\n.".format(vcs_response))
             return
+
+        # TODO: Would it be friendlier to include the nickname as well?
+        stored_cfg.set_wot_identity(insert_uri, attributes['Identity'])
     else:
         ui_.warn("Please set the insert key with either --uri or --wot.\n")
 
@@ -856,6 +859,9 @@ cmdtable = {
     "fn-pull": (infocalypse_pull,
                 [('', 'uri', '', 'request URI to pull from'),
                  ('', 'hash', [], 'repo hash of repository to pull from'),
+                 ('', 'wot', '', 'WoT nick@key/repo to pull from'),
+                 # TODO: Might want --truster override. (Previously set in
+                 # fn-create)
                  ('', 'onlytrusted', None, 'only use repo announcements from '
                   + 'known users')]
                 + FCP_OPTS

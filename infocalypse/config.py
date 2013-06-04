@@ -125,6 +125,8 @@ class Config:
         self.request_usks = {}
         # repo_id -> insert uri map
         self.insert_usks = {}
+        # repo id -> publisher WoT identity
+        self.wot_identities = {}
         # fms_id -> (usk_hash, ...) map
         self.fmsread_trust_map = DEFAULT_TRUST.copy()
         self.fmsread_groups = DEFAULT_GROUPS
@@ -192,6 +194,12 @@ class Config:
     def set_insert_uri(self, for_usk_or_id, insert_usk):
         """ Set the insert USK associated with the request USK. """
         self.insert_usks[normalize(for_usk_or_id)] = insert_usk
+
+    def set_wot_identity(self, for_usk_or_id, wot_identity):
+        """
+        Set the WoT identity associated with the request USK.
+        """
+        self.wot_identities[normalize(for_usk_or_id)] = wot_identity
 
     # Hmmm... really nescessary?
     def get_dir_insert_uri(self, repo_dir):
@@ -290,6 +298,11 @@ class Config:
             for repo_id in parser.options('insert_usks'):
                 cfg.insert_usks[repo_id] = parser.get('insert_usks', repo_id)
 
+        if parser.has_section('wot_identities'):
+            for repo_id in parser.options('wot_identities'):
+                cfg.wot_identities[repo_id] = parser.get('wot_identities',
+                                                         repo_id)
+
         # ignored = fms_id|usk_hash|usk_hash|...
         if parser.has_section('fmsread_trust_map'):
             cfg.fmsread_trust_map.clear() # Wipe defaults.
@@ -365,6 +378,9 @@ class Config:
         parser.add_section('insert_usks')
         for repo_id in cfg.insert_usks:
             parser.set('insert_usks', repo_id, cfg.insert_usks[repo_id])
+        parser.add_section('wot_identities')
+        for repo_id in cfg.wot_identities:
+            parser.set('wot_identities', repo_id, cfg.wot_identities[repo_id])
         parser.add_section('fmsread_trust_map')
         for index, fms_id in enumerate(cfg.fmsread_trust_map):
             entry = cfg.fmsread_trust_map[fms_id]
