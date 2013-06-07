@@ -510,6 +510,43 @@ def infocalypse_pull(ui_, repo, **opts):
         params['FMSREAD_HASH'] = opts['hash'][0]
         params['FMSREAD_ONLYTRUSTED'] = bool(opts['onlytrusted'])
         request_uri = get_uri_from_hash(ui_, repo, params, stored_cfg)
+    elif opts['wot']:
+        import wot
+        truster = stored_cfg.get_wot_identity(
+            stored_cfg.get_dir_insert_uri(repo.root))
+        # TODO: Require repo name, not full path - look it up from the XML.
+
+        # Expecting <id stuff>/reponame.R1/edition
+        wot_id, repo_path = opts['wot'].split('/', 1)
+
+        nickname_prefix = ''
+        key_prefix=''
+        # Could be nick@key, nick, @key
+        split = wot_id.split('@')
+        nickname_prefix = split[0]
+
+        if len(split) == 2:
+            key_prefix = split[1]
+
+        attributes = wot.resolve_identity(ui_,
+                                          truster=truster,
+                                          nickname_prefix=nickname_prefix,
+                                          key_prefix=key_prefix)
+        if attributes is None:
+            return
+
+        # Expecting [freenet:]?USK@key/WebOfTrust/edition
+        request_uri = attributes['RequestURI']
+        # See similar note in fn-create: trim off LCWoT URI prefix.
+        # TODO: Semantically meaningful key classes.
+        prefix = "freenet:"
+        if request_uri.startswith(prefix):
+            request_uri = request_uri[len(prefix):]
+
+        request_uri = request_uri.split('/', 1)[0]
+
+        request_uri = request_uri + '/' + repo_path
+
     else:
         request_uri = opts['uri']
 

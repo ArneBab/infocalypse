@@ -201,6 +201,13 @@ class Config:
         """
         self.wot_identities[normalize(for_usk_or_id)] = wot_identity
 
+    def get_wot_identity(self, for_usk_or_id):
+        """
+        Return the WoT identity associated with the request USK,
+        or the default if none is set.
+        """
+        return self.wot_identities[normalize(for_usk_or_id)]
+
     # Hmmm... really nescessary?
     def get_dir_insert_uri(self, repo_dir):
         """ Return the insert USK for repo_dir or None. """

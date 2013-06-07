@@ -51,10 +51,93 @@ def resolve_local_identity(ui, nickname_prefix=None):
         ui.warn("No nicknames start with '{0}'.\n".format(nickname_prefix))
         return
 
+    return read_local_identity(response, id_num)
+
+def resolve_identity(ui, truster, nickname_prefix=None, key_prefix=''):
+    """
+    If using LCWoT, either the nickname prefix should be enough to be
+    unambiguous, or failing that enough of the key.
+    If using WoT, partial search is not supported, and the entire key must be
+    specified.
+
+    Returns a dictionary of the nickname, request URI,
+    and identity that matches the given criteria.
+    In the case of an error prints a message and returns None.
+
+    :param ui: Mercurial ui for error messages.
+    :param truster: Check trust list of this local identity.
+    :param nickname_prefix: Partial (prefix) of nickname. Can be whole.
+    :param key_prefix: Partial (prefix) of key. Can be empty.
+    """
+    # TODO: Support different FCP IP / port.
+    node = fcp.FCPNode()
+
+    # Test for GetIdentitiesByPartialNickname support. currently LCWoT-only.
+    # https://github.com/tmarkus/LessCrappyWebOfTrust/blob/master/src/main/java/plugins/WebOfTrust/fcp/GetIdentitiesByPartialNickname.java
+    params = {'Message': 'GetIdentitiesByPartialNickname',
+              'Truster': truster,
+              'PartialNickname': nickname_prefix,
+              'PartialID': key_prefix,
+              'MaxIdentities': 1,  # Match must be unambiguous.
+              'Context': 'vcs'}
+    response =\
+        node.fcpPluginMessage(async=False,
+                              plugin_name="plugins.WebOfTrust.WebOfTrust",
+                              plugin_params=params)[0]
+
+    if response['header'] != 'FCPPluginReply' or\
+       'Replies.Message' not in response:
+            ui.warn('Unexpected reply. Got {0}\n'.format(response))
+            return
+    elif response['Replies.Message'] == 'Identities':
+        return read_identity(response, 0)
+    elif response['Replies.Message'] == 'Error':
+        # The difficulty here is that the message type is Error for both an
+        # unrecognized message type and ambiguous search terms.
+        # TODO: This seems likely to break - the Description seems intended
+        # for human readers and will probably change.
+        if response['Replies.Description'].startswith('Number of matched'):
+            # Supported version of LCWoT - terms ambiguous.
+            ui.warn("'{0}@{1}' is ambiguous.".format(nickname_prefix,
+                                                     key_prefix))
+            return
+        elif response['Replies.Description'].startswith('Unknown message') or\
+             response['Replies.Description'].startswith('Could not match'):
+            # Not supported; check for exact identity.
+            ui.warn('Searching by partial nickname/key not supported.')
+
+    # Attempt to search failed - check for exact key. Here key_prefix must be
+    # a complete key for the lookup to succeed.
+    params = {'Message': 'GetIdentity',
+              'Truster': truster,
+              'Identity': key_prefix}
+    response =\
+        node.fcpPluginMessage(async=False,
+                              plugin_name="plugins.WebOfTrust.WebOfTrust",
+                              plugin_params=params)[0]
+
+    # There should be only one result.
+    # Depends on https://bugs.freenetproject.org/view.php?id=5729
+    print read_identity(response, 0)
+
+def read_local_identity(message, id_num):
+    """
+    Reads an FCP response from a WoT plugin describing a local identity and
+    returns a dictionary of Nickname, InsertURI, RequestURI, and Identity.
+    """
+    result = read_identity(message, id_num)
+    result['InsertURI'] = message['Replies.InsertURI{0}'.format(id_num)]
+    return result
+
+def read_identity(message, id_num):
+    """
+    Reads an FCP response from a WoT plugin describing an identity and
+    returns a dictionary of Nickname, RequestURI, and Identity.
+    """
     # Return properties for the selected identity. (by number)
     result = {}
-    for item in [ 'Nickname', 'InsertURI','RequestURI', 'Identity' ]:
-        result[item] = response['Replies.{0}{1}'.format(item, id_num)]
+    for item in [ 'Nickname', 'RequestURI', 'Identity' ]:
+        result[item] = message['Replies.{0}{1}'.format(item, id_num)]
 
     # LCWoT also puts these things as properties, which would be nicer to
     # depend on and would allow just returning all properties for the identity.
