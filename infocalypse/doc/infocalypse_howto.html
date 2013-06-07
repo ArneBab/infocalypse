@@ -254,6 +254,8 @@ that they represent. When you 'push' to an infocalypse repository a
 new bundle CHK is inserted with the changes since the last update.
 When you 'pull', only the CHKs for bundles for changesets not
 already in the local repository need to be fetched.
+Bundles are a strict subset of a complete insert, and can be inserted
+by a third party without the private keys.
 <h3><a name="repo_usks" id="repo_usks">Repository USKs</a></h3>
 The latest version of the repository's metadata is stored on a
 Freenet Updateable Subspace Key (USK) as a small binary file.
