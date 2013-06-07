@@ -253,32 +253,36 @@ class Config:
     @classmethod
     def update_defaults(cls, parser, cfg):
         """ INTERNAL: Helper function to simplify from_file. """
-        if parser.has_section('primary'):
-            if parser.has_option('primary', 'format_version'):
-                cfg.defaults['FORMAT_VERSION'] = parser.get('primary',
-                                                             'format_version')
-            if parser.has_option('primary','host'):
-                cfg.defaults['HOST'] = parser.get('primary','host')
-            if parser.has_option('primary','port'):
-                cfg.defaults['PORT'] = parser.getint('primary','port')
-            if parser.has_option('primary','tmp_dir'):
-                cfg.defaults['TMP_DIR'] = parser.get('primary', 'tmp_dir')
-            if parser.has_option('primary','default_private_key'):
-                cfg.defaults['DEFAULT_PRIVATE_KEY'] = (
-                    parser.get('primary','default_private_key'))
+        if not parser.has_section('primary'):
+            return
 
-            if parser.has_option('primary','fms_host'):
-                cfg.defaults['FMS_HOST'] = parser.get('primary','fms_host')
-            if parser.has_option('primary','fms_port'):
-                cfg.defaults['FMS_PORT'] = parser.getint('primary','fms_port')
-            if parser.has_option('primary','fms_id'):
-                cfg.defaults['FMS_ID'] = parser.get('primary','fms_id')
-            if parser.has_option('primary','fmsnotify_group'):
-                cfg.defaults['FMSNOTIFY_GROUP'] = parser.get('primary',
-                                                             'fmsnotify_group')
-            if parser.has_option('primary','fmsread_groups'):
-                cfg.fmsread_groups = (parser.get('primary','fmsread_groups').
-                                      strip().split('|'))
+        if parser.has_option('primary', 'format_version'):
+            cfg.defaults['FORMAT_VERSION'] = parser.get('primary',
+                                                        'format_version')
+        if parser.has_option('primary','host'):
+            cfg.defaults['HOST'] = parser.get('primary','host')
+        if parser.has_option('primary','port'):
+            cfg.defaults['PORT'] = parser.getint('primary','port')
+        if parser.has_option('primary','tmp_dir'):
+            cfg.defaults['TMP_DIR'] = parser.get('primary', 'tmp_dir')
+        if parser.has_option('primary','default_private_key'):
+            cfg.defaults['DEFAULT_PRIVATE_KEY'] = (
+                parser.get('primary','default_private_key'))
+
+        if parser.has_option('primary','fms_host'):
+            cfg.defaults['FMS_HOST'] = parser.get('primary','fms_host')
+        if parser.has_option('primary','fms_port'):
+            cfg.defaults['FMS_PORT'] = parser.getint('primary','fms_port')
+        if parser.has_option('primary','fms_id'):
+            cfg.defaults['FMS_ID'] = parser.get('primary','fms_id')
+        if parser.has_option('primary','fmsnotify_group'):
+            cfg.defaults['FMSNOTIFY_GROUP'] = parser.get('primary',
+                                                         'fmsnotify_group')
+        if parser.has_option('primary','fmsread_groups'):
+            cfg.fmsread_groups = (parser.get('primary','fmsread_groups').
+                                  strip().split('|'))
+
+
 
     # Hmmm... would be better to detect_and_fix_default_bug()
     # here, but don't have ui.
