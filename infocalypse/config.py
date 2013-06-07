@@ -206,7 +206,11 @@ class Config:
         Return the WoT identity associated with the request USK,
         or the default if none is set.
         """
-        return self.wot_identities[normalize(for_usk_or_id)]
+        repo_id = normalize(for_usk_or_id)
+        if repo_id in self.wot_identities:
+            return self.wot_identities[repo_id]
+        else:
+            return self.defaults['DEFAULT_TRUSTER']
 
     # Hmmm... really nescessary?
     def get_dir_insert_uri(self, repo_dir):
@@ -282,6 +286,9 @@ class Config:
             cfg.fmsread_groups = (parser.get('primary','fmsread_groups').
                                   strip().split('|'))
 
+        if parser.has_option('primary', 'default_truster'):
+            cfg.defaults['DEFAULT_TRUSTER'] = parser.get('primary',
+                                                         'default_truster')
 
 
     # Hmmm... would be better to detect_and_fix_default_bug()
@@ -379,6 +386,8 @@ class Config:
         parser.set('primary', 'fmsnotify_group',
                    cfg.defaults['FMSNOTIFY_GROUP'])
         parser.set('primary', 'fmsread_groups', '|'.join(cfg.fmsread_groups))
+        parser.set('primary', 'default_truster',
+                   cfg.defaults['DEFAULT_TRUSTER'])
 
         parser.add_section('index_values')
         for repo_id in cfg.version_table:

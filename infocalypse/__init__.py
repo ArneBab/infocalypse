@@ -512,9 +512,14 @@ def infocalypse_pull(ui_, repo, **opts):
         request_uri = get_uri_from_hash(ui_, repo, params, stored_cfg)
     elif opts['wot']:
         import wot
-        truster = stored_cfg.get_wot_identity(
-            stored_cfg.get_dir_insert_uri(repo.root))
-        # TODO: Require repo name, not full path - look it up from the XML.
+        if opts['truster']:
+            truster = opts['truster']
+        else :
+            truster = stored_cfg.get_wot_identity(
+                stored_cfg.get_dir_insert_uri(repo.root))
+        # TODO: Require repo name, not full path as part of the --wot. Look
+        # it up from the XML.
+        # TODO: Insert XML.
 
         # Expecting <id stuff>/reponame.R1/edition
         wot_id, repo_path = opts['wot'].split('/', 1)
@@ -780,10 +785,23 @@ def infocalypse_setup(ui_, **opts):
     else:
         ui_.status("Skipped FMS configuration because --nofms was set.\n")
 
+    if not opts['nowot']:
+        import wot
+        wot.execute_setup_wot(ui_, opts)
+    else:
+        ui_.status("Skipped WoT configuration because --nowot was set.\n")
+
 def infocalypse_setupfms(ui_, **opts):
     """ Setup or modify the fms configuration. """
     # REQUIRES config file.
     execute_setupfms(ui_, opts)
+
+
+# TODO: Why ui with trailing underscore? Is there a global "ui" somewhere?
+def infocalypse_setupwot(ui_, **opts):
+    import wot
+    wot.execute_setup_wot(ui_, opts)
+
 
 #----------------------------------------------------------"
 def do_archive_create(ui_, opts, params, stored_cfg):
@@ -885,6 +903,8 @@ FMS_OPTS = [('', 'fmshost', '', 'fms host'),
             ('', 'fmsport', 0, 'fms port'),
 ]
 
+WOT_OPTS = [('', 'truster', '', 'WoT identity to use when looking up others'),
+]
 
 AGGRESSIVE_OPT = [('', 'aggressive', None, 'aggressively search for the '
                    + 'latest USK index'),]
@@ -897,10 +917,9 @@ cmdtable = {
                 [('', 'uri', '', 'request URI to pull from'),
                  ('', 'hash', [], 'repo hash of repository to pull from'),
                  ('', 'wot', '', 'WoT nick@key/repo to pull from'),
-                 # TODO: Might want --truster override. (Previously set in
-                 # fn-create)
                  ('', 'onlytrusted', None, 'only use repo announcements from '
                   + 'known users')]
+                + WOT_OPTS
                 + FCP_OPTS
                 + NOSEARCH_OPT
                 + AGGRESSIVE_OPT,
@@ -994,6 +1013,7 @@ cmdtable = {
                   ('', 'nofms', None, 'skip FMS configuration'),
                   ('', 'fmsid', '', "fmsid (only part before '@'!)"),
                   ('', 'timeout', 30, "fms socket timeout in seconds")]
+                 + WOT_OPTS
                  + FCP_OPTS
                  + FMS_OPTS,
                 "[options]"),
@@ -1003,6 +1023,11 @@ cmdtable = {
                   ('', 'timeout', 30, "fms socket timeout in seconds"),]
                  + FMS_OPTS,
                 "[options]"),
+
+    "fn-setupwot": (infocalypse_setupwot,
+                    FCP_OPTS +
+                    WOT_OPTS,
+                    "[options]"),
 
     "fn-archive": (infocalypse_archive,
                   [('', 'uri', '', 'Request URI for --pull, Insert URI ' +
@@ -1026,3 +1051,4 @@ commands.norepo += ' fn-setup'
 commands.norepo += ' fn-setupfms'
 commands.norepo += ' fn-genkey'
 commands.norepo += ' fn-archive'
+commands.norepo += ' fn-setupwot'

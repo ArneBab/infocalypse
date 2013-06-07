@@ -1,7 +1,36 @@
 import fcp
+from config import Config
 
 # Support for querying WoT for own identities and identities meeting various
 # criteria.
+# TODO: "cmds" suffix to module name to fit fms, arc, inf?
+
+def execute_setup_wot(ui_, opts):
+    cfg = Config.from_ui(ui_)
+    wot_id = opts['truster']
+
+    # TODO: Code for wot_id parsing duplicated between here and WoT pull.
+    nickname_prefix = ''
+    key_prefix=''
+    # Could be nick@key, nick, @key
+    split = wot_id.split('@')
+    nickname_prefix = split[0]
+
+    if len(split) == 2:
+        key_prefix = split[1]
+
+    # TODO: Support key
+    response = resolve_local_identity(ui_, nickname_prefix=nickname_prefix)
+
+    if response is None:
+        return
+
+    ui_.status("Setting default truster to {0}@{1}\n".format(
+        response['Nickname'],
+        response['Identity']))
+
+    cfg.defaults['DEFAULT_TRUSTER'] = response['Identity']
+    Config.to_file(cfg)
 
 def resolve_local_identity(ui, nickname_prefix=None):
     """
