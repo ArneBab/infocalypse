@@ -11,7 +11,7 @@ def execute_setup_wot(ui_, opts):
 
     # TODO: Code for wot_id parsing duplicated between here and WoT pull.
     nickname_prefix = ''
-    key_prefix=''
+    key_prefix = ''
     # Could be nick@key, nick, @key
     split = wot_id.split('@')
     nickname_prefix = split[0]
