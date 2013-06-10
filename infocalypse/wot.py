@@ -127,6 +127,7 @@ def resolve_local_identity(ui, nickname_prefix=None, key_prefix=None):
 
     return read_local_identity(response, id_num)
 
+
 def resolve_identity(ui, truster, nickname_prefix=None, key_prefix=''):
     """
     If using LCWoT, either the nickname prefix should be enough to be
@@ -194,6 +195,7 @@ def resolve_identity(ui, truster, nickname_prefix=None, key_prefix=''):
     # Depends on https://bugs.freenetproject.org/view.php?id=5729
     print read_identity(response, 0)
 
+
 def read_local_identity(message, id_num):
     """
     Reads an FCP response from a WoT plugin describing a local identity and
@@ -202,6 +204,7 @@ def read_local_identity(message, id_num):
     result = read_identity(message, id_num)
     result['InsertURI'] = message['Replies.InsertURI{0}'.format(id_num)]
     return result
+
 
 def read_identity(message, id_num):
     """
