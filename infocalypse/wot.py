@@ -1,5 +1,35 @@
 import fcp
 from config import Config
+import xml.etree.ElementTree as ET
+
+def update_repo_listing(ui, for_identity):
+    # TODO: WoT property containing edition. Used when requesting.
+    config = Config.from_ui(ui)
+    root = ET.Element('vcs', {'version': '0'})
+
+    # Add request URIs associated with the given identity.
+    for request_uri in config.request_usks.itervalues():
+        if config.get_wot_identity(request_uri) == for_identity:
+            repo = ET.SubElement(root, 'repository', {
+                'vcs': 'Infocalypse',
+            })
+            repo.text = request_uri
+
+    # TODO: Nonstandard IP and port.
+    node = fcp.FCPNode()
+    # TODO: Does it make sense to query the node here for the private key?
+    attributes = resolve_local_identity(ui, key_prefix=for_identity)
+    # TODO: Repetitive key parsing again!
+    insert_uri = attributes['InsertURI']
+    # Expecting USK@key/WebOfTrust/edition; want only key.
+    insert_uri = insert_uri.split('/', 1)[0]
+    uri = node.put(uri=insert_uri+'/vcs/0', mimetype='application/xml',
+                   data=ET.tostring(root))
+
+    if uri is None:
+        ui.warn("Failed to update repository listing.")
+    else:
+        ui.status("Updated repository listing:\n{0}\n".format(uri))
 
 # Support for querying WoT for own identities and identities meeting various
 # criteria.

@@ -377,6 +377,7 @@ def infocalypse_create(ui_, repo, **opts):
     params, stored_cfg = get_config_info(ui_, opts)
 
     insert_uri = ''
+    attributes = None
     if opts['uri'] != '' and opts['wot'] != '':
         ui_.warn("Please specify only one of --uri or --wot.\n")
         return
@@ -440,7 +441,13 @@ def infocalypse_create(ui_, repo, **opts):
     set_target_version(ui_, repo, opts, params,
                        "Only inserting to version(s): %s\n")
     params['INSERT_URI'] = insert_uri
-    execute_create(ui_, repo, params, stored_cfg)
+    inserted_to = execute_create(ui_, repo, params, stored_cfg)
+
+    # TODO: Move into some function. How to separate local success context?
+    if inserted_to is not None and attributes is not None and \
+       stored_cfg.has_wot_identity(stored_cfg.get_request_uri(repo.root)):
+        import wot
+        wot.update_repo_listing(ui_, attributes['Identity'])
 
 def infocalypse_copy(ui_, repo, **opts):
     """ Copy an Infocalypse repository to a new URI. """
@@ -589,7 +596,13 @@ def infocalypse_push(ui_, repo, **opts):
     #               (opts['requesturi'], insert_uri))
     #    params['REQUEST_URI'] = opts['requesturi']
 
-    execute_push(ui_, repo, params, stored_cfg)
+    inserted_to = execute_push(ui_, repo, params, stored_cfg)
+    # TODO: Messy.
+    if inserted_to is not None and stored_cfg.has_wot_identity(stored_cfg
+    .get_request_uri(repo.root)):
+        import wot
+        wot.update_repo_listing(ui_, stored_cfg.get_wot_identity(stored_cfg
+    .get_request_uri(repo.root)))
 
 def infocalypse_info(ui_, repo, **opts):
     """ Display information about an Infocalypse repository.
