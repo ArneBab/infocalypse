@@ -212,6 +212,12 @@ class Config:
         else:
             return self.defaults['DEFAULT_TRUSTER']
 
+    def has_wot_identity(self, for_usk_or_id):
+        """
+        Return whether the given repo has a WoT identity associated with it.
+        """
+        return normalize(for_usk_or_id) in self.wot_identities
+
     # Hmmm... really nescessary?
     def get_dir_insert_uri(self, repo_dir):
         """ Return the insert USK for repo_dir or None. """
