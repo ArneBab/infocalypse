@@ -432,7 +432,8 @@ def infocalypse_create(ui_, repo, **opts):
             return
 
         # TODO: Would it be friendlier to include the nickname as well?
-        stored_cfg.set_wot_identity(insert_uri, attributes['Identity'])
+        stored_cfg.set_wot_identity(stored_cfg.get_request_uri(repo.root),
+                                    attributes['Identity'])
     else:
         ui_.warn("Please set the insert key with either --uri or --wot.\n")
 
