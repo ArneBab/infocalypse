@@ -32,10 +32,12 @@ def execute_setup_wot(ui_, opts):
     cfg.defaults['DEFAULT_TRUSTER'] = response['Identity']
     Config.to_file(cfg)
 
-def resolve_local_identity(ui, nickname_prefix=None):
+
+def resolve_local_identity(ui, nickname_prefix=None, key_prefix=None):
     """
     Mercurial ui for error messages.
     Nickname prefix should be enough to not be ambiguous.
+    If the nickname is not set the key must be.
     # TODO: Does not support duplicate nicknames between local identities.
     # Could support looking at identity to resolve further.
 
@@ -59,10 +61,23 @@ def resolve_local_identity(ui, nickname_prefix=None):
     # TODO: Single function to resolve identity used for own and remote?
     # Not preferable if the flag leads to two different code paths.
 
+    prefix = 'Replies.Identity'
+    id_num = -1
+    # Go by full key instead.
+    if nickname_prefix is None:
+        for item in response.iteritems():
+            if item[1] == key_prefix:
+                # Assuming identities will always be unique.
+                id_num = item[0][len(prefix):]
+                return read_local_identity(response, id_num)
+
+        ui.warn("No identity found with key '{0}'.\n".format(key_prefix))
+        return
+
+    # TODO: Cleaner flow of control between key-only and nick-and-optional-key
     # Find nicknames starting with the supplied nickname prefix.
     prefix = 'Replies.Nickname'
     nickname = None
-    id_num = -1
     for key in response.iterkeys():
         if key.startswith(prefix) and\
                 response[key].startswith(nickname_prefix):
