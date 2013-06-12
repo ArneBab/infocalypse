@@ -200,7 +200,8 @@ def resolve_identity(ui, truster, nickname_prefix=None, key_prefix=''):
 def read_local_identity(message, id_num):
     """
     Reads an FCP response from a WoT plugin describing a local identity and
-    returns a dictionary of Nickname, InsertURI, RequestURI, and Identity.
+    returns a dictionary of Nickname, InsertURI, RequestURI, Identity, and
+    each numbered Context.
     """
     result = read_identity(message, id_num)
     result['InsertURI'] = message['Replies.InsertURI{0}'.format(id_num)]
@@ -210,7 +211,7 @@ def read_local_identity(message, id_num):
 def read_identity(message, id_num):
     """
     Reads an FCP response from a WoT plugin describing an identity and
-    returns a dictionary of Nickname, RequestURI, and Identity.
+    returns a dictionary of Nickname, RequestURI, Identity, and Contexts.
     """
     # Return properties for the selected identity. (by number)
     result = {}
@@ -220,5 +221,12 @@ def read_identity(message, id_num):
     # LCWoT also puts these things as properties, which would be nicer to
     # depend on and would allow just returning all properties for the identity.
     #property_prefix = "Replies.Properties{0}".format(id_num)
+
+    # Add contexts for the identity too.
+    prefix = "Replies.Contexts{0}.Context".format(id_num)
+    for key in message.iterkeys():
+        if key.startswith(prefix):
+            num = key[len(prefix):]
+            result["Context{0}".format(num)] = message[key]
 
     return result
