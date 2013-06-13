@@ -206,11 +206,12 @@ class Config:
         Return the WoT identity associated with the request USK,
         or the default if none is set.
         """
-        repo_id = normalize(for_usk_or_id)
-        if repo_id in self.wot_identities:
-            return self.wot_identities[repo_id]
-        else:
-            return self.defaults['DEFAULT_TRUSTER']
+        if for_usk_or_id is not None:
+            repo_id = normalize(for_usk_or_id)
+            if repo_id in self.wot_identities:
+                return self.wot_identities[repo_id]
+
+        return self.defaults['DEFAULT_TRUSTER']
 
     def has_wot_identity(self, for_usk_or_id):
         """
