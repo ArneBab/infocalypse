@@ -1,6 +1,7 @@
 import fcp
 from config import Config
 import xml.etree.ElementTree as ET
+from defusedxml.ElementTree import fromstring
 
 def update_repo_listing(ui, for_identity):
     # TODO: WoT property containing edition. Used when requesting.
@@ -31,6 +32,37 @@ def update_repo_listing(ui, for_identity):
         ui.warn("Failed to update repository listing.")
     else:
         ui.status("Updated repository listing:\n{0}\n".format(uri))
+
+def read_repo_listing(ui, truster, nickname_prefix=None, key_prefix=''):
+    """
+    Read a repo listing for a given identity.
+    Return a dictionary of repository URIs keyed by name.
+    """
+    identity = resolve_identity(ui, truster, nickname_prefix=nickname_prefix,
+                                key_prefix=key_prefix)
+    if identity is None:
+        return
+
+    uri = identity['RequestURI']
+    uri = uri.split('/', 1)[0] + '/vcs/0'
+
+    # TODO: Set and read vcs edition property.
+    node = fcp.FCPNode()
+    ui.status("Fetching {0}\n".format(uri))
+    mime_type, repo_xml, msg = node.get(uri)
+
+    ui.status("Parsing.\n")
+    repositories = {}
+    root = fromstring(repo_xml)
+    for repository in root.iterfind('repository'):
+        if repository.get('vcs') == 'Infocalypse':
+            uri = repository.text
+            # Expecting key/reponame.R<num>/edition
+            name = uri.split('/')[1].split('.')[0]
+            ui.status("Found repository \"{0}\" at {1}\n".format(name, uri))
+            repositories[name] = uri
+
+    return repositories
 
 # Support for querying WoT for own identities and identities meeting various
 # criteria.
@@ -150,6 +182,9 @@ def resolve_identity(ui, truster, nickname_prefix=None, key_prefix=''):
 
     # Test for GetIdentitiesByPartialNickname support. currently LCWoT-only.
     # https://github.com/tmarkus/LessCrappyWebOfTrust/blob/master/src/main/java/plugins/WebOfTrust/fcp/GetIdentitiesByPartialNickname.java
+    # TODO: LCWoT allows limiting by context, but how to make sure otherwise?
+    # TODO: Should this manually ensure an identity has a vcs context
+    # otherwise?
     params = {'Message': 'GetIdentitiesByPartialNickname',
               'Truster': truster,
               'PartialNickname': nickname_prefix,
@@ -223,6 +258,8 @@ def read_identity(message, id_num):
     #property_prefix = "Replies.Properties{0}".format(id_num)
 
     # Add contexts for the identity too.
+    # TODO: Unflattening WoT response? Several places check for prefix like
+    # this.
     prefix = "Replies.Contexts{0}.Context".format(id_num)
     for key in message.iterkeys():
         if key.startswith(prefix):

@@ -529,8 +529,11 @@ def infocalypse_pull(ui_, repo, **opts):
         # it up from the XML.
         # TODO: Insert XML.
 
-        # Expecting <id stuff>/reponame.R1/edition
-        wot_id, repo_path = opts['wot'].split('/', 1)
+        # Expecting <id stuff>/reponame
+        wot_id, repo_name = opts['wot'].split('/', 1)
+
+        # TODO: How to handle redundancy? Does Infocalypse automatically try
+        # an R0 if an R1 fails?
 
         nickname_prefix = ''
         key_prefix=''
@@ -541,25 +544,14 @@ def infocalypse_pull(ui_, repo, **opts):
         if len(split) == 2:
             key_prefix = split[1]
 
-        attributes = wot.resolve_identity(ui_,
-                                          truster=truster,
-                                          nickname_prefix=nickname_prefix,
-                                          key_prefix=key_prefix)
-        if attributes is None:
+        repositories = wot.read_repo_listing(ui_, truster,
+                                             nickname_prefix=nickname_prefix,
+                                             key_prefix=key_prefix)
+        if repo_name not in repositories:
+            ui_.warn("Could not find repository named \"{0}\".\n".format(repo_name))
             return
 
-        # Expecting [freenet:]?USK@key/WebOfTrust/edition
-        request_uri = attributes['RequestURI']
-        # See similar note in fn-create: trim off LCWoT URI prefix.
-        # TODO: Semantically meaningful key classes.
-        prefix = "freenet:"
-        if request_uri.startswith(prefix):
-            request_uri = request_uri[len(prefix):]
-
-        request_uri = request_uri.split('/', 1)[0]
-
-        request_uri = request_uri + '/' + repo_path
-
+        request_uri = repositories[repo_name]
     else:
         request_uri = opts['uri']
 
