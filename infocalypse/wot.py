@@ -229,7 +229,7 @@ def resolve_identity(ui, truster, nickname_prefix=None, key_prefix=''):
 
     # There should be only one result.
     # Depends on https://bugs.freenetproject.org/view.php?id=5729
-    print read_identity(response, 0)
+    return read_identity(response, 0)
 
 
 def read_local_identity(message, id_num):
