@@ -26,7 +26,7 @@ def update_repo_listing(ui, for_identity):
     insert_uri = insert_uri.split('/', 1)[0] + '/vcs/0'
     ui.status("Inserting with URI:\n{0}\n".format(insert_uri))
     uri = node.put(uri=insert_uri, mimetype='application/xml',
-                   data=ET.tostring(root))
+                   data=ET.tostring(root), priority=1)
 
     if uri is None:
         ui.warn("Failed to update repository listing.")
@@ -49,7 +49,7 @@ def read_repo_listing(ui, truster, nickname_prefix=None, key_prefix=''):
     # TODO: Set and read vcs edition property.
     node = fcp.FCPNode()
     ui.status("Fetching {0}\n".format(uri))
-    mime_type, repo_xml, msg = node.get(uri)
+    mime_type, repo_xml, msg = node.get(uri, priority=1)
 
     ui.status("Parsing.\n")
     repositories = {}
