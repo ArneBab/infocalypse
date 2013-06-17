@@ -20,7 +20,8 @@ def update_repo_listing(ui, for_identity):
     # TODO: Nonstandard IP and port.
     node = fcp.FCPNode()
     # TODO: Does it make sense to query the node here for the private key?
-    attributes = resolve_local_identity(ui, key_prefix=for_identity)
+    # Key goes after @ - before is nickname.
+    attributes = resolve_local_identity(ui, '@' + for_identity)
     # TODO: Repetitive key parsing again!
     insert_uri = attributes['InsertURI']
     # Expecting USK@key/WebOfTrust/edition; want only key.
@@ -35,13 +36,12 @@ def update_repo_listing(ui, for_identity):
         ui.status("Updated repository listing:\n{0}\n".format(uri))
 
 
-def read_repo_listing(ui, truster, nickname_prefix=None, key_prefix=''):
+def read_repo_listing(ui, truster, identity):
     """
     Read a repo listing for a given identity.
     Return a dictionary of repository URIs keyed by name.
     """
-    identity = resolve_identity(ui, truster, nickname_prefix=nickname_prefix,
-                                key_prefix=key_prefix)
+    identity = resolve_identity(ui, truster, identity)
     if identity is None:
         return
 
@@ -73,20 +73,7 @@ def read_repo_listing(ui, truster, nickname_prefix=None, key_prefix=''):
 
 def execute_setup_wot(ui_, opts):
     cfg = Config.from_ui(ui_)
-    wot_id = opts['truster']
-
-    # TODO: Code for wot_id parsing duplicated between here and WoT pull.
-    nickname_prefix = ''
-    key_prefix = ''
-    # Could be nick@key, nick, @key
-    split = wot_id.split('@')
-    nickname_prefix = split[0]
-
-    if len(split) == 2:
-        key_prefix = split[1]
-
-    # TODO: Support key
-    response = resolve_local_identity(ui_, nickname_prefix=nickname_prefix)
+    response = resolve_local_identity(ui_, opts['truster'])
 
     if response is None:
         return
@@ -99,11 +86,9 @@ def execute_setup_wot(ui_, opts):
     Config.to_file(cfg)
 
 
-def resolve_local_identity(ui, nickname_prefix=None, key_prefix=None):
+def resolve_local_identity(ui, identity):
     """
     Mercurial ui for error messages.
-    Nickname prefix should be enough to not be ambiguous.
-    If the nickname is not set the key must be.
     # TODO: Does not support duplicate nicknames between local identities.
     # Could support looking at identity to resolve further.
 
@@ -111,6 +96,8 @@ def resolve_local_identity(ui, nickname_prefix=None, key_prefix=None):
     and identity that match the given criteria.
     In the case of an error prints a message and returns None.
     """
+    nickname_prefix, key_prefix = parse_name(identity)
+
     node = fcp.FCPNode()
     response =\
         node.fcpPluginMessage(async=False,
@@ -161,7 +148,7 @@ def resolve_local_identity(ui, nickname_prefix=None, key_prefix=None):
     return read_local_identity(response, id_num)
 
 
-def resolve_identity(ui, truster, nickname_prefix=None, key_prefix=''):
+def resolve_identity(ui, truster, identity):
     """
     If using LCWoT, either the nickname prefix should be enough to be
     unambiguous, or failing that enough of the key.
@@ -177,6 +164,7 @@ def resolve_identity(ui, truster, nickname_prefix=None, key_prefix=''):
     :param nickname_prefix: Partial (prefix) of nickname. Can be whole.
     :param key_prefix: Partial (prefix) of key. Can be empty.
     """
+    nickname_prefix, key_prefix = parse_name(identity)
     # TODO: Support different FCP IP / port.
     node = fcp.FCPNode()
 
@@ -267,3 +255,20 @@ def read_identity(message, id_num):
             result["Context{0}".format(num)] = message[key]
 
     return result
+
+
+def parse_name(identity):
+    """
+    Parse identity of the forms: nick
+                                 nick@key
+                                 @key
+    Return nick, key. If a part is not given return an empty string.
+    """
+    split = identity.split('@', 1)
+    nickname_prefix = split[0]
+
+    key_prefix = ''
+    if len(split) == 2:
+        key_prefix = split[1]
+
+    return nickname_prefix, key_prefix
