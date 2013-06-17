@@ -3,6 +3,7 @@ from config import Config
 import xml.etree.ElementTree as ET
 from defusedxml.ElementTree import fromstring
 
+
 def update_repo_listing(ui, for_identity):
     # TODO: WoT property containing edition. Used when requesting.
     config = Config.from_ui(ui)
@@ -32,6 +33,7 @@ def update_repo_listing(ui, for_identity):
         ui.warn("Failed to update repository listing.")
     else:
         ui.status("Updated repository listing:\n{0}\n".format(uri))
+
 
 def read_repo_listing(ui, truster, nickname_prefix=None, key_prefix=''):
     """
@@ -67,6 +69,7 @@ def read_repo_listing(ui, truster, nickname_prefix=None, key_prefix=''):
 # Support for querying WoT for own identities and identities meeting various
 # criteria.
 # TODO: "cmds" suffix to module name to fit fms, arc, inf?
+
 
 def execute_setup_wot(ui_, opts):
     cfg = Config.from_ui(ui_)
