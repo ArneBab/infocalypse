@@ -124,9 +124,6 @@ def resolve_local_identity(ui, nickname_prefix=None, key_prefix=None):
         ui.warn("Unexpected reply. Got {0}\n.".format(response))
         return
 
-    # TODO: Single function to resolve identity used for own and remote?
-    # Not preferable if the flag leads to two different code paths.
-
     prefix = 'Replies.Identity'
     id_num = -1
     # Go by full key instead.
