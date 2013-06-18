@@ -89,8 +89,6 @@ def execute_setup_wot(ui_, opts):
 def resolve_local_identity(ui, identity):
     """
     Mercurial ui for error messages.
-    # TODO: Does not support duplicate nicknames between local identities.
-    # Could support looking at identity to resolve further.
 
     Returns a dictionary of the nickname, insert and request URIs,
     and identity that match the given criteria.
@@ -127,23 +125,41 @@ def resolve_local_identity(ui, identity):
     # TODO: Cleaner flow of control between key-only and nick-and-optional-key
     # Find nicknames starting with the supplied nickname prefix.
     prefix = 'Replies.Nickname'
-    nickname = None
+    # Key: nickname, value (id_num, public key hash).
+    matches = {}
     for key in response.iterkeys():
         if key.startswith(prefix) and\
                 response[key].startswith(nickname_prefix):
-            if nickname is not None:
-                # More than one matched.
-                ui.warn("Prefix '{0}' is ambiguous.\n".format(nickname_prefix))
-                return
 
-            nickname = response[key]
             # Key is Replies.Nickname<number>, where number is used in
             # the other attributes returned for that identity.
             id_num = key[len(prefix):]
 
-    if nickname is None:
-        ui.warn("No nicknames start with '{0}'.\n".format(nickname_prefix))
+            nickname = response[key]
+            pubkey_hash = response['Replies.Identity{0}'.format(id_num)]
+
+            matches[nickname] = (id_num, pubkey_hash)
+
+    # Remove matching nicknames not also matching the (possibly partial)
+    # public key hash.
+    for key in matches.keys():
+        # public key hash is second member of value tuple.
+        if not matches[key][1].startswith(key_prefix):
+            del matches[key]
+
+    if len(matches) > 1:
+        ui.warn("'{0}' is ambiguous.".format(identity))
         return
+
+    if len(matches) == 0:
+        ui.warn("No local identities match '{0}'.\n".format(identity))
+        return
+
+    assert len(matches) == 1
+
+    # id_num is first member of value tuple.
+    only_key = matches.keys()[0]
+    id_num = matches[only_key][0]
 
     return read_local_identity(response, id_num)
 
