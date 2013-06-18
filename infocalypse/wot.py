@@ -147,7 +147,7 @@ def resolve_local_identity(ui, identity):
             del matches[key]
 
     if len(matches) > 1:
-        ui.warn("'{0}' is ambiguous.".format(identity))
+        ui.warn("'{0}' is ambiguous.\n".format(identity))
         return
 
     if len(matches) == 0:
