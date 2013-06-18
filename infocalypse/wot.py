@@ -176,8 +176,8 @@ def resolve_identity(ui, truster, identity):
 
     :param ui: Mercurial ui for error messages.
     :param truster: Check trust list of this local identity.
-    :param nickname_prefix: Partial (prefix) of nickname. Can be whole.
-    :param key_prefix: Partial (prefix) of key. Can be empty.
+    :param identity: Nickname and key, delimited by @. Either half can be
+    omitted.
     """
     nickname_prefix, key_prefix = parse_name(identity)
     # TODO: Support different FCP IP / port.
