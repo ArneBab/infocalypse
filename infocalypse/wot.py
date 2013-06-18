@@ -122,7 +122,6 @@ def resolve_local_identity(ui, identity):
         ui.warn("No identity found with key '{0}'.\n".format(key_prefix))
         return
 
-    # TODO: Cleaner flow of control between key-only and nick-and-optional-key
     # Find nicknames starting with the supplied nickname prefix.
     prefix = 'Replies.Nickname'
     # Key: nickname, value (id_num, public key hash).
@@ -205,6 +204,7 @@ def resolve_identity(ui, truster, identity):
         ui.warn('Unexpected reply. Got {0}\n'.format(response))
         return
     elif response['Replies.Message'] == 'Identities':
+        # TODO: What if no identities matched?
         return read_identity(response, 0)
     elif response['Replies.Message'] == 'Error':
         # The difficulty here is that the message type is Error for both an
