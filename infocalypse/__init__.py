@@ -1006,6 +1006,7 @@ cmdtable = {
     "fn-setup": (infocalypse_setup,
                  [('', 'tmpdir', '~/infocalypse_tmp', 'temp directory'),
                   ('', 'nofms', None, 'skip FMS configuration'),
+                  ('', 'nowot', None, 'skip WoT configuration'),
                   ('', 'fmsid', '', "fmsid (only part before '@'!)"),
                   ('', 'timeout', 30, "fms socket timeout in seconds")]
                  + WOT_OPTS
