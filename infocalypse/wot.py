@@ -97,14 +97,14 @@ def resolve_local_identity(ui, identity):
     nickname_prefix, key_prefix = parse_name(identity)
 
     node = fcp.FCPNode()
-    response =\
+    response = \
         node.fcpPluginMessage(async=False,
                               plugin_name="plugins.WebOfTrust.WebOfTrust",
                               plugin_params={'Message':
                                              'GetOwnIdentities'})[0]
 
-    if response['header'] != 'FCPPluginReply' or\
-            'Replies.Message' not in response or\
+    if response['header'] != 'FCPPluginReply' or \
+            'Replies.Message' not in response or \
             response['Replies.Message'] != 'OwnIdentities':
         ui.warn("Unexpected reply. Got {0}\n.".format(response))
         return
@@ -128,7 +128,7 @@ def resolve_local_identity(ui, identity):
     # Key: nickname, value (id_num, public key hash).
     matches = {}
     for key in response.iterkeys():
-        if key.startswith(prefix) and\
+        if key.startswith(prefix) and \
                 response[key].startswith(nickname_prefix):
 
             # Key is Replies.Nickname<number>, where number is used in
@@ -193,17 +193,17 @@ def resolve_identity(ui, truster, identity):
               'Truster': truster,
               'PartialNickname': nickname_prefix,
               'PartialID': key_prefix,
-              'MaxIdentities': 1,  # Match must be unambiguous.
+              'MaxIdentities': 1, # Match must be unambiguous.
               'Context': 'vcs'}
-    response =\
+    response = \
         node.fcpPluginMessage(async=False,
                               plugin_name="plugins.WebOfTrust.WebOfTrust",
                               plugin_params=params)[0]
 
-    if response['header'] != 'FCPPluginReply' or\
-       'Replies.Message' not in response:
-            ui.warn('Unexpected reply. Got {0}\n'.format(response))
-            return
+    if response['header'] != 'FCPPluginReply' or \
+            'Replies.Message' not in response:
+        ui.warn('Unexpected reply. Got {0}\n'.format(response))
+        return
     elif response['Replies.Message'] == 'Identities':
         return read_identity(response, 0)
     elif response['Replies.Message'] == 'Error':
@@ -216,8 +216,8 @@ def resolve_identity(ui, truster, identity):
             ui.warn("'{0}@{1}' is ambiguous.".format(nickname_prefix,
                                                      key_prefix))
             return
-        elif response['Replies.Description'].startswith('Unknown message') or\
-             response['Replies.Description'].startswith('Could not match'):
+        elif response['Replies.Description'].startswith('Unknown message') or \
+                response['Replies.Description'].startswith('Could not match'):
             # Not supported; check for exact identity.
             ui.warn('Searching by partial nickname/key not supported.')
 
@@ -226,7 +226,7 @@ def resolve_identity(ui, truster, identity):
     params = {'Message': 'GetIdentity',
               'Truster': truster,
               'Identity': key_prefix}
-    response =\
+    response = \
         node.fcpPluginMessage(async=False,
                               plugin_name="plugins.WebOfTrust.WebOfTrust",
                               plugin_params=params)[0]
@@ -254,7 +254,7 @@ def read_identity(message, id_num):
     """
     # Return properties for the selected identity. (by number)
     result = {}
-    for item in [ 'Nickname', 'RequestURI', 'Identity' ]:
+    for item in ['Nickname', 'RequestURI', 'Identity']:
         result[item] = message['Replies.{0}{1}'.format(item, id_num)]
 
     # LCWoT also puts these things as properties, which would be nicer to
