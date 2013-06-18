@@ -2,6 +2,32 @@ import fcp
 from config import Config
 import xml.etree.ElementTree as ET
 from defusedxml.ElementTree import fromstring
+import smtplib
+from base64 import b32encode
+from fcp.node import base64decode
+
+
+def send_pull_request(ui, from_identity, to_identity):
+    local_identity = resolve_local_identity(ui, from_identity)
+    target_identity = resolve_identity(ui, from_identity, to_identity)
+
+    if local_identity is None or target_identity is None:
+        # Error.
+        return
+
+    from_address = to_freemail_address(local_identity)
+    to_address = to_freemail_address(to_identity)
+
+    if from_address is None or to_address is None:
+        ui.warn("At least one of {0} and {2} is not using Freemail."
+                .format(from_identity['Nickname'], to_identity['Nickname']))
+        return
+
+    # TODO: Use FCP host; default port.
+    smtp = smtplib.SMTP()
+    # TODO: Where to configure Freemail password?
+    smtp.login(from_address, )
+    smtp.sendmail()
 
 
 def update_repo_listing(ui, for_identity):
@@ -86,6 +112,12 @@ def execute_setup_wot(ui_, opts):
     Config.to_file(cfg)
 
 
+def execute_setup_freemail(ui, identity, password):
+
+    # TODO: get truster from config; check password.
+    pass
+
+
 def resolve_local_identity(ui, identity):
     """
     Mercurial ui for error messages.
@@ -107,19 +139,6 @@ def resolve_local_identity(ui, identity):
             'Replies.Message' not in response or \
             response['Replies.Message'] != 'OwnIdentities':
         ui.warn("Unexpected reply. Got {0}\n.".format(response))
-        return
-
-    prefix = 'Replies.Identity'
-    id_num = -1
-    # Go by full key instead.
-    if nickname_prefix is None:
-        for item in response.iteritems():
-            if item[1] == key_prefix:
-                # Assuming identities will always be unique.
-                id_num = item[0][len(prefix):]
-                return read_local_identity(response, id_num)
-
-        ui.warn("No identity found with key '{0}'.\n".format(key_prefix))
         return
 
     # Find nicknames starting with the supplied nickname prefix.
@@ -288,3 +307,22 @@ def parse_name(identity):
         key_prefix = split[1]
 
     return nickname_prefix, key_prefix
+
+
+def to_freemail_address(identity):
+    """
+    Return a Freemail address to contact the given identity if it has a
+    Freemail context. Return None if it does not have a Freemail context.
+    """
+
+    # Freemail addresses encode the public key hash with base32 instead of
+    # base64 as WoT does. This is to be case insensitive because email
+    # addresses are not case sensitive, so some clients may mangle case.
+    # See https://github.com/zidel/Freemail/blob/v0.2.2.1/docs/spec/spec.tex#L32
+
+    for item in identity.iteritem():
+        if item[1] == 'Freemail' and item[0].startswith('Context'):
+            return identity['Nickname'] + '@' + b32encode(base64decode(
+                identity['Identity'])) + 'freemail'
+
+    return None

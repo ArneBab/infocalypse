@@ -353,7 +353,7 @@ from wikicmds import execute_wiki, execute_wiki_apply
 from arccmds import execute_arc_create, execute_arc_pull, execute_arc_push, \
      execute_arc_reinsert
 
-from config import read_freesite_cfg
+from config import read_freesite_cfg, Config
 from validate import is_hex_string, is_fms_id
 
 def set_target_version(ui_, repo, opts, params, msg_fmt):
@@ -554,6 +554,13 @@ def infocalypse_pull(ui_, repo, **opts):
     params['REQUEST_URI'] = request_uri
     # Hmmmm... can't really implement rev.
     execute_pull(ui_, repo, params, stored_cfg)
+
+
+def infocalypse_pull_request(ui, repo, **opts):
+    if not opts['wot']:
+        ui.warning("Who do you want to send the pull request to? Set --wot.")
+        return
+
 
 def infocalypse_push(ui_, repo, **opts):
     """ Push to an Infocalypse repository in Freenet. """
@@ -798,6 +805,20 @@ def infocalypse_setupwot(ui_, **opts):
     wot.execute_setup_wot(ui_, opts)
 
 
+# TODO: Should Freemail setup also be part of fn-setup?
+# TODO: Should there be per-Identity config? Then each one would have a list
+# of repos and optionally a Freemail password.
+# Nah, FMS config is global.
+def infocalypse_setupfreemail(ui, **opts):
+    if 'truster' in opts:
+        identity = opts['truster']
+    else:
+        cfg = Config().from_ui(ui)
+        identity = cfg.defaults['TRUSTER']
+    import wot
+    # TODO: Should this be part of the normal fn-setup?
+    wot.execute_setup_freemail(ui, identity)
+
 #----------------------------------------------------------"
 def do_archive_create(ui_, opts, params, stored_cfg):
     """ fn-archive --create."""
@@ -920,6 +941,11 @@ cmdtable = {
                 + AGGRESSIVE_OPT,
                 "[options]"),
 
+    "fn-pull-request": (infocalypse_pull_request,
+                        WOT_OPTS +
+                        FCP_OPTS,
+                        "--wot id@key/repo"),
+
     "fn-push": (infocalypse_push,
                 [('', 'uri', '', 'insert URI to push to'),
                  # Buggy. Not well thought out.
@@ -1024,6 +1050,12 @@ cmdtable = {
                     FCP_OPTS +
                     WOT_OPTS,
                     "[options]"),
+
+    "fn-setupfreemail": (infocalypse_setupfreemail,
+                         [('', 'password', '', 'Freemail password')]
+                         + WOT_OPTS
+                         + FCP_OPTS,
+                         "[--truster nick@key] --password <password>"),
 
     "fn-archive": (infocalypse_archive,
                   [('', 'uri', '', 'Request URI for --pull, Insert URI ' +
