@@ -1,3 +1,4 @@
+import string
 import fcp
 from config import Config
 import xml.etree.ElementTree as ET
@@ -320,9 +321,14 @@ def to_freemail_address(identity):
     # addresses are not case sensitive, so some clients may mangle case.
     # See https://github.com/zidel/Freemail/blob/v0.2.2.1/docs/spec/spec.tex#L32
 
-    for item in identity.iteritem():
+    for item in identity.iteritems():
         if item[1] == 'Freemail' and item[0].startswith('Context'):
-            return identity['Nickname'] + '@' + b32encode(base64decode(
-                identity['Identity'])) + 'freemail'
+            re_encode = b32encode(base64decode(identity['Identity']))
+            # Remove '=' padding.
+            re_encode = re_encode.split('=', 1)[0]
+
+            # Freemail addresses are lower case.
+            return string.lower(identity['Nickname'] + '@' + re_encode +
+                                '.freemail')
 
     return None
