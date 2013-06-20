@@ -324,8 +324,8 @@ def to_freemail_address(identity):
     for item in identity.iteritems():
         if item[1] == 'Freemail' and item[0].startswith('Context'):
             re_encode = b32encode(base64decode(identity['Identity']))
-            # Remove '=' padding.
-            re_encode = re_encode.split('=', 1)[0]
+            # Remove trailing '=' padding.
+            re_encode = re_encode.rstrip('=')
 
             # Freemail addresses are lower case.
             return string.lower(identity['Nickname'] + '@' + re_encode +
