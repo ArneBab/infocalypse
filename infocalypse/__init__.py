@@ -340,7 +340,6 @@ import os
 
 from commands import *
 
-from binascii import hexlify
 from mercurial import commands, util
 
 #----------------------------------------------------------"
