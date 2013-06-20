@@ -360,6 +360,11 @@ FMS_OPTS = [('', 'fmshost', '', 'fms host'),
 
 WOT_OPTS = [('', 'truster', '', 'WoT identity to use when looking up others'),
 ]
+WOT_CREATE_OPTS = [('', 'wot', '', 'WoT nickname to create on'),
+]
+WOT_PULL_OPTS = [('', 'wot', '', 'WoT nick@key/repo to pull from'),
+]
+
 
 AGGRESSIVE_OPT = [('', 'aggressive', None, 'aggressively search for the '
                    + 'latest USK index'),]
@@ -373,9 +378,9 @@ PULL_OPTS = [('', 'hash', [], 'repo hash of repository to pull from'),
 
 cmdtable = {
     "fn-pull": (infocalypse_pull,
-                [('', 'uri', '', 'request URI to pull from'),
-                 ('', 'wot', '', 'WoT nick@key/repo to pull from')]
+                [('', 'uri', '', 'request URI to pull from')]
                 + PULL_OPTS
+                + WOT_PULL_OPTS
                 + FCP_OPTS
                 + NOSEARCH_OPT
                 + AGGRESSIVE_OPT,
@@ -392,9 +397,9 @@ cmdtable = {
 
     "fn-create": (infocalypse_create,
                   [('', 'uri', '', 'insert URI to create on'),
-                   ('', 'wot', '', 'WoT nickname to create on'),
-                   ('r', 'rev', [],'maximum rev to push'),]
-                  + FCP_OPTS,
+                   ('r', 'rev', [],'maximum rev to push')]
+                  + FCP_OPTS
+                  + WOT_CREATE_OPTS,
                 "[options]"),
     "fn-copy": (infocalypse_copy,
                 [('', 'requesturi', '', 'request URI to copy from'),
@@ -730,8 +735,12 @@ entry[1].extend(FCP_OPTS)
 entry = extensions.wrapcommand(commands.table, "pull", freenetpull)
 entry[1].extend(PULL_OPTS)
 entry[1].extend(FCP_OPTS)
+entry[1].extend(WOT_OPTS)
+entry[1].extend(WOT_PULL_OPTS)
 entry = extensions.wrapcommand(commands.table, "clone", freenetclone)
 entry[1].extend(FCP_OPTS)
+entry[1].extend(WOT_OPTS)
+entry[1].extend(WOT_CREATE_OPTS)
 
 
 # Starting an FTP repo. Not yet used, except for throwing errors for missing commands and faking the lock.
