@@ -13,7 +13,7 @@ from wikicmds import execute_wiki, execute_wiki_apply
 from arccmds import execute_arc_create, execute_arc_pull, execute_arc_push, \
      execute_arc_reinsert
 
-from config import read_freesite_cfg
+from config import read_freesite_cfg, Config
 from validate import is_hex_string, is_fms_id
 
 def set_target_version(ui_, repo, opts, params, msg_fmt):
@@ -195,18 +195,7 @@ def infocalypse_pull(ui_, repo, **opts):
         # TODO: How to handle redundancy? Does Infocalypse automatically try
         # an R0 if an R1 fails?
 
-        nickname_prefix = ''
-        key_prefix=''
-        # Could be nick@key, nick, @key
-        split = wot_id.split('@')
-        nickname_prefix = split[0]
-
-        if len(split) == 2:
-            key_prefix = split[1]
-
-        repositories = wot.read_repo_listing(ui_, truster,
-                                             nickname_prefix=nickname_prefix,
-                                             key_prefix=key_prefix)
+        repositories = wot.read_repo_listing(ui_, truster, wot_id)
         if repo_name not in repositories:
             ui_.warn("Could not find repository named \"{0}\".\n".format(repo_name))
             return
@@ -225,6 +214,11 @@ def infocalypse_pull(ui_, repo, **opts):
     params['REQUEST_URI'] = request_uri
     # Hmmmm... can't really implement rev.
     execute_pull(ui_, repo, params, stored_cfg)
+
+def infocalypse_pull_request(ui, repo, **opts):
+    if not opts['wot']:
+        ui.warning("Who do you want to send the pull request to? Set --wot.")
+        return
 
 def infocalypse_push(ui_, repo, **opts):
     """ Push to an Infocalypse repository in Freenet. """
@@ -467,6 +461,21 @@ def infocalypse_setupfms(ui_, **opts):
 def infocalypse_setupwot(ui_, **opts):
     import wot
     wot.execute_setup_wot(ui_, opts)
+
+
+# TODO: Should Freemail setup also be part of fn-setup?
+# TODO: Should there be per-Identity config? Then each one would have a list
+# of repos and optionally a Freemail password.
+# Nah, FMS config is global.
+def infocalypse_setupfreemail(ui, **opts):
+    if 'truster' in opts:
+        identity = opts['truster']
+    else:
+        cfg = Config().from_ui(ui)
+        identity = cfg.defaults['TRUSTER']
+    import wot
+    # TODO: Should this be part of the normal fn-setup?
+    wot.execute_setup_freemail(ui, identity)
 
 
 #----------------------------------------------------------"
