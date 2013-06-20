@@ -320,7 +320,7 @@ def to_freemail_address(identity):
     # addresses are not case sensitive, so some clients may mangle case.
     # See https://github.com/zidel/Freemail/blob/v0.2.2.1/docs/spec/spec.tex#L32
 
-    for item in identity.iteritem():
+    for item in identity.iteritems():
         if item[1] == 'Freemail' and item[0].startswith('Context'):
             return identity['Nickname'] + '@' + b32encode(base64decode(
                 identity['Identity'])) + 'freemail'
