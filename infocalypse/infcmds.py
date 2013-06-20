@@ -495,12 +495,8 @@ def is_redundant(uri):
 ############################################################
 # User feedback? success, failure?
 def execute_create(ui_, repo, params, stored_cfg):
-    """
-    Run the create command.
-    Return the URIs the repo was inserted to, or None in the case of an error.
-    """
+    """ Run the create command. """
     update_sm = None
-    inserted_to = None
     try:
         update_sm = setup(ui_, repo, params, stored_cfg)
         # REDFLAG: Do better.
@@ -520,17 +516,15 @@ def execute_create(ui_, repo, params, stored_cfg):
         run_until_quiescent(update_sm, params['POLL_SECS'])
 
         if update_sm.get_state(QUIESCENT).arrived_from(((FINISHING,))):
-            inserted_to = update_sm.get_state(INSERTING_URI).get_request_uris()
             ui_.status("Inserted to:\n%s\n" %
-                       '\n'.join(inserted_to))
+                       '\n'.join(update_sm.get_state(INSERTING_URI).
+                                 get_request_uris()))
         else:
             ui_.status("Create failed.\n")
 
         handle_updating_config(repo, update_sm, params, stored_cfg)
     finally:
         cleanup(update_sm)
-
-    return inserted_to
 
 # REDFLAG: LATER: make this work without a repo?
 def execute_copy(ui_, repo, params, stored_cfg):
@@ -612,14 +606,10 @@ def execute_reinsert(ui_, repo, params, stored_cfg):
         cleanup(update_sm)
 
 def execute_push(ui_, repo, params, stored_cfg):
-    """
-    Run the push command.
-    Return the URIs the repo was inserted to if it changed, or None otherwise.
-    """
+    """ Run the push command. """
 
     assert params.get('REQUEST_URI', None) is None
     update_sm = None
-    inserted_to = None
     try:
         update_sm = setup(ui_, repo, params, stored_cfg)
         request_uri, is_keypair = do_key_setup(ui_, update_sm, params,
@@ -636,9 +626,9 @@ def execute_push(ui_, repo, params, stored_cfg):
         run_until_quiescent(update_sm, params['POLL_SECS'])
 
         if update_sm.get_state(QUIESCENT).arrived_from(((FINISHING,))):
-            inserted_to = update_sm.get_state(INSERTING_URI).get_request_uris()
             ui_.status("Inserted to:\n%s\n" %
-                       '\n'.join(inserted_to))
+                       '\n'.join(update_sm.get_state(INSERTING_URI).
+                                 get_request_uris()))
         else:
             extra = ''
             if update_sm.ctx.get('UP_TO_DATE', False):
@@ -648,8 +638,6 @@ def execute_push(ui_, repo, params, stored_cfg):
         handle_updating_config(repo, update_sm, params, stored_cfg)
     finally:
         cleanup(update_sm)
-
-    return inserted_to
 
 def execute_pull(ui_, repo, params, stored_cfg):
     """ Run the pull command. """
