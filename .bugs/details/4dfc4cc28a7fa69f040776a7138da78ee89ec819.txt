@@ -1,0 +1,564 @@
+# Lines starting with '#' and sections without content
+# are not displayed by a call to 'details'
+#
+[paths]
+# Paths related to this bug.
+# suggested format: REPO_PATH:LINENUMBERS
+
+
+[details]
+# Additional details
+
+
+[expected]
+# The expected result
+
+
+[actual]
+# What happened instead
+
+
+[reproduce]
+# Reproduction steps
+
+
+[comments]
+# Comments and updates - leave your name
+
+Potential patches (export of my experiments to ensure that the code does not get lost):
+
+# HG changeset patch
+# User Arne Babenhauserheide <bab@draketo.de>
+# Date 1320398320 -3600
+# Node ID d9e348082e48f87c4ecb05f0930b754348168c1b
+# Parent  a708b65baeb92ce4971cccaee5b799b88595ddb2
+clone: get all bookmarks before updating
+* * *
+clone: FIX: also get the bookmarks for remote target repos which support pushkey.
+
+diff --git a/mercurial/hg.py b/mercurial/hg.py
+--- a/mercurial/hg.py
++++ b/mercurial/hg.py
+@@ -353,6 +353,21 @@ def clone(ui, peeropts, source, dest=Non
+         if dircleanup:
+             dircleanup.close()
+ 
++        # clone all bookmarks
++        if destrepo.local() and srcrepo.capable("pushkey"):
++            rb = srcrepo.listkeys('bookmarks')
++            for k, n in rb.iteritems():
++                try:
++                    m = destrepo.lookup(n)
++                    destrepo._bookmarks[k] = m
++                except error.RepoLookupError:
++                    pass
++            if rb:
++                bookmarks.write(destrepo)
++        elif srcrepo.local() and destrepo.capable("pushkey"):
++            for k, n in srcrepo._bookmarks.iteritems():
++                destrepo.pushkey('bookmarks', k, '', hex(n))
++
+         if destrepo.local():
+             fp = destrepo.opener("hgrc", "w", text=True)
+             fp.write("[paths]\n")
+@@ -378,21 +393,6 @@ def clone(ui, peeropts, source, dest=Non
+                 destrepo.ui.status(_("updating to branch %s\n") % bn)
+                 _update(destrepo, uprev)
+ 
+-        # clone all bookmarks
+-        if destrepo.local() and srcrepo.capable("pushkey"):
+-            rb = srcrepo.listkeys('bookmarks')
+-            for k, n in rb.iteritems():
+-                try:
+-                    m = destrepo.lookup(n)
+-                    destrepo._bookmarks[k] = m
+-                except error.RepoLookupError:
+-                    pass
+-            if rb:
+-                bookmarks.write(destrepo)
+-        elif srcrepo.local() and destrepo.capable("pushkey"):
+-            for k, n in srcrepo._bookmarks.iteritems():
+-                destrepo.pushkey('bookmarks', k, '', hex(n))
+-
+         return srcrepo, destrepo
+     finally:
+         release(srclock, destlock)
+
+# HG changeset patch
+# User bab@draketo.de
+# Date 1343931127 -7200
+# Branch stable
+# Node ID f5e211663739e31f2e476c43992ee5335f9d8146
+# Parent  00182b3d087909e3c3ae44761efecdde8f319ef3
+revsets: added branchpoint() for revisions with more than one child.
+
+Reason: Get very terse information via
+
+    hg glog --rev "head() or merge() or branchpoint()"
+
+diff --git a/mercurial/revset.py b/mercurial/revset.py
+--- a/mercurial/revset.py
++++ b/mercurial/revset.py
+@@ -710,6 +710,15 @@ def merge(repo, subset, x):
+     cl = repo.changelog
+     return [r for r in subset if cl.parentrevs(r)[1] != -1]
+ 
++def branchpoint(repo, subset, x):
++    """``branchpoint()``
++    Changeset has more than one child.
++    """
++    # i18n: "merge" is a keyword
++    getargs(x, 0, 0, _("branchpoint takes no arguments"))
++    cl = repo.changelog
++    return [r for r in subset if cl.children(repo[r].node())[1:]]
++
+ def minrev(repo, subset, x):
+     """``min(set)``
+     Changeset with lowest revision number in set.
+@@ -1137,6 +1146,7 @@ symbols = {
+     "bisected": bisected,
+     "bookmark": bookmark,
+     "branch": branch,
++    "branchpoint": branchpoint,
+     "children": children,
+     "closed": closed,
+     "contains": contains,
+
+# HG changeset patch
+# User Arne Babenhauserheide <bab@draketo.de>
+# Date 1355793798 -3600
+# Node ID c4e74e535082cee18b73f09cf5b0c6b5ffbcd19d
+# Parent  7aa7380691b8815200dda268aa1af19fd56aa741
+Option to enforce using UTC for commit dates.
+
+The timezone entries in commit messages give away location information
+of the commiter, which can be dangerous when Mercurial is used
+anonymously.
+
+To mitigate that danger, this commit adds an rc-option to use UTC
+dates, except when the timezone is requested explicitely via a date
+string or by amending a commit without changing the date and time.
+
+To switch to UTC times, add
+
+    [ui]
+    datetimeutc = True
+
+to your ~/.hgrc or a .hg/hgrc.
+
+Extensions like infocalypse can also set this option when doing the
+initial clone from an anonymous source to ensure that the default
+behaviour of Mercurial is safe.
+
+diff --git a/mercurial/cmdutil.py b/mercurial/cmdutil.py
+--- a/mercurial/cmdutil.py
++++ b/mercurial/cmdutil.py
+@@ -1586,7 +1586,9 @@ def commit(ui, repo, commitfunc, pats, o
+     '''commit the specified files or all outstanding changes'''
+     date = opts.get('date')
+     if date:
+-        opts['date'] = util.parsedate(date)
++        opts['date'] = util.timezoneprivacy(ui.configbool('ui', 'datetimeutc'),
++                                            date)
++
+     message = logmessage(ui, opts)
+ 
+     # extract addremove carefully -- this function can be called from a command
+diff --git a/mercurial/commands.py b/mercurial/commands.py
+--- a/mercurial/commands.py
++++ b/mercurial/commands.py
+@@ -1304,9 +1304,12 @@ def commit(ui, repo, *pats, **opts):
+             if not message:
+                 message = old.description()
+                 editor = cmdutil.commitforceeditor
++            date = util.timezoneprivacy(ui.configbool('ui', 'datetimeutc'),
++                                        opts.get('date'),
++                                        old.date())
+             return repo.commit(message,
+                                opts.get('user') or old.user(),
+-                               opts.get('date') or old.date(),
++                               date,
+                                match,
+                                editor=editor,
+                                extra=extra)
+diff --git a/mercurial/help/config.txt b/mercurial/help/config.txt
+--- a/mercurial/help/config.txt
++++ b/mercurial/help/config.txt
+@@ -1128,6 +1128,10 @@ User interface controls.
+     changes, abort the commit.
+     Default is False.
+ 
++``datetimeutc``
++    Whether to always use Universal Time Coordinated (UTC) for date
++    entries when committing.
++
+ ``debug``
+     Print debugging information. True or False. Default is False.
+ 
+diff --git a/mercurial/util.py b/mercurial/util.py
+--- a/mercurial/util.py
++++ b/mercurial/util.py
+@@ -980,20 +980,20 @@ def shortdate(date=None):
+     """turn (timestamp, tzoff) tuple into iso 8631 date."""
+     return datestr(date, format='%Y-%m-%d')
+ 
++def timezone(string):
++    tz = string.split()[-1]
++    if tz[0] in "+-" and len(tz) == 5 and tz[1:].isdigit():
++        sign = (tz[0] == "+") and 1 or -1
++        hours = int(tz[1:3])
++        minutes = int(tz[3:5])
++        return -sign * (hours * 60 + minutes) * 60
++    if tz == "GMT" or tz == "UTC":
++        return 0
++    return None
++
+ def strdate(string, format, defaults=[]):
+     """parse a localized time string and return a (unixtime, offset) tuple.
+     if the string cannot be parsed, ValueError is raised."""
+-    def timezone(string):
+-        tz = string.split()[-1]
+-        if tz[0] in "+-" and len(tz) == 5 and tz[1:].isdigit():
+-            sign = (tz[0] == "+") and 1 or -1
+-            hours = int(tz[1:3])
+-            minutes = int(tz[3:5])
+-            return -sign * (hours * 60 + minutes) * 60
+-        if tz == "GMT" or tz == "UTC":
+-            return 0
+-        return None
+-
+     # NOTE: unixtime = localunixtime + offset
+     offset, date = timezone(string), string
+     if offset is not None:
+@@ -1151,6 +1151,35 @@ def matchdate(date):
+         start, stop = lower(date), upper(date)
+         return lambda x: x >= start and x <= stop
+ 
++def timezoneprivacy(privacy, datestring=None, date=None):
++    """Switch to UTC if the timezone could be a risk to
++    privacy and the timezone was not requested explicitly.
++
++    >>> withtz = parsedate("2012-12-23 10:04:23 +0300")
++    >>> localtz = makedate()[1]
++    >>> notz = timezoneprivacy(True, "2012-12-23 07:04:23")
++    >>> notz[1] == 0
++    True
++    >>> notz[0] - localtz == withtz[0]
++    True
++    >>> (notz[0], localtz) == timezoneprivacy(False, "2012-12-23 07:04:23")
++    True
++    >>> (withtz[0], -3600) == timezoneprivacy(True, "2012-12-23 08:04:23 +0100")
++    True
++    >>> (withtz[0], 18000) == timezoneprivacy(True, "2012-12-23 02:04:23 -0500")
++    True
++    """
++    when = parsedate(datestring or date or makedate())
++    if not privacy:
++        return when
++    hastimezone = timezone(datestring) is not None
++    if datestring and not hastimezone:
++        return when[0], 0
++    if datestring or date:
++        return when
++    # no explicit datestring or date: use current UTC
++    return when[0], 0
++
+ def shortuser(user):
+     """Return a short representation of a user name or email address."""
+     f = user.find('@')
+diff --git a/tests/test-commit.t b/tests/test-commit.t
+--- a/tests/test-commit.t
++++ b/tests/test-commit.t
+@@ -90,12 +90,20 @@ commit added file that has been deleted
+   dir/file
+   committed changeset 4:49176991390e
+ 
+-An empty date was interpreted as epoch origin
++date argument parsing
+ 
+   $ echo foo >> foo
+   $ hg commit -d '' -m commit-no-date
+   $ hg tip --template '{date|isodate}\n' | grep '1970'
+   [1]
++  $ echo foo >> foo
++  $ hg --config ui.datetimeutc=True commit -d '1982-04-23 14:23' -m commit-utc
++  $ hg tip --template '{date|isodate}\n'
++  1982-04-23 14:23 +0000
++  $ echo foo >> foo
++  $ hg --config ui.datetimeutc=True commit -d '1982-04-23 14:23 +0100' -m commit-utc
++  $ hg tip --template '{date|isodate}\n'
++  1982-04-23 14:23 +0100
+ 
+ Make sure we do not obscure unknown requires file entries (issue2649)
+ 
+
+# HG changeset patch
+# User Arne Babenhauserheide <bab@draketo.de>
+# Date 1355924730 -3600
+# Node ID 790b40844560e268f9e12a61c313279718bb6f93
+# Parent  c4e74e535082cee18b73f09cf5b0c6b5ffbcd19d
+Simpler implementation of enforcing UTC for dates.
+
+diff --git a/mercurial/cmdutil.py b/mercurial/cmdutil.py
+--- a/mercurial/cmdutil.py
++++ b/mercurial/cmdutil.py
+@@ -1586,9 +1586,7 @@ def commit(ui, repo, commitfunc, pats, o
+     '''commit the specified files or all outstanding changes'''
+     date = opts.get('date')
+     if date:
+-        opts['date'] = util.timezoneprivacy(ui.configbool('ui', 'datetimeutc'),
+-                                            date)
+-
++        opts['date'] = util.parsedate(date)
+     message = logmessage(ui, opts)
+ 
+     # extract addremove carefully -- this function can be called from a command
+diff --git a/mercurial/commands.py b/mercurial/commands.py
+--- a/mercurial/commands.py
++++ b/mercurial/commands.py
+@@ -1276,6 +1276,9 @@ def commit(ui, repo, *pats, **opts):
+             raise util.Abort(_('can only close branch heads'))
+         extra['close'] = 1
+ 
++    if ui.configbool('ui', 'datetimeutc'):
++        pass #time.timezone = "UTC"
++
+     branch = repo[None].branch()
+     bheads = repo.branchheads(branch)
+ 
+@@ -1304,12 +1307,9 @@ def commit(ui, repo, *pats, **opts):
+             if not message:
+                 message = old.description()
+                 editor = cmdutil.commitforceeditor
+-            date = util.timezoneprivacy(ui.configbool('ui', 'datetimeutc'),
+-                                        opts.get('date'),
+-                                        old.date())
+             return repo.commit(message,
+                                opts.get('user') or old.user(),
+-                               date,
++                               opts.get('date') or old.date(),
+                                match,
+                                editor=editor,
+                                extra=extra)
+diff --git a/mercurial/util.py b/mercurial/util.py
+--- a/mercurial/util.py
++++ b/mercurial/util.py
+@@ -980,20 +980,20 @@ def shortdate(date=None):
+     """turn (timestamp, tzoff) tuple into iso 8631 date."""
+     return datestr(date, format='%Y-%m-%d')
+ 
+-def timezone(string):
+-    tz = string.split()[-1]
+-    if tz[0] in "+-" and len(tz) == 5 and tz[1:].isdigit():
+-        sign = (tz[0] == "+") and 1 or -1
+-        hours = int(tz[1:3])
+-        minutes = int(tz[3:5])
+-        return -sign * (hours * 60 + minutes) * 60
+-    if tz == "GMT" or tz == "UTC":
+-        return 0
+-    return None
+-
+ def strdate(string, format, defaults=[]):
+     """parse a localized time string and return a (unixtime, offset) tuple.
+     if the string cannot be parsed, ValueError is raised."""
++    def timezone(string):
++        tz = string.split()[-1]
++        if tz[0] in "+-" and len(tz) == 5 and tz[1:].isdigit():
++            sign = (tz[0] == "+") and 1 or -1
++            hours = int(tz[1:3])
++            minutes = int(tz[3:5])
++            return -sign * (hours * 60 + minutes) * 60
++        if tz == "GMT" or tz == "UTC":
++            return 0
++        return None
++
+     # NOTE: unixtime = localunixtime + offset
+     offset, date = timezone(string), string
+     if offset is not None:
+@@ -1151,35 +1151,6 @@ def matchdate(date):
+         start, stop = lower(date), upper(date)
+         return lambda x: x >= start and x <= stop
+ 
+-def timezoneprivacy(privacy, datestring=None, date=None):
+-    """Switch to UTC if the timezone could be a risk to
+-    privacy and the timezone was not requested explicitly.
+-
+-    >>> withtz = parsedate("2012-12-23 10:04:23 +0300")
+-    >>> localtz = makedate()[1]
+-    >>> notz = timezoneprivacy(True, "2012-12-23 07:04:23")
+-    >>> notz[1] == 0
+-    True
+-    >>> notz[0] - localtz == withtz[0]
+-    True
+-    >>> (notz[0], localtz) == timezoneprivacy(False, "2012-12-23 07:04:23")
+-    True
+-    >>> (withtz[0], -3600) == timezoneprivacy(True, "2012-12-23 08:04:23 +0100")
+-    True
+-    >>> (withtz[0], 18000) == timezoneprivacy(True, "2012-12-23 02:04:23 -0500")
+-    True
+-    """
+-    when = parsedate(datestring or date or makedate())
+-    if not privacy:
+-        return when
+-    hastimezone = timezone(datestring) is not None
+-    if datestring and not hastimezone:
+-        return when[0], 0
+-    if datestring or date:
+-        return when
+-    # no explicit datestring or date: use current UTC
+-    return when[0], 0
+-
+ def shortuser(user):
+     """Return a short representation of a user name or email address."""
+     f = user.find('@')
+
+# HG changeset patch
+# User Arne Babenhauserheide <bab@draketo.de>
+# Date 1355925188 -3600
+# Node ID 8070267ca30f22357f65f96ea0ed99569639f094
+# Parent  790b40844560e268f9e12a61c313279718bb6f93
+test.
+
+diff --git a/mercurial/commands.py b/mercurial/commands.py
+--- a/mercurial/commands.py
++++ b/mercurial/commands.py
+@@ -1277,7 +1277,7 @@ def commit(ui, repo, *pats, **opts):
+         extra['close'] = 1
+ 
+     if ui.configbool('ui', 'datetimeutc'):
+-        pass #time.timezone = "UTC"
++        time.timezone = "UTC"
+ 
+     branch = repo[None].branch()
+     bheads = repo.branchheads(branch)
+
+# HG changeset patch
+# User Arne Babenhauserheide <bab@draketo.de>
+# Date 1355925219 -3600
+# Node ID 5e3231e4caf46c078a5c0c83f64648dca630f5f1
+# Parent  8070267ca30f22357f65f96ea0ed99569639f094
+test.
+
+diff --git a/mercurial/commands.py b/mercurial/commands.py
+--- a/mercurial/commands.py
++++ b/mercurial/commands.py
+@@ -1277,7 +1277,7 @@ def commit(ui, repo, *pats, **opts):
+         extra['close'] = 1
+ 
+     if ui.configbool('ui', 'datetimeutc'):
+-        time.timezone = "UTC"
++        time.timezone = "GMT+5"
+ 
+     branch = repo[None].branch()
+     bheads = repo.branchheads(branch)
+
+# HG changeset patch
+# User Arne Babenhauserheide <bab@draketo.de>
+# Date 1355925239 -3600
+# Node ID ce47f904c4c735ad694c4047b674abf30cda0e77
+# Parent  5e3231e4caf46c078a5c0c83f64648dca630f5f1
+test.
+
+diff --git a/mercurial/commands.py b/mercurial/commands.py
+--- a/mercurial/commands.py
++++ b/mercurial/commands.py
+@@ -1278,6 +1278,7 @@ def commit(ui, repo, *pats, **opts):
+ 
+     if ui.configbool('ui', 'datetimeutc'):
+         time.timezone = "GMT+5"
++    print time.timezone
+ 
+     branch = repo[None].branch()
+     bheads = repo.branchheads(branch)
+
+# HG changeset patch
+# User Arne Babenhauserheide <bab@draketo.de>
+# Date 1355945885 -3600
+# Node ID 5252b47c54bfde07dc8844e47bb33fc685de3ce8
+# Parent  ce47f904c4c735ad694c4047b674abf30cda0e77
+timezone: Fix test to always use a on-utc timezone.
+
+diff --git a/tests/test-commit.t b/tests/test-commit.t
+--- a/tests/test-commit.t
++++ b/tests/test-commit.t
+@@ -97,11 +97,11 @@ date argument parsing
+   $ hg tip --template '{date|isodate}\n' | grep '1970'
+   [1]
+   $ echo foo >> foo
+-  $ hg --config ui.datetimeutc=True commit -d '1982-04-23 14:23' -m commit-utc
++  $ TZ="Europe/Berlin" hg --config ui.datetimeutc=True commit -d '1982-04-23 14:23' -m commit-utc
+   $ hg tip --template '{date|isodate}\n'
+   1982-04-23 14:23 +0000
+   $ echo foo >> foo
+-  $ hg --config ui.datetimeutc=True commit -d '1982-04-23 14:23 +0100' -m commit-utc
++  $ TZ="Europe/Berlin" hg --config ui.datetimeutc=True commit -d '1982-04-23 14:23 +0100' -m commit-utc
+   $ hg tip --template '{date|isodate}\n'
+   1982-04-23 14:23 +0100
+ 
+
+# HG changeset patch
+# User Arne Babenhauserheide <bab@draketo.de>
+# Date 1355945986 -3600
+# Node ID 909abca4327b214058989204a2afb7d32deb446b
+# Parent  5252b47c54bfde07dc8844e47bb33fc685de3ce8
+enforce UTC: time.timezone to 0
+
+diff --git a/mercurial/commands.py b/mercurial/commands.py
+--- a/mercurial/commands.py
++++ b/mercurial/commands.py
+@@ -1277,8 +1277,7 @@ def commit(ui, repo, *pats, **opts):
+         extra['close'] = 1
+ 
+     if ui.configbool('ui', 'datetimeutc'):
+-        time.timezone = "GMT+5"
+-    print time.timezone
++        time.timezone = 0
+ 
+     branch = repo[None].branch()
+     bheads = repo.branchheads(branch)
+
+# HG changeset patch
+# User Arne Babenhauserheide <bab@draketo.de>
+# Date 1355945885 -3600
+# Node ID 0b0099e44145183560e7cc01c20e21cd3bea84d0
+# Parent  c4e74e535082cee18b73f09cf5b0c6b5ffbcd19d
+timezone: Fix test to always use a on-utc timezone.
+
+diff --git a/tests/test-commit.t b/tests/test-commit.t
+--- a/tests/test-commit.t
++++ b/tests/test-commit.t
+@@ -97,11 +97,11 @@ date argument parsing
+   $ hg tip --template '{date|isodate}\n' | grep '1970'
+   [1]
+   $ echo foo >> foo
+-  $ hg --config ui.datetimeutc=True commit -d '1982-04-23 14:23' -m commit-utc
++  $ TZ="Europe/Berlin" hg --config ui.datetimeutc=True commit -d '1982-04-23 14:23' -m commit-utc
+   $ hg tip --template '{date|isodate}\n'
+   1982-04-23 14:23 +0000
+   $ echo foo >> foo
+-  $ hg --config ui.datetimeutc=True commit -d '1982-04-23 14:23 +0100' -m commit-utc
++  $ TZ="Europe/Berlin" hg --config ui.datetimeutc=True commit -d '1982-04-23 14:23 +0100' -m commit-utc
+   $ hg tip --template '{date|isodate}\n'
+   1982-04-23 14:23 +0100
+ 
+
+# HG changeset patch
+# User Arne Babenhauserheide <bab@draketo.de>
+# Date 1357663148 -3600
+# Node ID 204a32c7c864f5b1db86c77e037bc895445201d7
+# Parent  0b0099e44145183560e7cc01c20e21cd3bea84d0
+Fix the timezoneprivacy test: You give the local time and it records the UTC according to that.
+
+diff --git a/tests/test-commit.t b/tests/test-commit.t
+--- a/tests/test-commit.t
++++ b/tests/test-commit.t
+@@ -99,7 +99,7 @@ date argument parsing
+   $ echo foo >> foo
+   $ TZ="Europe/Berlin" hg --config ui.datetimeutc=True commit -d '1982-04-23 14:23' -m commit-utc
+   $ hg tip --template '{date|isodate}\n'
+-  1982-04-23 14:23 +0000
++  1982-04-23 12:23 +0000
+   $ echo foo >> foo
+   $ TZ="Europe/Berlin" hg --config ui.datetimeutc=True commit -d '1982-04-23 14:23 +0100' -m commit-utc
+   $ hg tip --template '{date|isodate}\n'
+

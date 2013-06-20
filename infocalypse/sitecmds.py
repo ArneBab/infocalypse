@@ -176,13 +176,19 @@ And this is what needs to go into fn-create --uri, fn-push --uri, or fn-copy --i
 %s
 """
 
-def execute_genkey(ui_, params):
-    """ Run the genkey command. """
-    client = FCPClient.connect(params['FCP_HOST'],
-                               params['FCP_PORT'])
+def genkeypair(fcphost, fcpport):
+    """ Generate a keypair 
 
+    :returns: inserturi, requesturi (strings)
+    """
+    client = FCPClient.connect(fcphost, fcpport)
     client.message_callback = lambda x, y : None # silence.
     resp = client.generate_ssk()
-    ui_.status(MSG_FMT % (resp[1]['InsertURI'], resp[1]['RequestURI'],
-                          resp[1]['InsertURI'].split('/')[0] +'/',
-                          "U" + resp[1]['InsertURI'].split('/')[0][1:] +'/NAME/0'))
+    return resp[1]['InsertURI'], resp[1]['RequestURI']
+
+def execute_genkey(ui_, params):
+    """ Run the genkey command. """
+    insert, request = genkeypair(params['FCP_HOST'], params['FCP_PORT'])
+    ui_.status(MSG_FMT % (insert, request,
+                          insert.split('/')[0] +'/',
+                          "U" + insert.split('/')[0][1:] +'/NAME.R1/0'))

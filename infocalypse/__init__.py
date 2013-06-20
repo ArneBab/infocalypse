@@ -50,7 +50,7 @@ Example .hgrc entry:
 [infocalypse]
 cfg_file = /mnt/usbkey/s3kr1t/infocalypse.cfg
 
-The default temp file dirctory is set to:
+The default temp file directory is set to:
 ~/infocalypse_tmp. It will be created if
 it doesn't exist.
 
@@ -82,7 +82,7 @@ hg fn-push --uri USK@/test.R1/0
 Pushes incremental changes from the local
 directory into the existing repository.
 
-You can ommit the --uri argument when
+You can omit the --uri argument when
 you run from the same directory the fn-create
 was run in because the insert key -> dir
 mapping is saved in the config file.
@@ -94,7 +94,7 @@ hg fn-pull --uri <request uri from steps above>
 to pull from the repository in Freenet.
 
 The request uri -> dir mapping is saved after
-the first pull, so you can ommit the --uri
+the first pull, so you can omit the --uri
 argument for subsequent fn-pull invocations.
 
 
@@ -338,8 +338,10 @@ d kar bott at com cast dot net
 
 import os
 
-from binascii import hexlify
-from mercurial import commands, util
+from commands import *
+from mercurial import commands, extensions, util, hg, dispatch, discovery
+from mercurial.i18n import _
+import freenetrepo
 
 from infcmds import get_config_info, execute_create, execute_pull, \
      execute_push, execute_setup, execute_copy, execute_reinsert, \
@@ -353,7 +355,7 @@ from wikicmds import execute_wiki, execute_wiki_apply
 from arccmds import execute_arc_create, execute_arc_pull, execute_arc_push, \
      execute_arc_reinsert
 
-from config import read_freesite_cfg, Config
+from config import read_freesite_cfg
 from validate import is_hex_string, is_fms_id
 
 def set_target_version(ui_, repo, opts, params, msg_fmt):
@@ -384,14 +386,14 @@ def infocalypse_create(ui_, repo, **opts):
     elif opts['uri'] != '':
         insert_uri = opts['uri']
     elif opts['wot'] != '':
-        # Expecting wot_id/repo_name.R<redundancy num>/edition/
-        wot_id, repo_desc = opts['wot'].split('/', 1)
+        # Expecting nick_prefix/repo_name.R<redundancy num>/edition/
+        nick_prefix, repo_desc = opts['wot'].split('/', 1)
 
         import wot
 
         ui_.status("Querying WoT for local identities.\n")
 
-        attributes = wot.resolve_local_identity(ui_, wot_id)
+        attributes = wot.resolve_local_identity(ui_, nick_prefix)
         if attributes is None:
             # Something went wrong; the function already printed an error.
             return
@@ -535,7 +537,18 @@ def infocalypse_pull(ui_, repo, **opts):
         # TODO: How to handle redundancy? Does Infocalypse automatically try
         # an R0 if an R1 fails?
 
-        repositories = wot.read_repo_listing(ui_, truster, wot_id)
+        nickname_prefix = ''
+        key_prefix=''
+        # Could be nick@key, nick, @key
+        split = wot_id.split('@')
+        nickname_prefix = split[0]
+
+        if len(split) == 2:
+            key_prefix = split[1]
+
+        repositories = wot.read_repo_listing(ui_, truster,
+                                             nickname_prefix=nickname_prefix,
+                                             key_prefix=key_prefix)
         if repo_name not in repositories:
             ui_.warn("Could not find repository named \"{0}\".\n".format(repo_name))
             return
@@ -554,13 +567,6 @@ def infocalypse_pull(ui_, repo, **opts):
     params['REQUEST_URI'] = request_uri
     # Hmmmm... can't really implement rev.
     execute_pull(ui_, repo, params, stored_cfg)
-
-
-def infocalypse_pull_request(ui, repo, **opts):
-    if not opts['wot']:
-        ui.warning("Who do you want to send the pull request to? Set --wot.")
-        return
-
 
 def infocalypse_push(ui_, repo, **opts):
     """ Push to an Infocalypse repository in Freenet. """
@@ -805,20 +811,6 @@ def infocalypse_setupwot(ui_, **opts):
     wot.execute_setup_wot(ui_, opts)
 
 
-# TODO: Should Freemail setup also be part of fn-setup?
-# TODO: Should there be per-Identity config? Then each one would have a list
-# of repos and optionally a Freemail password.
-# Nah, FMS config is global.
-def infocalypse_setupfreemail(ui, **opts):
-    if 'truster' in opts:
-        identity = opts['truster']
-    else:
-        cfg = Config().from_ui(ui)
-        identity = cfg.defaults['TRUSTER']
-    import wot
-    # TODO: Should this be part of the normal fn-setup?
-    wot.execute_setup_freemail(ui, identity)
-
 #----------------------------------------------------------"
 def do_archive_create(ui_, opts, params, stored_cfg):
     """ fn-archive --create."""
@@ -921,6 +913,11 @@ FMS_OPTS = [('', 'fmshost', '', 'fms host'),
 
 WOT_OPTS = [('', 'truster', '', 'WoT identity to use when looking up others'),
 ]
+WOT_CREATE_OPTS = [('', 'wot', '', 'WoT nickname to create on'),
+]
+WOT_PULL_OPTS = [('', 'wot', '', 'WoT nick@key/repo to pull from'),
+]
+
 
 AGGRESSIVE_OPT = [('', 'aggressive', None, 'aggressively search for the '
                    + 'latest USK index'),]
@@ -928,23 +925,19 @@ NOSEARCH_OPT = [('', 'nosearch', None, 'use USK version in URI'), ]
 # Allow mercurial naming convention for command table.
 # pylint: disable-msg=C0103
 
+PULL_OPTS = [('', 'hash', [], 'repo hash of repository to pull from'),
+             ('', 'onlytrusted', None, 'only use repo announcements from '
+              + 'known users')]
+
 cmdtable = {
     "fn-pull": (infocalypse_pull,
-                [('', 'uri', '', 'request URI to pull from'),
-                 ('', 'hash', [], 'repo hash of repository to pull from'),
-                 ('', 'wot', '', 'WoT nick@key/repo to pull from'),
-                 ('', 'onlytrusted', None, 'only use repo announcements from '
-                  + 'known users')]
-                + WOT_OPTS
+                [('', 'uri', '', 'request URI to pull from')]
+                + PULL_OPTS
+                + WOT_PULL_OPTS
                 + FCP_OPTS
                 + NOSEARCH_OPT
                 + AGGRESSIVE_OPT,
                 "[options]"),
-
-    "fn-pull-request": (infocalypse_pull_request,
-                        WOT_OPTS +
-                        FCP_OPTS,
-                        "--wot id@key/repo"),
 
     "fn-push": (infocalypse_push,
                 [('', 'uri', '', 'insert URI to push to'),
@@ -957,9 +950,9 @@ cmdtable = {
 
     "fn-create": (infocalypse_create,
                   [('', 'uri', '', 'insert URI to create on'),
-                   ('', 'wot', '', 'WoT nickname to create on'),
-                   ('r', 'rev', [],'maximum rev to push'),]
-                  + FCP_OPTS,
+                   ('r', 'rev', [],'maximum rev to push')]
+                  + FCP_OPTS
+                  + WOT_CREATE_OPTS,
                 "[options]"),
     "fn-copy": (infocalypse_copy,
                 [('', 'requesturi', '', 'request URI to copy from'),
@@ -1032,7 +1025,6 @@ cmdtable = {
     "fn-setup": (infocalypse_setup,
                  [('', 'tmpdir', '~/infocalypse_tmp', 'temp directory'),
                   ('', 'nofms', None, 'skip FMS configuration'),
-                  ('', 'nowot', None, 'skip WoT configuration'),
                   ('', 'fmsid', '', "fmsid (only part before '@'!)"),
                   ('', 'timeout', 30, "fms socket timeout in seconds")]
                  + WOT_OPTS
@@ -1050,12 +1042,6 @@ cmdtable = {
                     FCP_OPTS +
                     WOT_OPTS,
                     "[options]"),
-
-    "fn-setupfreemail": (infocalypse_setupfreemail,
-                         [('', 'password', '', 'Freemail password')]
-                         + WOT_OPTS
-                         + FCP_OPTS,
-                         "[--truster nick@key] --password <password>"),
 
     "fn-archive": (infocalypse_archive,
                   [('', 'uri', '', 'Request URI for --pull, Insert URI ' +
@@ -1080,3 +1066,308 @@ commands.norepo += ' fn-setupfms'
 commands.norepo += ' fn-genkey'
 commands.norepo += ' fn-archive'
 commands.norepo += ' fn-setupwot'
+
+
+## Wrap core commands for use with freenet keys.
+## Explicitely wrap functions to change local commands in case the remote repo is an FTP repo. See mercurial.extensions for more information.
+# Get the module which holds the functions to wrap
+# the new function: gets the original function as first argument and the originals args and kwds.
+def findcommonoutgoing(orig, *args, **opts):
+    repo = args[0]
+    remoterepo = args[1]
+    capable = getattr(remoterepo, 'capable', lambda x: False)
+    if capable('infocalypse'):
+        class fakeoutgoing(object):
+            def __init__(self):
+                self.excluded = []
+                self.missing = repo.heads()
+                self.missingheads = []
+                self.commonheads = []
+        return fakeoutgoing()
+    else:
+        return orig(*args, **opts)
+# really wrap the functions
+extensions.wrapfunction(discovery, 'findcommonoutgoing', findcommonoutgoing)
+
+# wrap the commands
+
+def freenetpathtouri(path):
+    path = path.replace("%7E", "~").replace("%2C", ",")
+    if path.startswith("freenet://"):
+        return path[len("freenet://"):]
+    if path.startswith("freenet:"):
+        return path[len("freenet:"):]
+    return path
+
+def freenetpull(orig, *args, **opts):
+    def parsepushargs(ui, repo, path=None):
+        return ui, repo, path
+    def isfreenetpath(path):
+        try:
+            if path.startswith("freenet:") or path.startswith("USK@"):
+                return True
+        except AttributeError:
+            return False
+        return False
+    ui, repo, path = parsepushargs(*args)
+    if not path:
+        path = ui.expandpath('default', 'default-push')
+    else:
+        path = ui.expandpath(path)
+    # only act differently, if the target is an infocalypse repo.
+    if not isfreenetpath(path):
+        return orig(*args, **opts)
+    uri = freenetpathtouri(path)
+    opts["uri"] = uri
+    opts["aggressive"] = True # always search for the latest revision.
+    return infocalypse_pull(ui, repo, **opts)
+
+def fixnamepart(namepart):
+    """use redundant keys by default, except if explicitely
+    requested otherwise.
+    
+    parse the short form USK@/reponame to upload to a key
+    in the form USK@<key>/reponame.R1/0 - avoids the very easy
+    to make error of forgetting the .R1"""
+    nameparts = namepart.split("/")
+    name = nameparts[0]
+    if nameparts[1:]: # user supplied a number
+        number = nameparts[1]
+    else: number = "0"
+    if not name.endswith(".R0") and not name.endswith(".R1"):
+        name = name + ".R1"
+    namepart = name + "/" + number
+    return namepart
+
+def freenetpush(orig, *args, **opts):
+    def parsepushargs(ui, repo, path=None):
+        return ui, repo, path
+    def isfreenetpath(path):
+        if path and path.startswith("freenet:") or path.startswith("USK@"):
+            return True
+        return False
+    ui, repo, path = parsepushargs(*args)
+    if not path:
+        path = ui.expandpath('default-push', 'default')
+    else:
+        path = ui.expandpath(path)
+    # only act differently, if the target is an infocalypse repo.
+    if not isfreenetpath(path):
+        return orig(*args, **opts)
+    uri = freenetpathtouri(path)
+    # if the uri is the short form (USK@/name/#), generate the key and preprocess the uri.
+    if uri.startswith("USK@/"):
+        ui.status("creating a new key for the repo. For a new repo with an existing key, use clone.\n")
+        from sitecmds import genkeypair
+        fcphost, fcpport = opts["fcphost"], opts["fcpport"]
+        if fcphost == '':
+            fcphost = '127.0.0.1'
+        if fcpport == 0:
+            fcpport = 9481
+            
+        # use redundant keys by default, except if explicitely requested otherwise.
+        namepart = uri[5:]
+        namepart = fixnamepart(namepart)
+        insert, request = genkeypair(fcphost, fcpport)
+        uri = "USK"+insert[3:]+namepart
+        opts["uri"] = uri
+        opts["aggressive"] = True # always search for the latest revision.
+        return infocalypse_create(ui, repo, **opts)
+    opts["uri"] = uri
+    opts["aggressive"] = True # always search for the latest revision.
+    return infocalypse_push(ui, repo, **opts)
+
+def freenetclone(orig, *args, **opts):
+    def parsepushargs(ui, repo, path=None):
+        return ui, repo, path
+
+    def isfreenetpath(path):
+        try:
+            if path.startswith("freenet:") or path.startswith("USK@"):
+                return True
+        except AttributeError:
+            return False
+        return False
+    ui, source, dest = parsepushargs(*args)
+    # only act differently, if dest or source is an infocalypse repo.
+    if not isfreenetpath(source) and not isfreenetpath(dest):
+        return orig(*args, **opts)
+
+    if not dest:
+        if not isfreenetpath(source):
+            dest = hg.defaultdest(source)
+        else: # this is a freenet key.  It has a /# at the end and
+              # could contain .R1 or .R0 as pure technical identifiers
+              # which we do not need in the local name.
+            dest = source.split("/")[-2]
+            if dest.endswith(".R1") or dest.endswith(".R0"):
+                dest = dest[:-3]
+
+    # check whether to create, pull or copy
+    pulluri, pushuri = None, None
+    if isfreenetpath(source):
+        pulluri = freenetpathtouri(source)
+    if isfreenetpath(dest):
+        pushuri = freenetpathtouri(dest)
+
+    # decide which infocalypse command to use.
+    if pulluri and pushuri:
+        action = "copy"
+    elif pulluri:
+        action = "pull"
+    elif pushuri:
+        action = "create"
+    else: 
+        raise util.Abort("""Can't clone without source and target. This message should not be reached. If you see it, this is a bug.""")
+
+    if action == "copy":
+        raise util.Abort("""Cloning without intermediate local repo not yet supported in the simplified commands. Use fn-copy directly.""")
+    
+    if action == "create":
+        # if the pushuri is the short form (USK@/name/#), generate the key.
+        if pushuri.startswith("USK@/"):
+            ui.status("creating a new key for the repo. To use your default key, call fn-create.\n")
+            from sitecmds import genkeypair
+            fcphost, fcpport = opts["fcphost"], opts["fcpport"]
+            if fcphost == '':
+                fcphost = '127.0.0.1'
+            if fcpport == 0:
+                fcpport = 9481
+            
+            # use redundant keys by default, except if explicitely requested otherwise.
+            namepart = pushuri[5:]
+            namepart = fixnamepart(namepart)
+            insert, request = genkeypair(fcphost, fcpport)
+            pushuri = "USK"+insert[3:]+namepart
+        elif pushuri.endswith("/0"): # initial create, catch the no-.R1 error
+            pass
+            # this rewriting is dangerous here since it could make it
+            # impossible to update old repos when they drop
+            # out. Leaving it commented out for now. TODO: Always
+            # treat a name without .R0 as requesting redundancy *in.
+            # the backend*. Keep it as /name/#, but add /name.Rn/0
+            # backup repos. Needs going into the backend.
+
+            #namepart = pushuri.split("/")[-2] + "/0"
+            #namepartpos = -len(namepart)
+            #namepart2 = fixnamepart(namepart)
+            # if namepart2 != namepart:
+            # ui.status("changed the repo name to " + namepart2 + " to have more redundancy and longer lifetime. This is a small tweak on infocalypse to avoid the frequent error of forgetting to add .R1 to the name. If you really want no additional redundancy for your repo, use NAME.R0 or call hg fn-create directly.\n")
+            #pushuri = pushuri[:namepartpos] + namepart
+        opts["uri"] = pushuri
+        repo = hg.repository(ui, ui.expandpath(source))
+        return infocalypse_create(ui, repo, **opts)
+
+    if action == "pull":
+        if os.path.exists(dest):
+            raise util.Abort(_("destination " + dest + " already exists."))
+        # create the repo
+        req = dispatch.request(["init", dest], ui=ui)
+        dispatch.dispatch(req)
+        # pull the data from freenet
+        origdest = ui.expandpath(dest)
+        dest, branch = hg.parseurl(origdest)
+        destrepo = hg.repository(ui, dest)
+        infocalypse_pull(ui, destrepo, aggressive=True, hash=None, uri=pulluri, **opts)
+        # store the request uri for future updates
+        with destrepo.opener("hgrc", "a", text=True) as f:
+            f.write("""[paths]
+default = freenet://""" + pulluri + """
+
+[ui]
+username = anonymous
+""" )
+        ui.warn("As basic protection, infocalypse automatically set the username 'anonymous' for commits in this repo. To change this, edit " + str(os.path.join(destrepo.root, ".hg", "hgrc")))
+        # and update the repo
+        return hg.update(destrepo, None)
+
+
+# really wrap the command
+entry = extensions.wrapcommand(commands.table, "push", freenetpush)
+entry[1].extend(FCP_OPTS)
+entry = extensions.wrapcommand(commands.table, "pull", freenetpull)
+entry[1].extend(PULL_OPTS)
+entry[1].extend(FCP_OPTS)
+entry[1].extend(WOT_OPTS)
+entry[1].extend(WOT_PULL_OPTS)
+entry = extensions.wrapcommand(commands.table, "clone", freenetclone)
+entry[1].extend(FCP_OPTS)
+entry[1].extend(WOT_OPTS)
+entry[1].extend(WOT_CREATE_OPTS)
+
+
+# Starting an FTP repo. Not yet used, except for throwing errors for missing commands and faking the lock.
+
+from mercurial import util
+try:
+    from mercurial.peer import peerrepository
+except ImportError:
+    from mercurial.repo import repository as peerrepository
+try:
+    from mercurial.error import RepoError
+except ImportError:
+    from mercurial.repo import RepoError
+
+class InfocalypseRepository(peerrepository):
+    def __init__(self, ui, path, create):
+        self.create = create
+        self.ui = ui
+        self.path = path
+        self.capabilities = set(["infocalypse"])
+        self.branchmap = {}
+
+    def lock(self):
+        """We cannot really lock Infocalypse repos, yet.
+
+        TODO: Implement as locking the repo in the static site folder."""
+        class DummyLock:
+            def release(self):
+                pass
+        l = DummyLock()
+        return l
+
+    def url(self):
+        return self.path
+
+    def lookup(self, key):
+        return key
+
+    def cancopy(self):
+        return False
+
+    def heads(self, *args, **opts):
+        """
+        Whenever this function is hit, we abort. The traceback is useful for
+        figuring out where to intercept the functionality.
+        """
+        raise util.Abort('command heads unavailable for Infocalypse repositories')
+
+    def pushkey(self, namespace, key, old, new):
+        return False
+
+    def listkeys(self, namespace):
+        return {}
+
+    def push(self, remote, force=False, revs=None, newbranch=None):
+        raise util.Abort('command push unavailable for Infocalypse repositories')
+    
+    def pull(self, remote, heads=[], force=False):
+        raise util.Abort('command pull unavailable for Infocalypse repositories')
+    
+    def findoutgoing(self, remote, base=None, heads=None, force=False):
+        raise util.Abort('command findoutgoing unavailable for Infocalypse repositories')
+
+
+class RepoContainer(object):
+    def __init__(self):
+        pass
+
+    def __repr__(self):
+        return '<InfocalypseRepository>'
+
+    def instance(self, ui, url, create):
+        # Should this use urlmod.url(), or is manual parsing better?
+        #context = {}
+        return InfocalypseRepository(ui, url, create)
+
+hg.schemes["freenet"] = RepoContainer()

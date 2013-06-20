@@ -187,8 +187,8 @@ def should_add_head(repo, version_table, head, to_index):
     return True
 
 # TRICKY:
-# You need the repository changset DAG in order to determine
-# the base revs. because new changes might have branched from
+# You need the repository changeset DAG in order to determine
+# the base revs, because new changes might have branched from
 # a change in the middle of a previous index which doesn't
 # appear explictly in the graph.
 #
@@ -450,7 +450,7 @@ def get_huge_top_key_edges(graph, extant=False):
         alternates) that are too big to salt.
 
         If extant is True, return existing edges.
-        If extent is False, return edges that could be added. """
+        If extant is False, return edges that could be added. """
     ret = []
     edges = graph.get_top_key_edges()
     edges += find_redundant_edges(graph, edges, False)[0]
