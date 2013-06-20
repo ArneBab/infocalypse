@@ -57,16 +57,16 @@ from knownrepos import DEFAULT_TRUST, DEFAULT_GROUPS
 
 DEFAULT_PARAMS = {
     # FCP params
-    'MaxRetries':3,
+    'MaxRetries':6,
     'PriorityClass':1,
     'DontCompress':True, # hg bundles are already compressed.
     'Verbosity':1023, # MUST set this to get progress messages.
     #'GetCHKOnly':True, # REDFLAG: For testing only. Not sure this still works.
 
     # Non-FCP stuff
-    'N_CONCURRENT':4, # Maximum number of concurrent FCP requests.
-    'CANCEL_TIME_SECS': 20 * 60, # Bound request time.
-    'POLL_SECS':0.25, # Time to sleep in the polling loop.
+    'N_CONCURRENT':8, # Maximum number of concurrent FCP requests.
+    'CANCEL_TIME_SECS': 120 * 60, # Bound request time.
+    'POLL_SECS':1.00, # Time to sleep in the polling loop.
 
     # Testing HACKs
     #'TEST_DISABLE_GRAPH': True, # Disable reading the graph.
