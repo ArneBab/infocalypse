@@ -20,8 +20,12 @@ def send_pull_request(ui, from_identity, to_identity):
     to_address = to_freemail_address(to_identity)
 
     if from_address is None or to_address is None:
-        ui.warn("At least one of {0} and {2} is not using Freemail."
-                .format(from_identity['Nickname'], to_identity['Nickname']))
+        if from_address is None:
+            ui.warn("{0} is not using Freemail.\n".format(from_identity[
+                    'Nickname']))
+        if to_address is None:
+            ui.warn("{0} is not using Freemail.\n".format(to_identity[
+                    'Nickname']))
         return
 
     # TODO: Use FCP host; default port.
