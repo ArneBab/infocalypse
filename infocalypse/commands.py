@@ -16,6 +16,8 @@ from arccmds import execute_arc_create, execute_arc_pull, execute_arc_push, \
 from config import read_freesite_cfg, Config
 from validate import is_hex_string, is_fms_id
 
+import os
+
 def set_target_version(ui_, repo, opts, params, msg_fmt):
     """ INTERNAL: Update TARGET_VERSION in params. """
 
