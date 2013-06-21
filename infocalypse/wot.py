@@ -208,7 +208,7 @@ def resolve_identity(ui, truster, identity):
     node = fcp.FCPNode()
 
     # Test for GetIdentitiesByPartialNickname support. currently LCWoT-only.
-    # https://github.com/tmarkus/LessCrappyWebOfTrust/blob/master/src/main/java/plugins/WebOfTrust/fcp/GetIdentitiesByPartialNickname.java
+    # src/main/java/plugins/WebOfTrust/fcp/GetIdentitiesByPartialNickname.java
     # TODO: LCWoT allows limiting by context, but how to make sure otherwise?
     # TODO: Should this manually ensure an identity has a vcs context
     # otherwise?
@@ -216,7 +216,7 @@ def resolve_identity(ui, truster, identity):
               'Truster': truster,
               'PartialNickname': nickname_prefix,
               'PartialID': key_prefix,
-              'MaxIdentities': 1, # Match must be unambiguous.
+              'MaxIdentities': 1,  # Match must be unambiguous.
               'Context': 'vcs'}
     response = \
         node.fcpPluginMessage(async=False,
