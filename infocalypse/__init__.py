@@ -499,10 +499,9 @@ cmdtable = {
                     "[options]"),
 
     "fn-setupfreemail": (infocalypse_setupfreemail,
-                         [('', 'password', '', 'Freemail password')]
-                         + WOT_OPTS
+                         WOT_OPTS
                          + FCP_OPTS,
-                         "[--truster nick@key] --password <password>"),
+                         "[--truster nick@key]"),
 
     "fn-archive": (infocalypse_archive,
                   [('', 'uri', '', 'Request URI for --pull, Insert URI ' +
@@ -527,7 +526,6 @@ commands.norepo += ' fn-setupfms'
 commands.norepo += ' fn-genkey'
 commands.norepo += ' fn-archive'
 commands.norepo += ' fn-setupwot'
-commands.norepo += ' fn-setupfreemail'
 
 
 ## Wrap core commands for use with freenet keys.

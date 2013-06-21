@@ -465,20 +465,24 @@ def infocalypse_setupwot(ui_, **opts):
     wot.execute_setup_wot(ui_, opts)
 
 
-# TODO: Should Freemail setup also be part of fn-setup?
-# TODO: Should there be per-Identity config? Then each one would have a list
-# of repos and optionally a Freemail password.
-# Nah, FMS config is global.
-def infocalypse_setupfreemail(ui, **opts):
-    if 'truster' in opts:
-        identity = opts['truster']
+def infocalypse_setupfreemail(ui, repo, **opts):
+    """
+    Set a Freemail password. If --truster is not given uses the default
+    truster.
+    """
+    import wot
+    # TODO: Here --truster doesn't make sense. There is no trust involved.
+    # TODO: Should this be part of the normal fn-setup?
+    wot.execute_setup_freemail(ui, get_truster(ui, repo, opts))
+
+
+def get_truster(ui, repo, opts):
+    if opts['truster']:
+        return opts['truster']
     else:
         cfg = Config().from_ui(ui)
-        identity = cfg.defaults['TRUSTER']
-    import wot
-    # TODO: Should this be part of the normal fn-setup?
-    wot.execute_setup_freemail(ui, identity)
-
+        # TODO: What about if there's no request URI set?
+        return '@' + cfg.get_wot_identity(cfg.get_request_uri(repo.root))
 
 #----------------------------------------------------------"
 def do_archive_create(ui_, opts, params, stored_cfg):

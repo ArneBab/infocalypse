@@ -117,10 +117,49 @@ def execute_setup_wot(ui_, opts):
     Config.to_file(cfg)
 
 
-def execute_setup_freemail(ui, identity, password):
+def execute_setup_freemail(ui, wot_identifier):
+    """
+    Prompt for, test, and set a Freemail password for the identity.
+    """
+    local_id = resolve_local_identity(ui, wot_identifier)
 
-    # TODO: get truster from config; check password.
-    pass
+    if local_id is None:
+        return
+
+    address = to_freemail_address(local_id)
+
+    if address is None:
+        ui.warn("{0}@{1} does not have a Freemail address.\n".format(
+            local_id['Nickname'], local_id['Identity']))
+        return
+
+    password = ui.getpass()
+    if password is None:
+        ui.warn("Cannot prompt for a password in a non-interactive context.")
+        return
+
+    ui.status("Checking password for {0}@{1}.\n".format(local_id['Nickname'],
+                                                        local_id['Identity']))
+
+    cfg = config.Config()
+    cfg.from_ui(ui)
+
+    # Check that the password works.
+    try:
+        # TODO: Is this the correct way to get the configured host?
+        smtp = smtplib.SMTP(cfg.defaults['HOST'], FREEMAIL_SMTP_PORT)
+        smtp.login(address, password)
+    except smtplib.SMTPAuthenticationError, e:
+        ui.warn("Could not log in using password '{0}'.\n".format(password))
+        ui.warn("Got '{0}'\n".format(e.smtp_error))
+        return
+    except smtplib.SMTPConnectError, e:
+        ui.warn("Could not connect to server.\n")
+        ui.warn("Got '{0}'\n".format(e.smtp_error))
+        return
+
+    cfg.set_freemail_password(wot_identifier, password)
+    ui.status("Password set.\n")
 
 
 def resolve_local_identity(ui, identity):

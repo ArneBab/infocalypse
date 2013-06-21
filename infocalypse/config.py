@@ -127,6 +127,8 @@ class Config:
         self.insert_usks = {}
         # repo id -> publisher WoT identity
         self.wot_identities = {}
+        # WoT public key hash -> Freemail password
+        self.freemail_passwords = {}
         # fms_id -> (usk_hash, ...) map
         self.fmsread_trust_map = DEFAULT_TRUST.copy()
         self.fmsread_groups = DEFAULT_GROUPS
@@ -218,6 +220,22 @@ class Config:
         Return whether the given repo has a WoT identity associated with it.
         """
         return normalize(for_usk_or_id) in self.wot_identities
+
+    def set_freemail_password(self, wot_identity, password):
+        """
+        Set the password for the given WoT identity.
+        """
+        self.freemail_passwords[wot_identity] = password
+
+    def get_freemail_password(self, wot_identity):
+        """
+        Return the password associated with the given WoT identity,
+        or None if one is not set.
+        """
+        if wot_identity in self.freemail_passwords:
+            return self.freemail_passwords[wot_identity]
+        else:
+            return None
 
     # Hmmm... really nescessary?
     def get_dir_insert_uri(self, repo_dir):
@@ -328,6 +346,11 @@ class Config:
                 cfg.wot_identities[repo_id] = parser.get('wot_identities',
                                                          repo_id)
 
+        if parser.has_section('freemail_passwords'):
+            for wot_id in parser.options('freemail_passwords'):
+                cfg.freemail_passwords[wot_id] = parser.get(
+                    'freemail_passwords', wot_id)
+
         # ignored = fms_id|usk_hash|usk_hash|...
         if parser.has_section('fmsread_trust_map'):
             cfg.fmsread_trust_map.clear() # Wipe defaults.
@@ -408,6 +431,10 @@ class Config:
         parser.add_section('wot_identities')
         for repo_id in cfg.wot_identities:
             parser.set('wot_identities', repo_id, cfg.wot_identities[repo_id])
+        parser.add_section('freemail_passwords')
+        for wot_id in cfg.freemail_passwords:
+            parser.set('freemail_passwords', wot_id, cfg.freemail_passwords[
+                wot_id])
         parser.add_section('fmsread_trust_map')
         for index, fms_id in enumerate(cfg.fmsread_trust_map):
             entry = cfg.fmsread_trust_map[fms_id]
