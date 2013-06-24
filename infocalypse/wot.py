@@ -76,6 +76,9 @@ def read_repo_listing(ui, truster, identity):
     if identity is None:
         return
 
+    ui.status("Found {0}@{1}.\n".format(identity['Nickname'],
+                                        identity['Identity']))
+
     uri = identity['RequestURI']
     uri = uri.split('/', 1)[0] + '/vcs/0'
 
