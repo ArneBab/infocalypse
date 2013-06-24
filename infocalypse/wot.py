@@ -254,12 +254,18 @@ def resolve_identity(ui, truster, identity):
     # TODO: LCWoT allows limiting by context, but how to make sure otherwise?
     # TODO: Should this manually ensure an identity has a vcs context
     # otherwise?
+
+    # LCWoT can have * to allow a wildcard match, but a wildcard alone is not
+    # allowed. See Lucine Term Modifiers documentation. The nickname uses
+    # this syntax but the ID is inherently startswith().
     params = {'Message': 'GetIdentitiesByPartialNickname',
               'Truster': truster,
-              'PartialNickname': nickname_prefix,
+              'PartialNickname':
+              nickname_prefix + '*' if nickname_prefix else '',
               'PartialID': key_prefix,
-              'MaxIdentities': 1,  # Match must be unambiguous.
+              'MaxIdentities': 2,
               'Context': 'vcs'}
+
     response = \
         node.fcpPluginMessage(async=False,
                               plugin_name="plugins.WebOfTrust.WebOfTrust",
@@ -270,25 +276,21 @@ def resolve_identity(ui, truster, identity):
         ui.warn('Unexpected reply. Got {0}\n'.format(response))
         return
     elif response['Replies.Message'] == 'Identities':
-        # TODO: What if no identities matched?
-        return read_identity(response, 0)
-    elif response['Replies.Message'] == 'Error':
-        # The difficulty here is that the message type is Error for both an
-        # unrecognized message type and ambiguous search terms.
-        # TODO: This seems likely to break - the Description seems intended
-        # for human readers and will probably change.
-        if response['Replies.Description'].startswith('Number of matched'):
-            # Supported version of LCWoT - terms ambiguous.
-            ui.warn("'{0}@{1}' is ambiguous.".format(nickname_prefix,
-                                                     key_prefix))
+        matches = response['Replies.IdentitiesMatched']
+        if matches == 0:
+            ui.warn("No identities match '{0}'\n".format(identity))
             return
-        elif response['Replies.Description'].startswith('Unknown message') or \
-                response['Replies.Description'].startswith('Could not match'):
-            # Not supported; check for exact identity.
-            ui.warn('Searching by partial nickname/key not supported.')
+        elif matches == 1:
+            return read_identity(response, 0)
+        else:
+            ui.warn("'{0}' is ambiguous.\n".format(identity))
+            return
 
-    # Attempt to search failed - check for exact key. Here key_prefix must be
-    # a complete key for the lookup to succeed.
+    # Partial matching not supported, or unknown truster. The only difference
+    # in the errors is human-readable, so just try the exact match.
+    assert response['Replies.Message'] == 'Error'
+
+    # key_prefix must be a complete key for the lookup to succeed.
     params = {'Message': 'GetIdentity',
               'Truster': truster,
               'Identity': key_prefix}
@@ -296,6 +298,11 @@ def resolve_identity(ui, truster, identity):
         node.fcpPluginMessage(async=False,
                               plugin_name="plugins.WebOfTrust.WebOfTrust",
                               plugin_params=params)[0]
+
+    if response['Replies.Message'] == 'Error':
+        # Searching by exact public key hash, not matching.
+        ui.warn("No such identity '{0}'.\n".format(identity))
+        return
 
     # There should be only one result.
     # Depends on https://bugs.freenetproject.org/view.php?id=5729
