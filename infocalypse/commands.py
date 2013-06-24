@@ -196,6 +196,10 @@ def infocalypse_pull(ui_, repo, **opts):
         # an R0 if an R1 fails?
 
         repositories = wot.read_repo_listing(ui_, truster, wot_id)
+
+        if repositories is None:
+            return
+
         if repo_name not in repositories:
             ui_.warn("Could not find repository named \"{0}\".\n".format(repo_name))
             return
