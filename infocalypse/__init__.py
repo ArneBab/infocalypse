@@ -360,7 +360,7 @@ FMS_OPTS = [('', 'fmshost', '', 'fms host'),
             ('', 'fmsport', 0, 'fms port'),
 ]
 
-WOT_OPTS = [('', 'truster', '', 'WoT identity to use when looking up others'),
+WOT_OPTS = [('', 'truster', '', 'WoT nick@key to use when looking up others'),
 ]
 WOT_CREATE_OPTS = [('', 'wot', '', 'WoT nickname to create on'),
 ]
