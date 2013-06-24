@@ -183,7 +183,8 @@ def infocalypse_pull(ui_, repo, **opts):
     elif opts['wot']:
         import wot
         if opts['truster']:
-            truster = opts['truster']
+            local_id = wot.resolve_local_identity(ui_, opts['truster'])
+            truster = local_id['Identity']
         else :
             truster = stored_cfg.get_wot_identity(
                 stored_cfg.get_dir_insert_uri(repo.root))
