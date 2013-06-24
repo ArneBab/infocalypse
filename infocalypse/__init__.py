@@ -383,6 +383,7 @@ cmdtable = {
                 [('', 'uri', '', 'request URI to pull from')]
                 + PULL_OPTS
                 + WOT_PULL_OPTS
+                + WOT_OPTS
                 + FCP_OPTS
                 + NOSEARCH_OPT
                 + AGGRESSIVE_OPT,
