@@ -188,9 +188,6 @@ def infocalypse_pull(ui_, repo, **opts):
         else :
             truster = stored_cfg.get_wot_identity(
                 stored_cfg.get_dir_insert_uri(repo.root))
-        # TODO: Require repo name, not full path as part of the --wot. Look
-        # it up from the XML.
-        # TODO: Insert XML.
 
         # Expecting <id stuff>/reponame
         wot_id, repo_name = opts['wot'].split('/', 1)
