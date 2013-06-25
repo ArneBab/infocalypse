@@ -1,22 +1,23 @@
 from binascii import hexlify
-from mercurial import util, hg
+from mercurial import util
 
 from infcmds import get_config_info, execute_create, execute_pull, \
-     execute_push, execute_setup, execute_copy, execute_reinsert, \
-     execute_info
+    execute_push, execute_setup, execute_copy, execute_reinsert, \
+    execute_info
 
 from fmscmds import execute_fmsread, execute_fmsnotify, get_uri_from_hash, \
-     execute_setupfms
+    execute_setupfms
 
 from sitecmds import execute_putsite, execute_genkey
 from wikicmds import execute_wiki, execute_wiki_apply
 from arccmds import execute_arc_create, execute_arc_pull, execute_arc_push, \
-     execute_arc_reinsert
+    execute_arc_reinsert
 
 from config import read_freesite_cfg, Config
 from validate import is_hex_string, is_fms_id
 
 import os
+
 
 def set_target_version(ui_, repo, opts, params, msg_fmt):
     """ INTERNAL: Update TARGET_VERSION in params. """
@@ -24,7 +25,7 @@ def set_target_version(ui_, repo, opts, params, msg_fmt):
     revs = opts.get('rev') or None
     if not revs is None:
         for rev in revs:
-            repo.changectx(rev) # Fail if we don't have the rev.
+            repo.changectx(rev)  # Fail if we don't have the rev.
 
         params['TO_VERSIONS'] = tuple(revs)
         ui_.status(msg_fmt % ' '.join([ver[:12] for ver in revs]))
@@ -33,6 +34,7 @@ def set_target_version(ui_, repo, opts, params, msg_fmt):
         params['TO_VERSIONS'] = tuple([hexlify(head) for head in repo.heads()])
         #print "set_target_version -- using all head"
         #print params['TO_VERSIONS']
+
 
 def infocalypse_create(ui_, repo, **opts):
     """ Create a new Infocalypse repository in Freenet. """
@@ -77,7 +79,7 @@ def infocalypse_create(ui_, repo, **opts):
         insert_uri += '/' + repo_desc
 
         # Add "vcs" context. No-op if the identity already has it.
-        msg_params = {'Message':'AddContext',
+        msg_params = {'Message': 'AddContext',
                       'Identity': attributes['Identity'],
                       'Context': 'vcs'}
 
@@ -111,6 +113,7 @@ def infocalypse_create(ui_, repo, **opts):
         import wot
         wot.update_repo_listing(ui_, attributes['Identity'])
 
+
 def infocalypse_copy(ui_, repo, **opts):
     """ Copy an Infocalypse repository to a new URI. """
     params, stored_cfg = get_config_info(ui_, opts)
@@ -132,6 +135,7 @@ def infocalypse_copy(ui_, repo, **opts):
     params['INSERT_URI'] = insert_uri
     params['REQUEST_URI'] = request_uri
     execute_copy(ui_, repo, params, stored_cfg)
+
 
 def infocalypse_reinsert(ui_, repo, **opts):
     """ Reinsert the current version of an Infocalypse repository. """
@@ -157,14 +161,14 @@ def infocalypse_reinsert(ui_, repo, **opts):
                      + "insert URI.\n") % level)
             return
 
-        ui_.status("No insert URI. Will skip re-insert "
-                   +"of top key.\n")
+        ui_.status("No insert URI. Will skip re-insert of top key.\n")
         insert_uri = None
 
     params['INSERT_URI'] = insert_uri
     params['REQUEST_URI'] = request_uri
     params['REINSERT_LEVEL'] = level
     execute_reinsert(ui_, repo, params, stored_cfg)
+
 
 def infocalypse_pull(ui_, repo, **opts):
     """ Pull from an Infocalypse repository in Freenet.
@@ -185,7 +189,7 @@ def infocalypse_pull(ui_, repo, **opts):
         if opts['truster']:
             local_id = wot.resolve_local_identity(ui_, opts['truster'])
             truster = local_id['Identity']
-        else :
+        else:
             truster = stored_cfg.get_wot_identity(
                 stored_cfg.get_dir_insert_uri(repo.root))
 
@@ -207,10 +211,12 @@ def infocalypse_pull(ui_, repo, **opts):
     # Hmmmm... can't really implement rev.
     execute_pull(ui_, repo, params, stored_cfg)
 
+
 def infocalypse_pull_request(ui, repo, **opts):
     if not opts['wot']:
         ui.warning("Who do you want to send the pull request to? Set --wot.")
         return
+
 
 def infocalypse_push(ui_, repo, **opts):
     """ Push to an Infocalypse repository in Freenet. """
@@ -220,7 +226,7 @@ def infocalypse_push(ui_, repo, **opts):
         insert_uri = stored_cfg.get_dir_insert_uri(repo.root)
         if not insert_uri:
             ui_.warn("There is no stored insert URI for this repo.\n"
-                    "Please set one with the --uri option.\n")
+                     "Please set one with the --uri option.\n")
             return
 
     set_target_version(ui_, repo, opts, params,
@@ -235,12 +241,12 @@ def infocalypse_push(ui_, repo, **opts):
     #    params['REQUEST_URI'] = opts['requesturi']
 
     inserted_to = execute_push(ui_, repo, params, stored_cfg)
-    # TODO: Messy.
-    if inserted_to is not None and stored_cfg.has_wot_identity(stored_cfg
-    .get_request_uri(repo.root)):
+    # TODO: Messy. Is there a better way to check what repos are under WoT?
+    request_uri = stored_cfg.get_request_uri(repo.root)
+    if inserted_to is not None and stored_cfg.has_wot_identity(request_uri):
         import wot
-        wot.update_repo_listing(ui_, stored_cfg.get_wot_identity(stored_cfg
-    .get_request_uri(repo.root)))
+        wot.update_repo_listing(ui_, stored_cfg.get_wot_identity(request_uri))
+
 
 def infocalypse_info(ui_, repo, **opts):
     """ Display information about an Infocalypse repository.
@@ -259,6 +265,7 @@ def infocalypse_info(ui_, repo, **opts):
 
     params['REQUEST_URI'] = request_uri
     execute_info(ui_, repo, params, stored_cfg)
+
 
 def parse_trust_args(params, opts):
     """ INTERNAL: Helper function to parse  --hash and --fmsid. """
@@ -281,6 +288,7 @@ def parse_trust_args(params, opts):
     params['FMSREAD_HASH'] = opts['hash'][0]
     params['FMSREAD_FMSID'] = opts['fmsid'][0]
 
+
 def parse_fmsread_subcmd(params, opts):
     """ INTERNAL: Parse subcommand for fmsread."""
     if opts['listall']:
@@ -297,6 +305,7 @@ def parse_fmsread_subcmd(params, opts):
         parse_trust_args(params, opts)
     else:
         params['FMSREAD'] = 'update'
+
 
 def infocalypse_fmsread(ui_, repo, **opts):
     """ Read repository update information from fms.
@@ -315,6 +324,7 @@ def infocalypse_fmsread(ui_, repo, **opts):
     params['DRYRUN'] = opts['dryrun']
     params['REQUEST_URI'] = request_uri
     execute_fmsread(ui_, params, stored_cfg)
+
 
 def infocalypse_fmsnotify(ui_, repo, **opts):
     """ Post a msg with the current repository USK index to fms.
@@ -343,6 +353,8 @@ def infocalypse_fmsnotify(ui_, repo, **opts):
     execute_fmsnotify(ui_, repo, params, stored_cfg)
 
 MSG_BAD_INDEX = 'You must set --index to a value >= 0.'
+
+
 def infocalypse_putsite(ui_, repo, **opts):
     """ Insert an update to a freesite.
     """
@@ -350,12 +362,12 @@ def infocalypse_putsite(ui_, repo, **opts):
     if opts['createconfig']:
         if opts['wiki']:
             raise util.Abort("Use fn-wiki --createconfig.")
-        params = {'SITE_CREATE_CONFIG':True}
+        params = {'SITE_CREATE_CONFIG': True}
         execute_putsite(ui_, repo, params)
         return
 
     params, stored_cfg = get_config_info(ui_, opts)
-    if opts['key'] != '': # order important
+    if opts['key'] != '':  # order important
         params['SITE_KEY'] = opts['key']
         if not (params['SITE_KEY'].startswith('SSK') or
                 params['SITE_KEY'] == 'CHK@'):
@@ -386,10 +398,11 @@ def infocalypse_putsite(ui_, repo, **opts):
             ui_.warn("You don't have the insert URI for this repo.\n"
                      + "Supply a private key with --key or fn-push "
                      + "the repo.\n")
-            return # REDFLAG: hmmm... abort?
+            return  # REDFLAG: hmmm... abort?
         params['SITE_KEY'] = 'SSK' + insert_uri.split('/')[0][3:]
 
     execute_putsite(ui_, repo, params)
+
 
 def infocalypse_wiki(ui_, repo, **opts):
     """ View and edit the current repository as a wiki. """
@@ -414,15 +427,17 @@ def infocalypse_wiki(ui_, repo, **opts):
         raise util.Abort("--fcphost, --fcpport only for --apply")
 
     # hmmmm.... useless copy?
-    params = {'WIKI' : [cmd for cmd in subcmds if opts[cmd]][0],
+    params = {'WIKI': [cmd for cmd in subcmds if opts[cmd]][0],
               'HTTP_PORT': opts['http_port'],
               'HTTP_BIND': opts['http_bind']}
     execute_wiki(ui_, repo, params)
+
 
 def infocalypse_genkey(ui_, **opts):
     """ Print a new SSK key pair. """
     params, dummy = get_config_info(ui_, opts)
     execute_genkey(ui_, params)
+
 
 def infocalypse_setup(ui_, **opts):
     """ Setup the extension for use for the first time. """
@@ -442,6 +457,7 @@ def infocalypse_setup(ui_, **opts):
         wot.execute_setup_wot(ui_, opts)
     else:
         ui_.status("Skipped WoT configuration because --nowot was set.\n")
+
 
 def infocalypse_setupfms(ui_, **opts):
     """ Setup or modify the fms configuration. """
@@ -475,6 +491,8 @@ def get_truster(ui, repo, opts):
         return '@' + cfg.get_wot_identity(cfg.get_request_uri(repo.root))
 
 #----------------------------------------------------------"
+
+
 def do_archive_create(ui_, opts, params, stored_cfg):
     """ fn-archive --create."""
     insert_uri = opts['uri']
@@ -484,6 +502,7 @@ def do_archive_create(ui_, opts, params, stored_cfg):
     params['INSERT_URI'] = insert_uri
     params['FROM_DIR'] = os.getcwd()
     execute_arc_create(ui_, params, stored_cfg)
+
 
 def do_archive_push(ui_, opts, params, stored_cfg):
     """ fn-archive --push."""
@@ -500,6 +519,7 @@ def do_archive_push(ui_, opts, params, stored_cfg):
     params['FROM_DIR'] = os.getcwd()
 
     execute_arc_push(ui_, params, stored_cfg)
+
 
 def do_archive_pull(ui_, opts, params, stored_cfg):
     """ fn-archive --pull."""
@@ -518,6 +538,8 @@ def do_archive_pull(ui_, opts, params, stored_cfg):
     execute_arc_pull(ui_,  params, stored_cfg)
 
 ILLEGAL_FOR_REINSERT = ('uri', 'aggressive', 'nosearch')
+
+
 def do_archive_reinsert(ui_, opts, params, stored_cfg):
     """ fn-archive --reinsert."""
     illegal = [value for value in ILLEGAL_FOR_REINSERT
@@ -534,15 +556,17 @@ def do_archive_reinsert(ui_, opts, params, stored_cfg):
     insert_uri = stored_cfg.get_dir_insert_uri(params['ARCHIVE_CACHE_DIR'])
     params['REQUEST_URI'] = request_uri
     params['INSERT_URI'] = insert_uri
-    params['FROM_DIR'] = os.getcwd() # hmmm not used.
+    params['FROM_DIR'] = os.getcwd()  # hmmm not used.
     params['REINSERT_LEVEL'] = 3
     execute_arc_reinsert(ui_, params, stored_cfg)
 
-ARCHIVE_SUBCMDS = {'create':do_archive_create,
-                   'push':do_archive_push,
-                   'pull':do_archive_pull,
-                   'reinsert':do_archive_reinsert}
+ARCHIVE_SUBCMDS = {'create': do_archive_create,
+                   'push': do_archive_push,
+                   'pull': do_archive_pull,
+                   'reinsert': do_archive_reinsert}
 ARCHIVE_CACHE_DIR = '.ARCHIVE_CACHE'
+
+
 def infocalypse_archive(ui_, **opts):
     """ Commands to maintain a non-hg incremental archive."""
     subcmd = [value for value in ARCHIVE_SUBCMDS if opts[value]]
@@ -562,4 +586,3 @@ def infocalypse_archive(ui_, **opts):
 
     # 2 qt?
     ARCHIVE_SUBCMDS[subcmd](ui_, opts, params, stored_cfg)
-
