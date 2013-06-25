@@ -165,7 +165,7 @@ def execute_setup_freemail(ui, wot_identifier):
     ui.status("Password set.\n")
 
 
-def resolve_local_identity(ui, identity):
+def resolve_local_identity(ui, wot_identifier):
     """
     Mercurial ui for error messages.
 
@@ -173,7 +173,7 @@ def resolve_local_identity(ui, identity):
     and identity that match the given criteria.
     In the case of an error prints a message and returns None.
     """
-    nickname_prefix, key_prefix = parse_name(identity)
+    nickname_prefix, key_prefix = parse_name(wot_identifier)
 
     node = fcp.FCPNode()
     response = \
@@ -213,11 +213,11 @@ def resolve_local_identity(ui, identity):
             del matches[key]
 
     if len(matches) > 1:
-        ui.warn("'{0}' is ambiguous.\n".format(identity))
+        ui.warn("'{0}' is ambiguous.\n".format(wot_identifier))
         return
 
     if len(matches) == 0:
-        ui.warn("No local identities match '{0}'.\n".format(identity))
+        ui.warn("No local identities match '{0}'.\n".format(wot_identifier))
         return
 
     assert len(matches) == 1
@@ -229,7 +229,7 @@ def resolve_local_identity(ui, identity):
     return read_local_identity(response, id_num)
 
 
-def resolve_identity(ui, truster, identity):
+def resolve_identity(ui, truster, wot_identifier):
     """
     If using LCWoT, either the nickname prefix should be enough to be
     unambiguous, or failing that enough of the key.
@@ -242,10 +242,10 @@ def resolve_identity(ui, truster, identity):
 
     :param ui: Mercurial ui for error messages.
     :param truster: Check trust list of this local identity.
-    :param identity: Nickname and key, delimited by @. Either half can be
+    :param wot_identifier: Nickname and key, delimited by @. Either half can be
     omitted.
     """
-    nickname_prefix, key_prefix = parse_name(identity)
+    nickname_prefix, key_prefix = parse_name(wot_identifier)
     # TODO: Support different FCP IP / port.
     node = fcp.FCPNode()
 
@@ -278,12 +278,12 @@ def resolve_identity(ui, truster, identity):
     elif response['Replies.Message'] == 'Identities':
         matches = response['Replies.IdentitiesMatched']
         if matches == 0:
-            ui.warn("No identities match '{0}'\n".format(identity))
+            ui.warn("No identities match '{0}'\n".format(wot_identifier))
             return
         elif matches == 1:
             return read_identity(response, 0)
         else:
-            ui.warn("'{0}' is ambiguous.\n".format(identity))
+            ui.warn("'{0}' is ambiguous.\n".format(wot_identifier))
             return
 
     # Partial matching not supported, or unknown truster. The only difference
@@ -301,7 +301,7 @@ def resolve_identity(ui, truster, identity):
 
     if response['Replies.Message'] == 'Error':
         # Searching by exact public key hash, not matching.
-        ui.warn("No such identity '{0}'.\n".format(identity))
+        ui.warn("No such identity '{0}'.\n".format(wot_identifier))
         return
 
     # There should be only one result.
@@ -346,14 +346,14 @@ def read_identity(message, id_num):
     return result
 
 
-def parse_name(identity):
+def parse_name(wot_identifier):
     """
-    Parse identity of the forms: nick
-                                 nick@key
-                                 @key
-    Return nick, key. If a part is not given return an empty string.
+    Parse identifier of the forms: nick
+                                   nick@key
+                                   @key
+    Return nick, key. If a part is not given return an empty string for it.
     """
-    split = identity.split('@', 1)
+    split = wot_identifier.split('@', 1)
     nickname_prefix = split[0]
 
     key_prefix = ''

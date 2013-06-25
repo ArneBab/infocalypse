@@ -1,3 +1,22 @@
+------------------------------------------------------------
+Terminology:
+------------------------------------------------------------
+
+WoT -
+      Web of Trust. May refer to the plugin of the same name or compatible
+      alternative plugins like LCWoT - Less Crappy Web of Trust.
+WoT identifier -
+                 Web of Trust identifier. This is MyNickname@public-key-hash.
+                 Often abbreviated "wot_id". Not to be confused with a WoT
+                 identity.
+WoT identity -
+              name given to the public key hash when returned by WoT.
+              Can also refer to a dictionary containing the Identity and
+              other attributes such as a request URI and contexts.
+
+------------------------------------------------------------
+Dev log:
+------------------------------------------------------------
 !!! experimental branch for testing wiki over hg idea !!!
 See (note updated uri)
 reenet:USK@Gq-FBhpgvr11VGpapG~y0rGFOAHVfzyW1WoKGwK-fFw,MpzFUh5Rmw6N~aMKwm9h2Uk~6aTRhYaY0shXVotgBUc,AQACAAE/fniki/-22/
