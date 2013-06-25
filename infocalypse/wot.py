@@ -67,12 +67,12 @@ def update_repo_listing(ui, for_identity):
         ui.status("Updated repository listing:\n{0}\n".format(uri))
 
 
-def read_repo_listing(ui, truster, identity):
+def read_repo_listing(ui, truster, wot_identifier):
     """
     Read a repo listing for a given identity.
     Return a dictionary of repository URIs keyed by name.
     """
-    identity = resolve_identity(ui, truster, identity)
+    identity = resolve_identity(ui, truster, wot_identifier)
     if identity is None:
         return
 
