@@ -136,7 +136,8 @@ class Config:
         self.file_name = None
 
         # Use a dict instead of members to avoid pylint R0902.
-        self.defaults = {} # REDFLAG: Why is this called defaults? BAD NAME
+        # REDFLAG: Why is this called defaults? BAD NAME. Perhaps 'values'?
+        self.defaults = {}
         self.defaults['HOST'] = '127.0.0.1'
         self.defaults['PORT'] = 9481
         self.defaults['TMP_DIR'] = None
