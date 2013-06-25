@@ -6,6 +6,7 @@ from defusedxml.ElementTree import fromstring
 import smtplib
 from base64 import b32encode
 from fcp.node import base64decode
+from keys import USK
 
 
 def send_pull_request(ui, from_identity, to_identity):
@@ -67,10 +68,31 @@ def update_repo_listing(ui, for_identity):
         ui.status("Updated repository listing:\n{0}\n".format(uri))
 
 
+def find_repo(ui, truster, wot_identifier, repo_name):
+    """
+    Return a request URI for a repo of the given name published by an
+    identity matching the given identifier.
+    Print an error message and return None on failure.
+    """
+    listing = read_repo_listing(ui, truster, wot_identifier)
+
+    if listing is None:
+        return
+
+    if repo_name not in listing:
+        # TODO: Perhaps resolve again; print full nick / key?
+        # TODO: Maybe print key found in the resolve_*identity?
+        ui.warn("{0} does not publish a repo named '{1}'\n".format(
+            wot_identifier, repo_name))
+        return
+
+    return listing[repo_name]
+
+
 def read_repo_listing(ui, truster, wot_identifier):
     """
     Read a repo listing for a given identity.
-    Return a dictionary of repository URIs keyed by name.
+    Return a dictionary of repository request URIs keyed by name.
     """
     identity = resolve_identity(ui, truster, wot_identifier)
     if identity is None:
@@ -85,6 +107,8 @@ def read_repo_listing(ui, truster, wot_identifier):
     # TODO: Set and read vcs edition property.
     node = fcp.FCPNode()
     ui.status("Fetching {0}\n".format(uri))
+    # TODO: What exception can this throw on failure? Catch it,
+    # print its description, and return None.
     mime_type, repo_xml, msg = node.get(uri, priority=1)
 
     ui.status("Parsing.\n")
@@ -121,17 +145,7 @@ def resolve_pull_uri(ui, path, truster):
         # TODO: How to handle redundancy? Does Infocalypse automatically try
         # an R0 if an R1 fails?
 
-        repositories = read_repo_listing(ui, truster, wot_id)
-
-        if repositories is None:
-            return
-
-        if repo_name not in repositories:
-            ui.warn("Could not find repository named \"{0}\".\n"
-                    .format(repo_name))
-            return
-
-        return repositories[repo_name]
+        return find_repo(ui, truster, wot_id, repo_name)
 
 
 def resolve_push_uri(ui, path):
@@ -140,17 +154,34 @@ def resolve_push_uri(ui, path):
     Print an error message and return None on failure.
 
     :param ui: For feedback.
-    :param path: path describing a repo: nick@key/reponame,
+    :param path: path describing a repo - nick@key/repo_name,
     where the identity is a local one. (Such that the insert URI is known.)
     """
-    # Expecting <id stuff>/reponame
-    # TODO: Duplcate with resolve_pull
+    # Expecting <id stuff>/repo_name
+    # TODO: Duplicate with resolve_pull
     wot_id, repo_name = path.split('/', 1)
 
-    local_id = resolve_local_identity(ui, )
+    local_id = resolve_local_identity(ui, wot_id)
 
-    # Get edition by checking one's own repo list.
-    repositories = read_repo_listing(ui, )
+    if local_id is None:
+        return
+
+    insert_uri = USK(local_id['InsertURI'])
+
+    identifier = local_id['Nickname'] + '@' + local_id['Identity']
+
+    repo = find_repo(ui, local_id['Identity'], identifier, repo_name)
+
+    if repo is None:
+        return
+
+    # Request URI
+    repo_uri = USK(repo)
+
+    # Maintains path, edition.
+    repo_uri.key = insert_uri.key
+
+    return str(repo_uri)
 
 # Support for querying WoT for own identities and identities meeting various
 # criteria.

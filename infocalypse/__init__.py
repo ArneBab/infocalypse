@@ -554,6 +554,13 @@ extensions.wrapfunction(discovery, 'findcommonoutgoing', findcommonoutgoing)
 
 
 def freenetpathtouri(ui, path, pull=True):
+    """
+    Return a usable request or insert URI. Expects a freenet:// or freenet:
+    protocol to be specified.
+
+    If the key is not a USK it will be resolved as a WoT identity. In this
+    case if the resolution fails, print an error message and return None.
+    """
     # TODO: Is this the only URL encoding that may happen? Why not use a more
     # semantically meaningful function?
     path = path.replace("%7E", "~").replace("%2C", ",")
@@ -632,6 +639,8 @@ def freenetpush(orig, *args, **opts):
     if not isfreenetpath(path):
         return orig(*args, **opts)
     uri = freenetpathtouri(ui, path, pull=False)
+    if uri is None:
+        return
     # if the uri is the short form (USK@/name/#), generate the key and preprocess the uri.
     if uri.startswith("USK@/"):
         ui.status("creating a new key for the repo. For a new repo with an existing key, use clone.\n")
