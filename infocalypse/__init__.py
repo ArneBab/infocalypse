@@ -692,9 +692,9 @@ def freenetclone(orig, *args, **opts):
     # check whether to create, pull or copy
     pulluri, pushuri = None, None
     if isfreenetpath(source):
-        pulluri = freenetpathtouri(source)
+        pulluri = freenetpathtouri(ui, source)
     if isfreenetpath(dest):
-        pushuri = freenetpathtouri(dest)
+        pushuri = freenetpathtouri(ui, dest, pull=False)
 
     # decide which infocalypse command to use.
     if pulluri and pushuri:
