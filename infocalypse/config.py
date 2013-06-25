@@ -141,6 +141,7 @@ class Config:
         self.defaults['PORT'] = 9481
         self.defaults['TMP_DIR'] = None
         self.defaults['DEFAULT_PRIVATE_KEY'] = None
+        self.defaults['DEFAULT_TRUSTER'] = ''
 
         self.defaults['FMS_HOST'] = '127.0.0.1'
         self.defaults['FMS_PORT'] = 1119
