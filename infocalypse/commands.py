@@ -189,22 +189,10 @@ def infocalypse_pull(ui_, repo, **opts):
             truster = stored_cfg.get_wot_identity(
                 stored_cfg.get_dir_insert_uri(repo.root))
 
-        # Expecting <id stuff>/reponame
-        wot_id, repo_name = opts['wot'].split('/', 1)
+        request_uri = wot.resolve_pull_uri(ui_, opts['wot'], truster)
 
-        # TODO: How to handle redundancy? Does Infocalypse automatically try
-        # an R0 if an R1 fails?
-
-        repositories = wot.read_repo_listing(ui_, truster, wot_id)
-
-        if repositories is None:
+        if request_uri is None:
             return
-
-        if repo_name not in repositories:
-            ui_.warn("Could not find repository named \"{0}\".\n".format(repo_name))
-            return
-
-        request_uri = repositories[repo_name]
     else:
         request_uri = opts['uri']
 

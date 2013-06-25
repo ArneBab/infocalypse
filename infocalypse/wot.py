@@ -100,6 +100,58 @@ def read_repo_listing(ui, truster, identity):
 
     return repositories
 
+
+def resolve_pull_uri(ui, path, truster):
+        """
+        Return a pull URI for the given path.
+        Print an error message and return None on failure.
+        TODO: Is it appropriate to outline possible errors?
+        Possible failures are being unable to fetch a repo list for the given
+        identity, which may be a fetch failure or being unable to find the
+        identity, and not finding the requested repo in the list.
+
+        :param ui: For feedback.
+        :param path: path describing a repo: nick@key/reponame
+        :param truster: identity whose trust list to use.
+        :return:
+        """
+        # Expecting <id stuff>/reponame
+        wot_id, repo_name = path.split('/', 1)
+
+        # TODO: How to handle redundancy? Does Infocalypse automatically try
+        # an R0 if an R1 fails?
+
+        repositories = read_repo_listing(ui, truster, wot_id)
+
+        if repositories is None:
+            return
+
+        if repo_name not in repositories:
+            ui.warn("Could not find repository named \"{0}\".\n"
+                    .format(repo_name))
+            return
+
+        return repositories[repo_name]
+
+
+def resolve_push_uri(ui, path):
+    """
+    Return a push URI for the given path.
+    Print an error message and return None on failure.
+
+    :param ui: For feedback.
+    :param path: path describing a repo: nick@key/reponame,
+    where the identity is a local one. (Such that the insert URI is known.)
+    """
+    # Expecting <id stuff>/reponame
+    # TODO: Duplcate with resolve_pull
+    wot_id, repo_name = path.split('/', 1)
+
+    local_id = resolve_local_identity(ui, )
+
+    # Get edition by checking one's own repo list.
+    repositories = read_repo_listing(ui, )
+
 # Support for querying WoT for own identities and identities meeting various
 # criteria.
 # TODO: "cmds" suffix to module name to fit fms, arc, inf?

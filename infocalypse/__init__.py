@@ -552,13 +552,29 @@ extensions.wrapfunction(discovery, 'findcommonoutgoing', findcommonoutgoing)
 
 # wrap the commands
 
-def freenetpathtouri(path):
+
+def freenetpathtouri(ui, path, pull=True):
+    # TODO: Is this the only URL encoding that may happen? Why not use a more
+    # semantically meaningful function?
     path = path.replace("%7E", "~").replace("%2C", ",")
     if path.startswith("freenet://"):
-        return path[len("freenet://"):]
-    if path.startswith("freenet:"):
-        return path[len("freenet:"):]
-    return path
+        path = path[len("freenet://"):]
+    elif path.startswith("freenet:"):
+        path = path[len("freenet:"):]
+
+    # Guess whether it's WoT. This won't work if someone has chosen their WoT
+    # nick to be "USK", but this is a corner case. Using --wot will still work.
+    if not path.startswith("USK"):
+        import wot
+        if pull:
+            cfg = Config()
+            cfg.from_ui(ui)
+            truster = cfg.defaults['DEFAULT_TRUSTER']
+            return wot.resolve_pull_uri(ui, path, truster)
+        else:
+            return wot.resolve_push_uri(ui, path)
+    else:
+        return path
 
 def freenetpull(orig, *args, **opts):
     def parsepushargs(ui, repo, path=None):
@@ -578,7 +594,7 @@ def freenetpull(orig, *args, **opts):
     # only act differently, if the target is an infocalypse repo.
     if not isfreenetpath(path):
         return orig(*args, **opts)
-    uri = freenetpathtouri(path)
+    uri = freenetpathtouri(ui, path)
     opts["uri"] = uri
     opts["aggressive"] = True # always search for the latest revision.
     return infocalypse_pull(ui, repo, **opts)
@@ -615,7 +631,7 @@ def freenetpush(orig, *args, **opts):
     # only act differently, if the target is an infocalypse repo.
     if not isfreenetpath(path):
         return orig(*args, **opts)
-    uri = freenetpathtouri(path)
+    uri = freenetpathtouri(ui, path, pull=False)
     # if the uri is the short form (USK@/name/#), generate the key and preprocess the uri.
     if uri.startswith("USK@/"):
         ui.status("creating a new key for the repo. For a new repo with an existing key, use clone.\n")
