@@ -227,8 +227,7 @@ def execute_setup_freemail(ui, wot_identifier):
     ui.status("Checking password for {0}@{1}.\n".format(local_id['Nickname'],
                                                         local_id['Identity']))
 
-    cfg = config.Config()
-    cfg.from_ui(ui)
+    cfg = Config.from_ui(ui)
 
     # Check that the password works.
     try:
@@ -244,7 +243,8 @@ def execute_setup_freemail(ui, wot_identifier):
         ui.warn("Got '{0}'\n".format(e.smtp_error))
         return
 
-    cfg.set_freemail_password(wot_identifier, password)
+    cfg.set_freemail_password(local_id['Identity'], password)
+    Config.to_file(cfg)
     ui.status("Password set.\n")
 
 
