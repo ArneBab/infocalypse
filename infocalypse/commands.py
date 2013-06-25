@@ -269,7 +269,7 @@ def infocalypse_info(ui_, repo, **opts):
 
 def parse_trust_args(params, opts):
     """ INTERNAL: Helper function to parse  --hash and --fmsid. """
-    if opts.get('hash', []) == []:
+    if not opts.get('hash', []):
         raise util.Abort("Use --hash to set the USK hash.")
     if len(opts['hash']) != 1:
         raise util.Abort("Only one --hash value is allowed.")
@@ -277,7 +277,7 @@ def parse_trust_args(params, opts):
         raise util.Abort("[%s] doesn't look like a USK hash." %
                          opts['hash'][0])
 
-    if opts.get('fmsid', []) == []:
+    if not opts.get('fmsid', []):
         raise util.Abort("Use --fmsid to set the FMS id.")
     if len(opts['fmsid']) != 1:
         raise util.Abort("Only one --fmsid value is allowed.")
