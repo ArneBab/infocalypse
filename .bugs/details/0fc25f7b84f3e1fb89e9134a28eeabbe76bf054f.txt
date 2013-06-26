@@ -10,6 +10,7 @@
 # Additional details
 - Use plain stdlib where possible
 - Maybe merge the repo with pyFreenet, if we actually need it.
+- replace defusedxml?
 
 [expected]
 # The expected result
