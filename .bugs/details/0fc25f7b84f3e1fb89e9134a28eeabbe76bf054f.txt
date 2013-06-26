@@ -8,7 +8,7 @@
 
 [details]
 # Additional details
-- Use plaen stdlib where possible
+- Use plain stdlib where possible
 - Maybe merge the repo with pyFreenet, if we actually need it.
 
 [expected]
