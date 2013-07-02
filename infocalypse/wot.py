@@ -7,38 +7,133 @@ import smtplib
 from base64 import b32encode
 from fcp.node import base64decode
 from keys import USK
+import yaml
+from email.mime.text import MIMEText
+import imaplib
+
+FREEMAIL_SMTP_PORT = 4025
+FREEMAIL_IMAP_PORT = 4143
+PULL_REQUEST_PREFIX = "[vcs] "
 
 
-def send_pull_request(ui, from_identity, to_identity):
-    local_identity = resolve_local_identity(ui, from_identity)
-    target_identity = resolve_identity(ui, from_identity, to_identity)
+def send_pull_request(ui, repo, from_identifier, to_identifier, to_repo_name):
+    local_identity = resolve_local_identity(ui, from_identifier)
+    if local_identity is None:
+        return
 
-    if local_identity is None or target_identity is None:
-        # Error.
+    target_identity = resolve_identity(ui, local_identity['Identity'],
+                                       to_identifier)
+    if target_identity is None:
         return
 
     from_address = to_freemail_address(local_identity)
-    to_address = to_freemail_address(to_identity)
+    to_address = to_freemail_address(target_identity)
 
     if from_address is None or to_address is None:
         if from_address is None:
-            ui.warn("{0} is not using Freemail.\n".format(from_identity[
-                    'Nickname']))
+            ui.warn("{0}@{1} is not using Freemail.\n".format(local_identity[
+                    'Nickname'], local_identity['Identity']))
         if to_address is None:
-            ui.warn("{0} is not using Freemail.\n".format(to_identity[
-                    'Nickname']))
+            ui.warn("{0}@{1} is not using Freemail.\n".format(target_identity[
+                    'Nickname'], target_identity['Identity']))
         return
 
-    # TODO: Use FCP host; default port.
-    smtp = smtplib.SMTP()
-    # TODO: Where to configure Freemail password?
-    smtp.login(from_address, )
-    smtp.sendmail()
+    # Check that a password is set.
+    cfg = Config.from_ui(ui)
+    password = cfg.get_freemail_password(local_identity['Identity'])
 
+    if password is None:
+        ui.warn("{0} does not have a Freemail password set.\n"
+                "Run hg fn-setupfreemail --truster {0}@{1}\n"
+                .format(local_identity['Nickname'], local_identity['Identity']))
+        return
+
+    to_repo = find_repo(ui, local_identity['Identity'], to_identifier,
+                        to_repo_name)
+
+    # TODO: Frequently doing {0}@{1} ... would a WoTIdentity class make sense?
+    if to_repo is None:
+        ui.warn("{0}@{1} has not published a repository named '{2}'.\n"
+                .format(target_identity['Nickname'],
+                        target_identity['Identifier'],
+                        to_repo_name))
+        return
+
+    repo_context = repo['tip']
+    # TODO: Will there always be a request URI set in the config? What about
+    # a path? The repo could be missing a request URI, if that URI is
+    # set manually. We could check whether the default path is a
+    # freenet path. We cannot be sure whether the request uri will
+    # always be the uri we want to send the pull-request to, though:
+    # It might be an URI we used to get some changes which we now want
+    # to send back to the maintainer of the canonical repo.
+    from_uri = cfg.get_request_uri(repo.root)
+    from_branch = repo_context.branch()
+
+    # Use double-quoted scalars so that Unicode can be included. (Nicknames.)
+    footer = yaml.dump({'request': 'pull',
+                        'vcs': 'Infocalypse',
+                        'source': from_uri + '#' + from_branch,
+                        'target': to_repo}, default_style='"',
+                       explicit_start=True, explicit_end=True,
+                       allow_unicode=True)
+
+    # TODO: Break config sanity check and sending apart so that further
+    # things can check config, prompt for whatever, then send.
+
+    source_text = ui.edit("""
+
+HG: Enter pull request message here. Lines beginning with 'HG:' are removed.
+HG: The first line has "{0}" added before it and is the email subject.
+HG: The second line should be blank.
+HG: Following lines are the body of the message.
+HG: Below is the machine-readable footer describing the request. Modifying it
+HG: or putting things below it has the potential to cause problems.
+
+{1}
+""".format(PULL_REQUEST_PREFIX, footer), from_identifier)
+    # TODO: Abort in the case of a blank message?
+    # Markdown support would be on receiving end. Maybe CLI preview eventually.
+    # (Would that even work?)
+    # TODO: Save message and load later in case sending fails.
+
+    # TODO: What if the editor uses different line endings? How to slice
+    # by-line? Just use .splitlines()
+    source_lines = source_text.split('\n')
+
+    # Body is third line and after.
+    msg = MIMEText('\n'.join(source_lines[2:]))
+    msg['Subject'] = PULL_REQUEST_PREFIX + source_lines[0]
+    msg['To'] = to_address
+    msg['From'] = from_address
+
+    smtp = smtplib.SMTP(cfg.defaults['HOST'], FREEMAIL_SMTP_PORT)
+    smtp.login(from_address, password)
+    # TODO: Catch exceptions and give nice error messages.
+    smtp.sendmail(from_address, to_address, msg.as_string())
+
+
+def receive_pull_requests(ui):
+    # TODO: Terminology - send/receive different from resolve/read elsewhere.
+    # TODO: How to find YAML? Look from end backwards for "---\n" then forward
+    # from there for "...\n"? Yepp, that should be the simplest way. If the 
+    # end is ... (without linebreak) that could be a user-error which we might 
+    # accept: It is valid: http://www.yaml.org/spec/1.2/spec.html#id2760395
+    # TODO: How to match local repo with the "target" URI? Based on repo list.
+    # all keys which have an insert key for this path would be pull-targets
+    # to check. Maybe retrieve the insert keys and invert them to get the 
+    # request keys (or can we just use the insert keys to query Freemail?).
+
+    cfg = Config.from_ui(ui)
+    imap = imaplib.IMAP4(cfg.defaults['HOST'], FREEMAIL_IMAP_PORT)
+
+    type, message_numbers = imap.search(None, "SUBJECT", PULL_REQUEST_PREFIX)
+    print(type, message_numbers)
 
 def update_repo_listing(ui, for_identity):
     # TODO: WoT property containing edition. Used when requesting.
     config = Config.from_ui(ui)
+    # Version number to support possible format changes.
     root = ET.Element('vcs', {'version': '0'})
 
     # Add request URIs associated with the given identity.
@@ -417,14 +512,34 @@ def read_identity(message, id_num):
     # depend on and would allow just returning all properties for the identity.
     #property_prefix = "Replies.Properties{0}".format(id_num)
 
-    # Add contexts for the identity too.
+    # Add contexts and other properties.
     # TODO: Unflattening WoT response? Several places check for prefix like
     # this.
-    prefix = "Replies.Contexts{0}.Context".format(id_num)
+    context_prefix = "Replies.Contexts{0}.Context".format(id_num)
+    property_prefix = "Replies.Properties{0}.Property".format(id_num)
     for key in message.iterkeys():
-        if key.startswith(prefix):
-            num = key[len(prefix):]
+        if key.startswith(context_prefix):
+            num = key[len(context_prefix):]
             result["Context{0}".format(num)] = message[key]
+        elif key.startswith(property_prefix) and key.endswith(".Name"):
+            # ".Name" is 5 characters, before which is the number.
+            num = key[len(property_prefix):-5]
+
+            # Example:
+            # Replies.Properties1.Property1.Name = IntroductionPuzzleCount
+            # Replies.Properties1.Property1.Value = 10
+            name = message[key]
+            value = message[property_prefix + num + '.Value']
+
+            # LCWoT returns many things with duplicates in properties,
+            # so this conflict is something that can happen. Checking for
+            # value conflict restricts the message to cases where it actually
+            # has an effect.
+            if name in result and value != result[name]:
+                print("WARNING: '{0}' has a different value as a property."
+                      .format(name))
+
+            result[name] = value
 
     return result
 

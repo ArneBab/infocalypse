@@ -495,8 +495,13 @@ def is_redundant(uri):
 ############################################################
 # User feedback? success, failure?
 def execute_create(ui_, repo, params, stored_cfg):
-    """ Run the create command. """
+    """
+    Run the create command.
+
+    Return the request URI on success, and None on failure.
+    """
     update_sm = None
+    inserted_to = None
     try:
         update_sm = setup(ui_, repo, params, stored_cfg)
         # REDFLAG: Do better.
@@ -516,15 +521,16 @@ def execute_create(ui_, repo, params, stored_cfg):
         run_until_quiescent(update_sm, params['POLL_SECS'])
 
         if update_sm.get_state(QUIESCENT).arrived_from(((FINISHING,))):
-            ui_.status("Inserted to:\n%s\n" %
-                       '\n'.join(update_sm.get_state(INSERTING_URI).
-                                 get_request_uris()))
+            inserted_to = update_sm.get_state(INSERTING_URI).get_request_uris()
+            ui_.status("Inserted to:\n%s\n" % '\n'.join(inserted_to))
         else:
             ui_.status("Create failed.\n")
 
         handle_updating_config(repo, update_sm, params, stored_cfg)
     finally:
         cleanup(update_sm)
+
+    return inserted_to
 
 # REDFLAG: LATER: make this work without a repo?
 def execute_copy(ui_, repo, params, stored_cfg):
