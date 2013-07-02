@@ -214,8 +214,8 @@ def infocalypse_pull(ui_, repo, **opts):
 def infocalypse_pull_request(ui, repo, **opts):
     import wot
     if not opts['wot']:
-        ui.warn("Who do you want to send the pull request to? Set --wot.\n")
-        return
+        raise util.Abort("Who do you want to send the pull request to? Set "
+                         "--wot.\n")
 
     wot_id, repo_name = opts['wot'].split('/', 1)
     wot.send_pull_request(ui, repo, get_truster(ui, repo, opts), wot_id,

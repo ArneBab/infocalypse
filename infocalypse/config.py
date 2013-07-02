@@ -231,13 +231,16 @@ class Config:
 
     def get_freemail_password(self, wot_identity):
         """
-        Return the password associated with the given WoT identity,
-        or None if one is not set.
+        Return the password associated with the given WoT identity.
+        Raise util.Abort if one is not set.
         """
         if wot_identity in self.freemail_passwords:
             return self.freemail_passwords[wot_identity]
         else:
-            return None
+            raise util.Abort("{0} does not have a Freemail password set.\n"
+                             "Run hg fn-setupfreemail --truster {0}@{1}\n"
+                             .format(wot_identity['Nickname'],
+                                     wot_identity['Identity']))
 
     # Hmmm... really nescessary?
     def get_dir_insert_uri(self, repo_dir):

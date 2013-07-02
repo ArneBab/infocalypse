@@ -1,5 +1,6 @@
 import string
 import fcp
+from mercurial import util
 from config import Config
 import xml.etree.ElementTree as ET
 from defusedxml.ElementTree import fromstring
@@ -18,46 +19,18 @@ PULL_REQUEST_PREFIX = "[vcs] "
 
 def send_pull_request(ui, repo, from_identifier, to_identifier, to_repo_name):
     local_identity = resolve_local_identity(ui, from_identifier)
-    if local_identity is None:
-        return
 
     target_identity = resolve_identity(ui, local_identity['Identity'],
                                        to_identifier)
-    if target_identity is None:
-        return
 
     from_address = to_freemail_address(local_identity)
     to_address = to_freemail_address(target_identity)
 
-    if from_address is None or to_address is None:
-        if from_address is None:
-            ui.warn("{0}@{1} is not using Freemail.\n".format(local_identity[
-                    'Nickname'], local_identity['Identity']))
-        if to_address is None:
-            ui.warn("{0}@{1} is not using Freemail.\n".format(target_identity[
-                    'Nickname'], target_identity['Identity']))
-        return
-
-    # Check that a password is set.
     cfg = Config.from_ui(ui)
     password = cfg.get_freemail_password(local_identity['Identity'])
 
-    if password is None:
-        ui.warn("{0} does not have a Freemail password set.\n"
-                "Run hg fn-setupfreemail --truster {0}@{1}\n"
-                .format(local_identity['Nickname'], local_identity['Identity']))
-        return
-
     to_repo = find_repo(ui, local_identity['Identity'], to_identifier,
                         to_repo_name)
-
-    # TODO: Frequently doing {0}@{1} ... would a WoTIdentity class make sense?
-    if to_repo is None:
-        ui.warn("{0}@{1} has not published a repository named '{2}'.\n"
-                .format(target_identity['Nickname'],
-                        target_identity['Identifier'],
-                        to_repo_name))
-        return
 
     repo_context = repo['tip']
     # TODO: Will there always be a request URI set in the config? What about
@@ -120,6 +93,7 @@ def receive_pull_requests(ui):
     type, message_numbers = imap.search(None, "SUBJECT", PULL_REQUEST_PREFIX)
     print(type, message_numbers)
 
+
 def update_repo_listing(ui, for_identity):
     # TODO: WoT property containing edition. Used when requesting.
     config = Config.from_ui(ui)
@@ -157,19 +131,16 @@ def find_repo(ui, truster, wot_identifier, repo_name):
     """
     Return a request URI for a repo of the given name published by an
     identity matching the given identifier.
-    Print an error message and return None on failure.
+    Raise util.Abort if unable to read repo listing or a repo by that name
+    does not exist.
     """
     listing = read_repo_listing(ui, truster, wot_identifier)
-
-    if listing is None:
-        return
 
     if repo_name not in listing:
         # TODO: Perhaps resolve again; print full nick / key?
         # TODO: Maybe print key found in the resolve_*identity?
-        ui.warn("{0} does not publish a repo named '{1}'\n".format(
-            wot_identifier, repo_name))
-        return
+        raise util.Abort("{0} does not publish a repo named '{1}'\n"
+                         .format(wot_identifier, repo_name))
 
     return listing[repo_name]
 
@@ -178,10 +149,9 @@ def read_repo_listing(ui, truster, wot_identifier):
     """
     Read a repo listing for a given identity.
     Return a dictionary of repository request URIs keyed by name.
+    Raise util.Abort if unable to resolve identity.
     """
     identity = resolve_identity(ui, truster, wot_identifier)
-    if identity is None:
-        return
 
     ui.status("Found {0}@{1}.\n".format(identity['Nickname'],
                                         identity['Identity']))
@@ -236,7 +206,7 @@ def resolve_pull_uri(ui, path, truster):
 def resolve_push_uri(ui, path):
     """
     Return a push URI for the given path.
-    Print an error message and return None on failure.
+    Raise util.Abort if unable to resolve identity or repository.
 
     :param ui: For feedback.
     :param path: path describing a repo - nick@key/repo_name,
@@ -248,17 +218,11 @@ def resolve_push_uri(ui, path):
 
     local_id = resolve_local_identity(ui, wot_id)
 
-    if local_id is None:
-        return
-
     insert_uri = USK(local_id['InsertURI'])
 
     identifier = local_id['Nickname'] + '@' + local_id['Identity']
 
     repo = find_repo(ui, local_id['Identity'], identifier, repo_name)
-
-    if repo is None:
-        return
 
     # Request URI
     repo_uri = USK(repo)
@@ -277,9 +241,6 @@ def execute_setup_wot(ui_, opts):
     cfg = Config.from_ui(ui_)
     response = resolve_local_identity(ui_, opts['truster'])
 
-    if response is None:
-        return
-
     ui_.status("Setting default truster to {0}@{1}\n".format(
         response['Nickname'],
         response['Identity']))
@@ -294,20 +255,12 @@ def execute_setup_freemail(ui, wot_identifier):
     """
     local_id = resolve_local_identity(ui, wot_identifier)
 
-    if local_id is None:
-        return
-
     address = to_freemail_address(local_id)
-
-    if address is None:
-        ui.warn("{0}@{1} does not have a Freemail address.\n".format(
-            local_id['Nickname'], local_id['Identity']))
-        return
 
     password = ui.getpass()
     if password is None:
-        ui.warn("Cannot prompt for a password in a non-interactive context.")
-        return
+        raise util.Abort("Cannot prompt for a password in a non-interactive "
+                         "context.\n")
 
     ui.status("Checking password for {0}@{1}.\n".format(local_id['Nickname'],
                                                         local_id['Identity']))
@@ -320,13 +273,11 @@ def execute_setup_freemail(ui, wot_identifier):
         smtp = smtplib.SMTP(cfg.defaults['HOST'], FREEMAIL_SMTP_PORT)
         smtp.login(address, password)
     except smtplib.SMTPAuthenticationError, e:
-        ui.warn("Could not log in using password '{0}'.\n".format(password))
-        ui.warn("Got '{0}'\n".format(e.smtp_error))
-        return
+        raise util.Abort("Could not log in using password '{0}'.\nGot '{1}'\n"
+                         .format(password, e.smtp_error))
     except smtplib.SMTPConnectError, e:
-        ui.warn("Could not connect to server.\n")
-        ui.warn("Got '{0}'\n".format(e.smtp_error))
-        return
+        raise util.Abort("Could not connect to server.\nGot '{0}'\n"
+                         .format(e.smtp_error))
 
     cfg.set_freemail_password(local_id['Identity'], password)
     Config.to_file(cfg)
@@ -353,8 +304,7 @@ def resolve_local_identity(ui, wot_identifier):
     if response['header'] != 'FCPPluginReply' or \
             'Replies.Message' not in response or \
             response['Replies.Message'] != 'OwnIdentities':
-        ui.warn("Unexpected reply. Got {0}\n.".format(response))
-        return
+        raise util.Abort("Unexpected reply. Got {0}\n.".format(response))
 
     # Find nicknames starting with the supplied nickname prefix.
     prefix = 'Replies.Nickname'
@@ -381,12 +331,11 @@ def resolve_local_identity(ui, wot_identifier):
             del matches[key]
 
     if len(matches) > 1:
-        ui.warn("'{0}' is ambiguous.\n".format(wot_identifier))
-        return
+        raise util.Abort("'{0}' is ambiguous.\n".format(wot_identifier))
 
     if len(matches) == 0:
-        ui.warn("No local identities match '{0}'.\n".format(wot_identifier))
-        return
+        raise util.Abort("No local identities match '{0}'.\n".format(
+            wot_identifier))
 
     assert len(matches) == 1
 
@@ -441,18 +390,16 @@ def resolve_identity(ui, truster, wot_identifier):
 
     if response['header'] != 'FCPPluginReply' or \
             'Replies.Message' not in response:
-        ui.warn('Unexpected reply. Got {0}\n'.format(response))
-        return
+        raise util.Abort('Unexpected reply. Got {0}\n'.format(response))
     elif response['Replies.Message'] == 'Identities':
         matches = response['Replies.IdentitiesMatched']
         if matches == 0:
-            ui.warn("No identities match '{0}'\n".format(wot_identifier))
-            return
+            raise util.Abort("No identities match '{0}'\n".format(
+                wot_identifier))
         elif matches == 1:
             return read_identity(response, 0)
         else:
-            ui.warn("'{0}' is ambiguous.\n".format(wot_identifier))
-            return
+            raise util.Abort("'{0}' is ambiguous.\n".format(wot_identifier))
 
     # Partial matching not supported, or unknown truster. The only difference
     # in the errors is human-readable, so just try the exact match.
@@ -469,8 +416,7 @@ def resolve_identity(ui, truster, wot_identifier):
 
     if response['Replies.Message'] == 'Error':
         # Searching by exact public key hash, not matching.
-        ui.warn("No such identity '{0}'.\n".format(wot_identifier))
-        return
+        raise util.Abort("No such identity '{0}'.\n".format(wot_identifier))
 
     # There should be only one result.
     # Depends on https://bugs.freenetproject.org/view.php?id=5729
@@ -554,7 +500,8 @@ def parse_name(wot_identifier):
 def to_freemail_address(identity):
     """
     Return a Freemail address to contact the given identity if it has a
-    Freemail context. Return None if it does not have a Freemail context.
+    Freemail context.
+    Raise util.Abort if it does not have a Freemail context.
     """
 
     # Freemail addresses encode the public key hash with base32 instead of
@@ -572,4 +519,5 @@ def to_freemail_address(identity):
             return string.lower(identity['Nickname'] + '@' + re_encode +
                                 '.freemail')
 
-    return None
+    raise util.Abort("{0}@{1} is not using Freemail.\n".format(
+        identity['Nickname'], identity['Identity']))
