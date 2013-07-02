@@ -70,9 +70,7 @@ HG: or putting things below it has the potential to cause problems.
     # (Would that even work?)
     # TODO: Save message and load later in case sending fails.
 
-    # TODO: What if the editor uses different line endings? How to slice
-    # by-line? Just use .splitlines()
-    source_lines = source_text.split('\n')
+    source_lines = source_text.splitlines()
 
     # Body is third line and after.
     msg = MIMEText('\n'.join(source_lines[2:]))
