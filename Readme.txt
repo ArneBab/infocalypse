@@ -14,3 +14,15 @@ and many other features.
 And it works transparently: To publish, just clone to freenet:
 
     hg clone REPO freenet://USK@/REPO
+
+It supports WoT too:
+
+    hg clone REPO freenet://wot_nick@public_key_hash/repo
+
+    - Push / pull by name
+    - Pull requests
+
+Dependencies for full WoT support:
+    - PyYAML http://pyyaml.org/wiki/PyYAMLDocumentation
+    - lib-pyFreenet https://github.com/freenet/lib-pyFreenet-official
+    - DefusedXML https://pypi.python.org/pypi/defusedxml/

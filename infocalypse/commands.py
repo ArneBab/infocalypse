@@ -107,9 +107,8 @@ def infocalypse_create(ui_, repo, **opts):
     params['INSERT_URI'] = insert_uri
     inserted_to = execute_create(ui_, repo, params, stored_cfg)
 
-    # TODO: Move into some function. How to separate local success context?
-    if inserted_to is not None and attributes is not None and \
-       stored_cfg.has_wot_identity(stored_cfg.get_request_uri(repo.root)):
+    if inserted_to and opts['wot']:
+        # TODO: Imports don't go out of scope, right?
         import wot
         wot.update_repo_listing(ui_, attributes['Identity'])
 
@@ -213,9 +212,14 @@ def infocalypse_pull(ui_, repo, **opts):
 
 
 def infocalypse_pull_request(ui, repo, **opts):
+    import wot
     if not opts['wot']:
-        ui.warning("Who do you want to send the pull request to? Set --wot.")
+        ui.warn("Who do you want to send the pull request to? Set --wot.\n")
         return
+
+    wot_id, repo_name = opts['wot'].split('/', 1)
+    wot.send_pull_request(ui, repo, get_truster(ui, repo, opts), wot_id,
+                          repo_name)
 
 
 def infocalypse_push(ui_, repo, **opts):

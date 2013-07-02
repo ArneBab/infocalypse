@@ -390,9 +390,11 @@ cmdtable = {
                 "[options]"),
 
     "fn-pull-request": (infocalypse_pull_request,
-                        WOT_OPTS +
-                        FCP_OPTS,
-                        "--wot id@key/repo"),
+                        [('', 'wot', '', 'WoT nick@key/repo to send request '
+                                         'to')]
+                        + WOT_OPTS
+                        + FCP_OPTS,
+                        "[--truster nick@key] --wot nick@key/repo"),
 
     "fn-push": (infocalypse_push,
                 [('', 'uri', '', 'insert URI to push to'),
@@ -693,8 +695,15 @@ def freenetclone(orig, *args, **opts):
     pulluri, pushuri = None, None
     if isfreenetpath(source):
         pulluri = freenetpathtouri(ui, source)
+
+    if not pulluri:
+        raise util.Abort()
+
     if isfreenetpath(dest):
         pushuri = freenetpathtouri(ui, dest, pull=False)
+
+    if not pushuri:
+        return
 
     # decide which infocalypse command to use.
     if pulluri and pushuri:
