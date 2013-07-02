@@ -108,7 +108,8 @@ def infocalypse_create(ui_, repo, **opts):
     inserted_to = execute_create(ui_, repo, params, stored_cfg)
 
     if inserted_to and opts['wot']:
-        # TODO: Imports don't go out of scope, right?
+        # TODO: Imports don't go out of scope, right? The variables
+        # from the import are only visible in the function, so yes.
         import wot
         wot.update_repo_listing(ui_, attributes['Identity'])
 

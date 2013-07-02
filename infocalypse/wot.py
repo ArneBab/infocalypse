@@ -34,7 +34,12 @@ def send_pull_request(ui, repo, from_identifier, to_identifier, to_repo_name):
 
     repo_context = repo['tip']
     # TODO: Will there always be a request URI set in the config? What about
-    # a path?
+    # a path? The repo could be missing a request URI, if that URI is
+    # set manually. We could check whether the default path is a
+    # freenet path. We cannot be sure whether the request uri will
+    # always be the uri we want to send the pull-request to, though:
+    # It might be an URI we used to get some changes which we now want
+    # to send back to the maintainer of the canonical repo.
     from_uri = cfg.get_request_uri(repo.root)
     from_branch = repo_context.branch()
 
@@ -66,7 +71,7 @@ HG: or putting things below it has the potential to cause problems.
     # TODO: Save message and load later in case sending fails.
 
     # TODO: What if the editor uses different line endings? How to slice
-    # by-line?
+    # by-line? Just use .splitlines()
     source_lines = source_text.split('\n')
 
     # Body is third line and after.
@@ -84,8 +89,13 @@ HG: or putting things below it has the potential to cause problems.
 def receive_pull_requests(ui):
     # TODO: Terminology - send/receive different from resolve/read elsewhere.
     # TODO: How to find YAML? Look from end backwards for "---\n" then forward
-    # from there for "...\n"?
+    # from there for "...\n"? Yepp, that should be the simplest way. If the 
+    # end is ... (without linebreak) that could be a user-error which we might 
+    # accept: It is valid: http://www.yaml.org/spec/1.2/spec.html#id2760395
     # TODO: How to match local repo with the "target" URI? Based on repo list.
+    # all keys which have an insert key for this path would be pull-targets
+    # to check. Maybe retrieve the insert keys and invert them to get the 
+    # request keys (or can we just use the insert keys to query Freemail?).
 
     cfg = Config.from_ui(ui)
     imap = imaplib.IMAP4(cfg.defaults['HOST'], FREEMAIL_IMAP_PORT)

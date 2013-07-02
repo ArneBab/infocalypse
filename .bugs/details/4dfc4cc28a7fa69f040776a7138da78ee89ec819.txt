@@ -8,11 +8,12 @@
 
 [details]
 # Additional details
-
+Only file USKs are allowed.
+Make sure the URI ends with '/<number>' with no trailing '/'
 
 [expected]
 # The expected result
-
+Without number it could just assume /0
 
 [actual]
 # What happened instead
