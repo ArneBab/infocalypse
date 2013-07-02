@@ -417,14 +417,34 @@ def read_identity(message, id_num):
     # depend on and would allow just returning all properties for the identity.
     #property_prefix = "Replies.Properties{0}".format(id_num)
 
-    # Add contexts for the identity too.
+    # Add contexts and other properties.
     # TODO: Unflattening WoT response? Several places check for prefix like
     # this.
-    prefix = "Replies.Contexts{0}.Context".format(id_num)
+    context_prefix = "Replies.Contexts{0}.Context".format(id_num)
+    property_prefix = "Replies.Properties{0}.Property".format(id_num)
     for key in message.iterkeys():
-        if key.startswith(prefix):
-            num = key[len(prefix):]
+        if key.startswith(context_prefix):
+            num = key[len(context_prefix):]
             result["Context{0}".format(num)] = message[key]
+        elif key.startswith(property_prefix) and key.endswith(".Name"):
+            # ".Name" is 5 characters, before which is the number.
+            num = key[len(property_prefix):-5]
+
+            # Example:
+            # Replies.Properties1.Property1.Name = IntroductionPuzzleCount
+            # Replies.Properties1.Property1.Value = 10
+            name = message[key]
+            value = message[property_prefix + num + '.Value']
+
+            # LCWoT returns many things with duplicates in properties,
+            # so this conflict is something that can happen. Checking for
+            # value conflict restricts the message to cases where it actually
+            # has an effect.
+            if name in result and value != result[name]:
+                print("WARNING: '{0}' has a different value as a property."
+                      .format(name))
+
+            result[name] = value
 
     return result
 
