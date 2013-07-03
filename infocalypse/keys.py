@@ -9,7 +9,16 @@ class USK:
 
         self.key = components[0]
         self.name = components[1]
-        self.edition = components[2]
+        self.edition = int(components[2])
+
+        # TODO: Is stripping "freenet://" appropriate?
+        if self.key.startswith('freenet:'):
+            self.key = self.key[len('freenet:'):]
+            if self.key.startswith('//'):
+                self.key = self.key[len('//'):]
 
     def __str__(self):
-        return self.key + '/' + self.name + '/' + self.edition
+        return '%s/%s/%s' % (self.key, self.name, self.edition)
+
+    def __repr__(self):
+        return "USK(%s)" % str(self)
