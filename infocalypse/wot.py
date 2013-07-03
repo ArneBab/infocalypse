@@ -176,7 +176,8 @@ def read_repo_listing(ui, truster, wot_identifier):
     ui.status("Fetching {0}\n".format(uri))
     # TODO: What exception can this throw on failure? Catch it,
     # print its description, and return None.
-    mime_type, repo_xml, msg = node.get(uri, priority=1)
+    mime_type, repo_xml, msg = node.get(str(uri), priority=1,
+                                        followRedirect=True)
 
     ui.status("Parsing.\n")
     repositories = {}
