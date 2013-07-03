@@ -118,10 +118,8 @@ def update_repo_listing(ui, for_identity):
 
     # TODO: Nonstandard IP and port.
     node = fcp.FCPNode()
-    # TODO: Does it make sense to query the node here for the private key?
     # Key goes after @ - before is nickname.
     attributes = resolve_local_identity(ui, '@' + for_identity)
-    # TODO: Repetitive key parsing again!
     insert_uri = USK(attributes['InsertURI'])
 
     # TODO: Somehow store the edition, perhaps in ~/.infocalypse. WoT
@@ -169,8 +167,9 @@ def read_repo_listing(ui, truster, wot_identifier):
     ui.status("Found {0}@{1}.\n".format(identity['Nickname'],
                                         identity['Identity']))
 
-    uri = identity['RequestURI']
-    uri = uri.split('/', 1)[0] + '/vcs/0'
+    uri = USK(identity['RequestURI'])
+    uri.name = 'vcs'
+    uri.edition = 0
 
     # TODO: Set and read vcs edition property.
     node = fcp.FCPNode()
