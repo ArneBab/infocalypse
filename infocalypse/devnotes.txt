@@ -14,6 +14,10 @@ WoT identity -
               Can also refer to a dictionary containing the Identity and
               other attributes such as a request URI and contexts.
 
+              TODO: Apparently in the WoT code this is actually called
+              "identity ID". "ID" -> "identification" ~ "identifier",
+              right? What does that leave to call "nick@public key hash"?
+
 ------------------------------------------------------------
 Dev log:
 ------------------------------------------------------------
