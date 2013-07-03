@@ -122,11 +122,16 @@ def update_repo_listing(ui, for_identity):
     # Key goes after @ - before is nickname.
     attributes = resolve_local_identity(ui, '@' + for_identity)
     # TODO: Repetitive key parsing again!
-    insert_uri = attributes['InsertURI']
-    # Expecting USK@key/WebOfTrust/edition; want only key.
-    insert_uri = insert_uri.split('/', 1)[0] + '/vcs/0'
+    insert_uri = USK(attributes['InsertURI'])
+
+    # TODO: Somehow store the edition, perhaps in ~/.infocalypse. WoT
+    # properties are apparently not appropriate.
+
+    insert_uri.name = 'vcs'
+    insert_uri.edition = '0'
+
     ui.status("Inserting with URI:\n{0}\n".format(insert_uri))
-    uri = node.put(uri=insert_uri, mimetype='application/xml',
+    uri = node.put(uri=str(insert_uri), mimetype='application/xml',
                    data=ET.tostring(root), priority=1)
 
     if uri is None:
