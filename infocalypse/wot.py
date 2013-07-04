@@ -84,7 +84,7 @@ HG: or putting things below it has the potential to cause problems.
     smtp.sendmail(from_address, to_address, msg.as_string())
 
 
-def receive_pull_requests(ui):
+def receive_pull_requests(ui, from_identitifer):
     # TODO: Terminology - send/receive different from resolve/read elsewhere.
     # TODO: How to find YAML? Look from end backwards for "---\n" then forward
     # from there for "...\n"? Yepp, that should be the simplest way. If the 
@@ -95,11 +95,23 @@ def receive_pull_requests(ui):
     # to check. Maybe retrieve the insert keys and invert them to get the 
     # request keys (or can we just use the insert keys to query Freemail?).
 
+    local_identity = resolve_local_identity(ui, from_identitifer)
+    address = to_freemail_address(local_identity)
+
+    # Log in and open inbox.
     cfg = Config.from_ui(ui)
     imap = imaplib.IMAP4(cfg.defaults['HOST'], FREEMAIL_IMAP_PORT)
+    imap.login(address, cfg.get_freemail_password(local_identity['Identity']))
+    imap.select()
 
-    type, message_numbers = imap.search(None, "SUBJECT", PULL_REQUEST_PREFIX)
-    print(type, message_numbers)
+    # TODO: Freemail does not remove the quotes around a string before
+    # searching for it. This should be PULL_REQUEST_PREFIX instead of
+    # hardcoded, but brackets / space makes it quoted.
+    reply_type, message_numbers = imap.search(None, 'SUBJECT', "vcs")
+
+    # fetch() expects strings for both. Individual message numbers are
+    # separated by commas.
+    print imap.fetch(','.join(message_numbers), '(HEADERS)')
 
 
 def update_repo_listing(ui, for_identity):

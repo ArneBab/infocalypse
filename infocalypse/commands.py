@@ -223,6 +223,15 @@ def infocalypse_pull_request(ui, repo, **opts):
                           repo_name)
 
 
+def infocalypse_check_notifications(ui, repo, **opts):
+    import wot
+    if not opts['wot']:
+        raise util.Abort("What ID do you want to check for notifications? Set"
+                         " --wot.\n")
+
+    wot.receive_pull_requests(ui, opts['wot'])
+
+
 def infocalypse_push(ui_, repo, **opts):
     """ Push to an Infocalypse repository in Freenet. """
     params, stored_cfg = get_config_info(ui_, opts)

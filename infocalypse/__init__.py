@@ -396,6 +396,13 @@ cmdtable = {
                         + FCP_OPTS,
                         "[--truster nick@key] --wot nick@key/repo"),
 
+    "fn-check-notifications": (infocalypse_check_notifications,
+                               [('', 'wot', '', 'WoT nick@key to check '
+                                                'notifications for')]
+                               + WOT_OPTS
+                               + FCP_OPTS,
+                               "--wot nick@key"),
+
     "fn-push": (infocalypse_push,
                 [('', 'uri', '', 'insert URI to push to'),
                  # Buggy. Not well thought out.
