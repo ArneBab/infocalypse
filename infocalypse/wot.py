@@ -84,7 +84,7 @@ HG: or putting things below it has the potential to cause problems.
     smtp.sendmail(from_address, to_address, msg.as_string())
 
 
-def receive_pull_requests(ui, from_identitifer):
+def check_notifications(ui, from_identitifer):
     # TODO: Terminology - send/receive different from resolve/read elsewhere.
     # TODO: How to find YAML? Look from end backwards for "---\n" then forward
     # from there for "...\n"? Yepp, that should be the simplest way. If the 
@@ -104,14 +104,36 @@ def receive_pull_requests(ui, from_identitifer):
     imap.login(address, cfg.get_freemail_password(local_identity['Identity']))
     imap.select()
 
-    # TODO: Freemail does not remove the quotes around a string before
-    # searching for it. This should be PULL_REQUEST_PREFIX instead of
-    # hardcoded, but brackets / space makes it quoted.
+    # This should be PULL_REQUEST_PREFIX instead of hardcoded, but brackets /
+    # space makes it quoted. http://bugs.python.org/issue917120 The workaround
+    # is parenthesis, but Freemail does not support searching with them.
+    # Therefore search for part of it, then fetch matching subjects and check
+    # for the full prefix.
     reply_type, message_numbers = imap.search(None, 'SUBJECT', "vcs")
 
     # fetch() expects strings for both. Individual message numbers are
-    # separated by commas.
-    print imap.fetch(','.join(message_numbers), '(HEADERS)')
+    # separated by commas. It seems desirable to peek because it's not yet
+    # apparent that this is a [vcs] message with YAML.
+    # Parenthesis to prevent quotes: http://bugs.python.org/issue917120
+    status, subjects = imap.fetch(','.join(message_numbers),
+                                  r'(body.peek[header.fields Subject])')
+
+    # Expecting:
+    # ('5 (body[HEADER.FIELDS Subject] {47}', 'Subject: [vcs] test\r\n\r\n')
+    # However see http://bpaste.net/show/112243/ - imaplib does not appear to
+    # properly parse the closing parenthesis of the name/value pair,
+    # giving it instead as a single string.
+    # https://tools.ietf.org/html/rfc2060.html#section-7
+
+    # Exclude closing parens, which are of length one.
+    subjects = filter(lambda x: len(x) == 2, subjects)
+
+    subjects = map(lambda x: x[1], subjects)
+
+    for subject in subjects:
+        print subject
+        #if subject.startswith(PULL_REQUEST_PREFIX):
+            #print "Found %s!" % subject
 
 
 def update_repo_listing(ui, for_identity):

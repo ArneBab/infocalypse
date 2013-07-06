@@ -229,7 +229,7 @@ def infocalypse_check_notifications(ui, repo, **opts):
         raise util.Abort("What ID do you want to check for notifications? Set"
                          " --wot.\n")
 
-    wot.receive_pull_requests(ui, opts['wot'])
+    wot.check_notifications(ui, opts['wot'])
 
 
 def infocalypse_push(ui_, repo, **opts):
