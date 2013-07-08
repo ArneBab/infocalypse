@@ -14,7 +14,7 @@ import imaplib
 
 FREEMAIL_SMTP_PORT = 4025
 FREEMAIL_IMAP_PORT = 4143
-PULL_REQUEST_PREFIX = "[vcs] "
+VCS_PREFIX = "[vcs] "
 
 
 def send_pull_request(ui, repo, from_identifier, to_identifier, to_repo_name):
@@ -64,7 +64,7 @@ HG: Below is the machine-readable footer describing the request. Modifying it
 HG: or putting things below it has the potential to cause problems.
 
 {1}
-""".format(PULL_REQUEST_PREFIX, footer), from_identifier)
+""".format(VCS_PREFIX, footer), from_identifier)
     # TODO: Abort in the case of a blank message?
     # Markdown support would be on receiving end. Maybe CLI preview eventually.
     # (Would that even work?)
@@ -74,7 +74,7 @@ HG: or putting things below it has the potential to cause problems.
 
     # Body is third line and after.
     msg = MIMEText('\n'.join(source_lines[2:]))
-    msg['Subject'] = PULL_REQUEST_PREFIX + source_lines[0]
+    msg['Subject'] = VCS_PREFIX + source_lines[0]
     msg['To'] = to_address
     msg['From'] = from_address
 
@@ -104,12 +104,9 @@ def check_notifications(ui, from_identitifer):
     imap.login(address, cfg.get_freemail_password(local_identity['Identity']))
     imap.select()
 
-    # This should be PULL_REQUEST_PREFIX instead of hardcoded, but brackets /
-    # space makes it quoted. http://bugs.python.org/issue917120 The workaround
-    # is parenthesis, but Freemail does not support searching with them.
-    # Therefore search for part of it, then fetch matching subjects and check
-    # for the full prefix.
-    reply_type, message_numbers = imap.search(None, 'SUBJECT', "vcs")
+    # Parenthesis to work around erroneous quotes:
+    # http://bugs.python.org/issue917120
+    reply_type, message_numbers = imap.search(None, '(SUBJECT %s)' % VCS_PREFIX)
 
     # fetch() expects strings for both. Individual message numbers are
     # separated by commas. It seems desirable to peek because it's not yet
@@ -128,12 +125,15 @@ def check_notifications(ui, from_identitifer):
     # Exclude closing parens, which are of length one.
     subjects = filter(lambda x: len(x) == 2, subjects)
 
-    subjects = map(lambda x: x[1], subjects)
+    subjects = [x[1] for x in subjects]
+
+    # Remove field name and trim whitespace.
+    subjects = [subject.rstrip()[subject.index(VCS_PREFIX):] for subject in
+                subjects]
 
     for subject in subjects:
-        print subject
-        #if subject.startswith(PULL_REQUEST_PREFIX):
-            #print "Found %s!" % subject
+        if subject.startswith(VCS_PREFIX):
+            print "Found VCS email '%s'" % subject
 
 
 def update_repo_listing(ui, for_identity):
