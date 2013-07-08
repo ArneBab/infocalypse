@@ -128,8 +128,7 @@ def check_notifications(ui, from_identitifer):
     subjects = [x[1] for x in subjects]
 
     # Remove field name and trim whitespace.
-    subjects = [subject.rstrip()[subject.index(VCS_PREFIX):] for subject in
-                subjects]
+    subjects = [subject.rstrip()[len('Subject: '):] for subject in subjects]
 
     for subject in subjects:
         if subject.startswith(VCS_PREFIX):
