@@ -62,9 +62,7 @@ HG: The second line should be blank.
 HG: Following lines are the body of the message.
 HG: Below is the machine-readable footer describing the request. Modifying it
 HG: or putting things below it has the potential to cause problems.
-
-{1}
-""".format(VCS_PREFIX, footer), from_identifier)
+{1}""".format(VCS_PREFIX, footer), from_identifier)
     # TODO: Abort in the case of a blank message?
     # Markdown support would be on receiving end. Maybe CLI preview eventually.
     # (Would that even work?)
