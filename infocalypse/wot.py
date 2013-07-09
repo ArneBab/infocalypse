@@ -60,9 +60,7 @@ HG: Enter pull request message here. Lines beginning with 'HG:' are removed.
 HG: The first line has "{0}" added before it and is the email subject.
 HG: The second line should be blank.
 HG: Following lines are the body of the message.
-HG: Below is the machine-readable footer describing the request. Modifying it
-HG: might make it not work.
-{1}""".format(VCS_PREFIX, footer), from_identifier)
+""".format(VCS_PREFIX), from_identifier)
     # TODO: Save message and load later in case sending fails.
 
     if not source_text:
@@ -73,7 +71,7 @@ HG: might make it not work.
     source_lines = [line for line in source_lines if not line.startswith('HG:')]
 
     # Body is third line and after.
-    msg = MIMEText('\n'.join(source_lines[2:]))
+    msg = MIMEText('\n'.join(source_lines[2:]) + footer)
     msg['Subject'] = VCS_PREFIX + source_lines[0]
     msg['To'] = to_address
     msg['From'] = from_address
