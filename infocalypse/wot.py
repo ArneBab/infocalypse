@@ -81,6 +81,7 @@ HG: Following lines are the body of the message.
     # TODO: Catch exceptions and give nice error messages.
     smtp.sendmail(from_address, to_address, msg.as_string())
 
+    ui.status("Pull request sent.\n")
 
 
 def check_notifications(ui, sent_to_identifier):
