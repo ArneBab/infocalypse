@@ -63,10 +63,10 @@ HG: Following lines are the body of the message.
 HG: Below is the machine-readable footer describing the request. Modifying it
 HG: might make it not work.
 {1}""".format(VCS_PREFIX, footer), from_identifier)
-    # TODO: Abort in the case of a blank message?
-    # Markdown support would be on receiving end. Maybe CLI preview eventually.
-    # (Would that even work?)
     # TODO: Save message and load later in case sending fails.
+
+    if not source_text:
+        raise util.Abort("Empty pull request message.")
 
     source_lines = source_text.splitlines()
 
