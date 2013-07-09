@@ -70,6 +70,8 @@ HG: or putting things below it has the potential to cause problems.
 
     source_lines = source_text.splitlines()
 
+    source_lines = [line for line in source_lines if not line.startswith('HG:')]
+
     # Body is third line and after.
     msg = MIMEText('\n'.join(source_lines[2:]))
     msg['Subject'] = VCS_PREFIX + source_lines[0]
