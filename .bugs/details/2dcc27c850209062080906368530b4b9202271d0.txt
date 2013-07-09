@@ -1,0 +1,25 @@
+# Lines starting with '#' and sections without content
+# are not displayed by a call to 'details'
+#
+[paths]
+# Paths related to this bug.
+# suggested format: REPO_PATH:LINENUMBERS
+
+
+[details]
+Repository lists can fall out, possibly quite quickly. They should be kept alive. If they fall out people will be unable to look up a repository or make pull requests to it, unless it is manually listed elsewhere.
+
+
+[expected]
+
+
+[actual]
+# What happened instead
+
+
+[reproduce]
+# Reproduction steps
+
+
+[comments]
+# Comments and updates - leave your name

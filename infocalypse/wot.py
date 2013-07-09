@@ -127,7 +127,7 @@ def check_notifications(ui, from_identitifer):
 
     subjects = [x[1] for x in subjects]
 
-    # Remove field name and trim whitespace.
+    # Match message numbers with subjects; remove prefix and trim whitespace.
     subjects = dict((message_number, subject[len('Subject: '):].rstrip()) for
                     message_number, subject in zip(message_numbers, subjects))
 
@@ -182,7 +182,7 @@ def read_message_yaml(ui, from_address, subject, body):
     if request['request'] == 'pull':
         ui.status("Found pull request from '%s':\n" % from_address)
         separator = ('-' * len(subject)) + '\n'
-        
+
         ui.status(separator)
         ui.status(subject[len(VCS_PREFIX):] + '\n')
 
