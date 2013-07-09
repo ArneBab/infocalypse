@@ -85,16 +85,6 @@ HG: Following lines are the body of the message.
 
 
 def check_notifications(ui, sent_to_identifier):
-    # TODO: Terminology - send/receive different from resolve/read elsewhere.
-    # TODO: How to find YAML? Look from end backwards for "---\n" then forward
-    # from there for "...\n"? Yepp, that should be the simplest way. If the 
-    # end is ... (without linebreak) that could be a user-error which we might 
-    # accept: It is valid: http://www.yaml.org/spec/1.2/spec.html#id2760395
-    # TODO: How to match local repo with the "target" URI? Based on repo list.
-    # all keys which have an insert key for this path would be pull-targets
-    # to check. Maybe retrieve the insert keys and invert them to get the 
-    # request keys (or can we just use the insert keys to query Freemail?).
-
     local_identity = resolve_local_identity(ui, sent_to_identifier)
     address = to_freemail_address(local_identity)
 
