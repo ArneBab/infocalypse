@@ -57,7 +57,7 @@ def send_pull_request(ui, repo, from_identifier, to_identifier, to_repo_name):
     source_text = ui.edit("""
 
 HG: Enter pull request message here. Lines beginning with 'HG:' are removed.
-HG: The first line has "{0}" added before it and is the email subject.
+HG: The first line has "{0}" added before it in transit and is the subject.
 HG: The second line should be blank.
 HG: Following lines are the body of the message.
 """.format(VCS_PREFIX), from_identifier)
