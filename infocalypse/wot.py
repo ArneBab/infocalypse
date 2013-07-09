@@ -63,12 +63,12 @@ HG: Following lines are the body of the message.
 """.format(VCS_PREFIX), from_identifier)
     # TODO: Save message and load later in case sending fails.
 
-    if not source_text:
-        raise util.Abort("Empty pull request message.")
-
     source_lines = source_text.splitlines()
 
     source_lines = [line for line in source_lines if not line.startswith('HG:')]
+
+    if not ''.join(source_lines).strip():
+        raise util.Abort("Empty pull request message.")
 
     # Body is third line and after.
     msg = MIMEText('\n'.join(source_lines[2:]) + footer)
