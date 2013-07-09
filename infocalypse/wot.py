@@ -61,7 +61,7 @@ HG: The first line has "{0}" added before it and is the email subject.
 HG: The second line should be blank.
 HG: Following lines are the body of the message.
 HG: Below is the machine-readable footer describing the request. Modifying it
-HG: or putting things below it has the potential to cause problems.
+HG: might make it not work.
 {1}""".format(VCS_PREFIX, footer), from_identifier)
     # TODO: Abort in the case of a blank message?
     # Markdown support would be on receiving end. Maybe CLI preview eventually.
@@ -108,6 +108,9 @@ def check_notifications(ui, from_identitifer):
     # http://bugs.python.org/issue917120
     reply_type, message_numbers = imap.search(None, '(SUBJECT %s)' % VCS_PREFIX)
 
+    # imaplib returns numbers in a singleton string separated by whitespace.
+    message_numbers = message_numbers[0].split()
+
     # fetch() expects strings for both. Individual message numbers are
     # separated by commas. It seems desirable to peek because it's not yet
     # apparent that this is a [vcs] message with YAML.
@@ -115,12 +118,9 @@ def check_notifications(ui, from_identitifer):
     status, subjects = imap.fetch(','.join(message_numbers),
                                   r'(body.peek[header.fields Subject])')
 
-    # Expecting:
-    # ('5 (body[HEADER.FIELDS Subject] {47}', 'Subject: [vcs] test\r\n\r\n')
-    # However see http://bpaste.net/show/112243/ - imaplib does not appear to
-    # properly parse the closing parenthesis of the name/value pair,
-    # giving it instead as a single string.
-    # https://tools.ietf.org/html/rfc2060.html#section-7
+    # Expecting 2 list items from imaplib for each message, for example:
+    # ('5 (body[HEADER.FIELDS Subject] {47}', 'Subject: [vcs]  ...\r\n\r\n'),
+    # ')',
 
     # Exclude closing parens, which are of length one.
     subjects = filter(lambda x: len(x) == 2, subjects)
@@ -128,11 +128,76 @@ def check_notifications(ui, from_identitifer):
     subjects = [x[1] for x in subjects]
 
     # Remove field name and trim whitespace.
-    subjects = [subject.rstrip()[len('Subject: '):] for subject in subjects]
+    subjects = dict((message_number, subject[len('Subject: '):].rstrip()) for
+                    message_number, subject in zip(message_numbers, subjects))
 
-    for subject in subjects:
+    for message_number, subject in subjects.iteritems():
         if subject.startswith(VCS_PREFIX):
-            print "Found VCS email '%s'" % subject
+            # Read the message at this point.
+            status, fetched = imap.fetch(str(message_number),
+                                         r'(body[text] '
+                                         r'body[header.fields From)')
+
+            # Expecting 3 list items, as with the subject fetch above.
+            body = fetched[0][1]
+            from_address = fetched[1][1][len('From: '):].rstrip()
+
+            read_message_yaml(ui, from_address, subject, body)
+
+
+def read_message_yaml(ui, from_address, subject, body):
+    # TODO: Will these line endings always be present? splitlines() doesn't
+    # seem clean either due to the work required to figure out the index.
+    # Find start and end in an attempt to tolerate things after the footer.
+    yaml_start = body.rfind('---\r\n')
+    yaml_end = body.rfind('...\r\n')
+
+    if yaml_start == -1 or yaml_end == -1:
+        ui.status("Notification '%s' does not have a request.\n" % subject)
+        return
+
+    def require(field, request):
+        if field not in request:
+            ui.status("Notification '%s' has a properly formatted request "
+                      "that does not include necessary information. ('%s')\n"
+                      % (subject, field))
+            return False
+        return True
+
+    try:
+        request = yaml.safe_load(body[yaml_start:yaml_end])
+
+        if not require('vcs', request) or not require('request', request):
+            return
+    except yaml.YAMLError, e:
+        ui.status("Notification '%s' has a request but it is not properly"
+                  " formatted. Details:\n%s\n" % (subject, e))
+        return
+
+    if request['vcs'] != 'Infocalypse':
+        ui.status("Notification '%s' is for '%s', not Infocalypse.\n"
+                  % (subject, request['vcs']))
+        return
+
+    if request['request'] == 'pull':
+        ui.status("Found pull request from '%s':\n" % from_address)
+        separator = ('-' * len(subject)) + '\n'
+        
+        ui.status(separator)
+        ui.status(subject[len(VCS_PREFIX):] + '\n')
+
+        ui.status(separator)
+        ui.status(body[:yaml_start])
+        ui.status(separator)
+
+        ui.status("To accept this request, pull from: %s\n"
+                  "               To your repository: %s\n" %
+                  (request['source'], request['target']))
+        return
+
+    ui.status("Notification '%s' has an unrecognized request of type '%s'"
+              % (subject, request['request']))
+
 
 
 def update_repo_listing(ui, for_identity):
