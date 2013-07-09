@@ -82,7 +82,8 @@ HG: Following lines are the body of the message.
     smtp.sendmail(from_address, to_address, msg.as_string())
 
 
-def check_notifications(ui, from_identitifer):
+
+def check_notifications(ui, sent_to_identifier):
     # TODO: Terminology - send/receive different from resolve/read elsewhere.
     # TODO: How to find YAML? Look from end backwards for "---\n" then forward
     # from there for "...\n"? Yepp, that should be the simplest way. If the 
@@ -93,7 +94,7 @@ def check_notifications(ui, from_identitifer):
     # to check. Maybe retrieve the insert keys and invert them to get the 
     # request keys (or can we just use the insert keys to query Freemail?).
 
-    local_identity = resolve_local_identity(ui, from_identitifer)
+    local_identity = resolve_local_identity(ui, sent_to_identifier)
     address = to_freemail_address(local_identity)
 
     # Log in and open inbox.
