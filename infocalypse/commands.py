@@ -96,9 +96,6 @@ def infocalypse_create(ui_, repo, **opts):
             ui_.warn("Failed to add context. Got {0}\n.".format(vcs_response))
             return
 
-        # TODO: Would it be friendlier to include the nickname as well?
-        stored_cfg.set_wot_identity(stored_cfg.get_request_uri(repo.root),
-                                    attributes['Identity'])
     else:
         ui_.warn("Please set the insert key with either --uri or --wot.\n")
 
@@ -108,6 +105,10 @@ def infocalypse_create(ui_, repo, **opts):
     inserted_to = execute_create(ui_, repo, params, stored_cfg)
 
     if inserted_to and opts['wot']:
+        # TODO: Would it be friendlier to include the nickname as well?
+        stored_cfg.set_wot_identity(inserted_to,
+                                    attributes['Identity'])
+
         # TODO: Imports don't go out of scope, right? The variables
         # from the import are only visible in the function, so yes.
         import wot
