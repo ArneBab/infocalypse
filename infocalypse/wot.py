@@ -189,7 +189,6 @@ def read_message_yaml(ui, from_address, subject, body):
               % (subject, request['request']))
 
 
-
 def update_repo_listing(ui, for_identity):
     # TODO: WoT property containing edition. Used when requesting.
     config = Config.from_ui(ui)
