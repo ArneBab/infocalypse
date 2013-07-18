@@ -136,11 +136,11 @@ def check_notifications(ui, sent_to_identifier):
 
 
 def read_message_yaml(ui, from_address, subject, body):
-    # TODO: Will these line endings always be present? splitlines() doesn't
-    # seem clean either due to the work required to figure out the index.
-    # Find start and end in an attempt to tolerate things after the footer.
-    yaml_start = body.rfind('---\r\n')
-    yaml_end = body.rfind('...\r\n')
+    # Get consistent line endings.
+    body = '\n'.join(body.splitlines())
+    yaml_start = body.rfind('---\n')
+    end_token = '...\n'
+    yaml_end = body.rfind(end_token) + len(end_token)
 
     if yaml_start == -1 or yaml_end == -1:
         ui.status("Notification '%s' does not have a request.\n" % subject)
