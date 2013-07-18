@@ -21,4 +21,4 @@ class USK:
         return '%s/%s/%s' % (self.key, self.name, self.edition)
 
     def __repr__(self):
-        return "USK(%s)" % str(self)
+        return "USK('%s')" % str(self)
