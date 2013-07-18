@@ -291,7 +291,7 @@ def resolve_pull_uri(ui, path, truster):
         identity, and not finding the requested repo in the list.
 
         :param ui: For feedback.
-        :param path: path describing a repo: nick@key/reponame
+        :param path: path describing a repo. nick@key/reponame
         :param truster: identity whose trust list to use.
         :return:
         """
