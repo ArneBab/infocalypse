@@ -1,4 +1,5 @@
 import string
+from time import sleep
 import fcp
 from mercurial import util
 from config import Config
@@ -11,10 +12,42 @@ from keys import USK
 import yaml
 from email.mime.text import MIMEText
 import imaplib
+import threading
 
 FREEMAIL_SMTP_PORT = 4025
 FREEMAIL_IMAP_PORT = 4143
 VCS_PREFIX = "[vcs] "
+PLUGIN_NAME = "org.freenetproject.plugin.infocalypse_webui.main.InfocalypsePlugin"
+
+
+def connect(ui, repo):
+    node = fcp.FCPNode()
+
+    # TODO: Should I be using this? Looks internal. The identifier needs to
+    # be consistent though.
+    fcp_id = node._getUniqueId()
+
+    ui.status("Connecting as '%s'.\n" % fcp_id)
+
+    def ping():
+        pong = node.fcpPluginMessage(plugin_name=PLUGIN_NAME, id=fcp_id,
+                                     plugin_params={'Message': 'Ping'})
+        # TODO: Quit on session conflict.
+        # Must be faster than the timeout threshold. (5 seconds)
+        threading.Timer(4.0, ping).start()
+
+    # Start self-perpetuating pinging in the background.
+    t = threading.Timer(0.0, ping)
+    # Daemon threads do not hold up the process exiting. Allows prompt
+    # response to - for instance - SIGTERM.
+    t.daemon = True
+    t.start()
+
+    while True:
+        command = node.fcpPluginMessage(plugin_name=PLUGIN_NAME, id=fcp_id,
+                                        plugin_params={'Message':
+                                                       'ClearToSend'})
+        # TODO: Dispatch commands; quit on session conflict.
 
 
 def send_pull_request(ui, repo, from_identifier, to_identifier, to_repo_name):
@@ -136,11 +169,11 @@ def check_notifications(ui, sent_to_identifier):
 
 
 def read_message_yaml(ui, from_address, subject, body):
-    # TODO: Will these line endings always be present? splitlines() doesn't
-    # seem clean either due to the work required to figure out the index.
-    # Find start and end in an attempt to tolerate things after the footer.
-    yaml_start = body.rfind('---\r\n')
-    yaml_end = body.rfind('...\r\n')
+    # Get consistent line endings.
+    body = '\n'.join(body.splitlines())
+    yaml_start = body.rfind('---\n')
+    end_token = '...\n'
+    yaml_end = body.rfind(end_token) + len(end_token)
 
     if yaml_start == -1 or yaml_end == -1:
         ui.status("Notification '%s' does not have a request.\n" % subject)
@@ -187,7 +220,6 @@ def read_message_yaml(ui, from_address, subject, body):
 
     ui.status("Notification '%s' has an unrecognized request of type '%s'"
               % (subject, request['request']))
-
 
 
 def update_repo_listing(ui, for_identity):
@@ -291,7 +323,7 @@ def resolve_pull_uri(ui, path, truster):
         identity, and not finding the requested repo in the list.
 
         :param ui: For feedback.
-        :param path: path describing a repo: nick@key/reponame
+        :param path: path describing a repo. nick@key/reponame
         :param truster: identity whose trust list to use.
         :return:
         """

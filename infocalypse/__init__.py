@@ -379,6 +379,8 @@ PULL_OPTS = [('', 'hash', [], 'repo hash of repository to pull from'),
               + 'known users')]
 
 cmdtable = {
+    "fn-connect": (infocalypse_connect, FCP_OPTS),
+
     "fn-pull": (infocalypse_pull,
                 [('', 'uri', '', 'request URI to pull from')]
                 + PULL_OPTS

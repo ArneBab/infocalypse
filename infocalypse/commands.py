@@ -233,6 +233,11 @@ def infocalypse_check_notifications(ui, repo, **opts):
     wot.check_notifications(ui, opts['wot'])
 
 
+def infocalypse_connect(ui, repo, **opts):
+    import wot
+    wot.connect(ui, repo)
+
+
 def infocalypse_push(ui_, repo, **opts):
     """ Push to an Infocalypse repository in Freenet. """
     params, stored_cfg = get_config_info(ui_, opts)
