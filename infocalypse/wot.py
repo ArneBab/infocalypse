@@ -31,8 +31,9 @@ def connect(ui, repo):
 
     def ping():
         pong = node.fcpPluginMessage(plugin_name=PLUGIN_NAME, id=fcp_id,
-                                     plugin_params={'Message': 'Ping'})
-        # TODO: Quit on session conflict.
+                                     plugin_params={'Message': 'Ping'})[0]
+        if pong['Replies.Message'] == 'Error':
+            raise util.Abort(pong['Replies.Description'])
         # Must be faster than the timeout threshold. (5 seconds)
         threading.Timer(4.0, ping).start()
 
@@ -46,8 +47,10 @@ def connect(ui, repo):
     while True:
         command = node.fcpPluginMessage(plugin_name=PLUGIN_NAME, id=fcp_id,
                                         plugin_params={'Message':
-                                                       'ClearToSend'})
-        # TODO: Dispatch commands; quit on session conflict.
+                                                       'ClearToSend'})[0]
+        response = command['Replies.Message']
+        if response == 'Error':
+            raise util.Abort(command['Replies.Description'])
 
 
 def send_pull_request(ui, repo, from_identifier, to_identifier, to_repo_name):
