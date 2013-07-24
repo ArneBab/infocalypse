@@ -45,12 +45,37 @@ def connect(ui, repo):
     t.start()
 
     while True:
+        sequenceID = node._getUniqueId()
+        # The event-querying is single-threaded, which makes things slow as
+        # everything waits on the completion of the current operation.
+        # Asynchronous code would require changes on the plugin side but
+        # potentially have much lower latency.
         command = node.fcpPluginMessage(plugin_name=PLUGIN_NAME, id=fcp_id,
-                                        plugin_params={'Message':
-                                                       'ClearToSend'})[0]
+                                        plugin_params=
+                                        {'Message': 'ClearToSend',
+                                         'SequenceID': sequenceID})[0]
+        # TODO: Look up handlers in a dictionary.
+        print command
+
+        # Reload the config each time - it may have changed between messages.
+        cfg = Config.from_ui(ui)
+
         response = command['Replies.Message']
         if response == 'Error':
             raise util.Abort(command['Replies.Description'])
+        elif response == 'ListLocalRepos':
+            params = {'Message': 'RepoList',
+                      'SequenceID': sequenceID}
+
+            # Request USKs are keyed by repo path.
+            repo_index = 0
+            for path in cfg.request_usks.iterkeys():
+                params['Repo%s' % repo_index] = path
+                repo_index += 1
+
+            ack = node.fcpPluginMessage(plugin_name=PLUGIN_NAME, id=fcp_id,
+                                        plugin_params=params)[0]
+            print ack
 
 
 def send_pull_request(ui, repo, from_identifier, to_identifier, to_repo_name):
