@@ -104,6 +104,8 @@ def send_pull_request(ui, repo, from_identifier, to_identifier, to_repo_name):
     from_branch = repo_context.branch()
 
     # Use double-quoted scalars so that Unicode can be included. (Nicknames.)
+    # "infocalypse" is lower case in case it is used somewhere mixed case can
+    # cause problems like a filesystem path.
     footer = yaml.dump({'request': 'pull',
                         'vcs': 'infocalypse',
                         'source': from_uri + '#' + from_branch,
@@ -229,6 +231,8 @@ def read_message_yaml(ui, from_address, subject, body):
                   " formatted. Details:\n%s\n" % (subject, e))
         return
 
+    # "infocalypse" is lower case in case it is used somewhere mixed case can
+    # cause problems like a filesystem path.
     if request['vcs'] != 'infocalypse':
         ui.status("Notification '%s' is for '%s', not Infocalypse.\n"
                   % (subject, request['vcs']))
