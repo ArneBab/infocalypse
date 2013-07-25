@@ -585,8 +585,7 @@ def freenetpathtouri(ui, path, pull=True):
     if not path.startswith("USK"):
         import wot
         if pull:
-            cfg = Config()
-            cfg.from_ui(ui)
+            cfg = Config.from_ui(ui)
             truster = cfg.defaults['DEFAULT_TRUSTER']
             return wot.resolve_pull_uri(ui, path, truster)
         else:
