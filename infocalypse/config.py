@@ -215,6 +215,9 @@ class Config:
         """
         Return the WoT identity associated with the request USK,
         or the default if none is set.
+
+        TODO: Is falling back to the default sane behavior? Has caused
+        problems with unexpected associations.
         """
         if for_usk_or_id is not None:
             repo_id = normalize(for_usk_or_id)

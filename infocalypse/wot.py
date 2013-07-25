@@ -264,22 +264,24 @@ def read_message_yaml(ui, from_address, subject, body):
 
 def update_repo_listing(ui, for_identity):
     # TODO: WoT property containing edition. Used when requesting.
-    config = Config.from_ui(ui)
     # Version number to support possible format changes.
     root = ET.Element('vcs', {'version': '0'})
 
-    # Add request URIs associated with the given identity.
-    for request_uri in config.request_usks.itervalues():
-        if config.get_wot_identity(request_uri) == for_identity:
-            repo = ET.SubElement(root, 'repository', {
-                'vcs': 'Infocalypse',
-            })
-            repo.text = request_uri
+    ui.status("Updating repo listing for '%s'\n" % for_identity)
+
+    # Key goes after @ - before is nickname.
+    wot_id = '@' + for_identity
+
+    for request_uri in build_repo_list(ui, wot_id):
+        repo = ET.SubElement(root, 'repository', {
+            'vcs': 'Infocalypse',
+        })
+        repo.text = request_uri
 
     # TODO: Nonstandard IP and port.
     node = fcp.FCPNode()
-    # Key goes after @ - before is nickname.
-    attributes = resolve_local_identity(ui, '@' + for_identity)
+
+    attributes = resolve_local_identity(ui, wot_id)
     insert_uri = USK(attributes['InsertURI'])
 
     # TODO: Somehow store the edition, perhaps in ~/.infocalypse. WoT
@@ -296,6 +298,34 @@ def update_repo_listing(ui, for_identity):
         ui.warn("Failed to update repository listing.")
     else:
         ui.status("Updated repository listing:\n{0}\n".format(uri))
+
+
+def build_repo_list(ui, wot_id):
+    """
+    Return a list of request URIs to repos for the given local identity.
+    TODO: Does local identities only make sense?
+
+    :param ui: to provide feedback
+    :param wot_id: local WoT identity to list repos for.
+    """
+    # TODO: Repetitive local ID resolution between here and repo listing
+    # update. This only needs key - perhaps higher-level stuff should always
+    # take a wot_id?
+    local_id = resolve_local_identity(ui, wot_id)
+
+    config = Config.from_ui(ui)
+
+    repos = []
+
+    # Add request URIs associated with the given identity.
+    for request_uri in config.request_usks.itervalues():
+        # TODO: Getting the default WoT ID instead of an explicit association
+        # (as in get_wot_identity()) is not desirable.
+        if config.has_wot_identity(request_uri) and \
+                config.get_wot_identity(request_uri) == local_id['Identity']:
+            repos.append(request_uri)
+
+    return repos
 
 
 def find_repo(ui, truster, wot_identifier, repo_name):
