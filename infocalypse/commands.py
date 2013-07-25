@@ -109,6 +109,7 @@ def infocalypse_create(ui_, repo, **opts):
         # creation returns a list of request URIs; use the first.
         stored_cfg.set_wot_identity(inserted_to[0],
                                     attributes['Identity'])
+        Config.to_file(stored_cfg)
 
         # TODO: Imports don't go out of scope, right? The variables
         # from the import are only visible in the function, so yes.
