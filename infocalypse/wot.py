@@ -1,5 +1,4 @@
 import string
-from time import sleep
 import fcp
 from mercurial import util
 from config import Config
