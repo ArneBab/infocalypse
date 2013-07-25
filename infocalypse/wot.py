@@ -15,7 +15,7 @@ import threading
 
 FREEMAIL_SMTP_PORT = 4025
 FREEMAIL_IMAP_PORT = 4143
-VCS_PREFIX = "[vcs] "
+VCS_TOKEN = "[vcs] "
 PLUGIN_NAME = "org.freenetproject.plugin.infocalypse_webui.main.InfocalypsePlugin"
 
 
@@ -122,7 +122,7 @@ HG: Enter pull request message here. Lines beginning with 'HG:' are removed.
 HG: The first line has "{0}" added before it in transit and is the subject.
 HG: The second line should be blank.
 HG: Following lines are the body of the message.
-""".format(VCS_PREFIX), from_identifier)
+""".format(VCS_TOKEN), from_identifier)
     # TODO: Save message and load later in case sending fails.
 
     source_lines = source_text.splitlines()
@@ -134,7 +134,7 @@ HG: Following lines are the body of the message.
 
     # Body is third line and after.
     msg = MIMEText('\n'.join(source_lines[2:]) + footer)
-    msg['Subject'] = VCS_PREFIX + source_lines[0]
+    msg['Subject'] = VCS_TOKEN + source_lines[0]
     msg['To'] = to_address
     msg['From'] = from_address
 
@@ -158,7 +158,7 @@ def check_notifications(ui, sent_to_identifier):
 
     # Parenthesis to work around erroneous quotes:
     # http://bugs.python.org/issue917120
-    reply_type, message_numbers = imap.search(None, '(SUBJECT %s)' % VCS_PREFIX)
+    reply_type, message_numbers = imap.search(None, '(SUBJECT %s)' % VCS_TOKEN)
 
     # imaplib returns numbers in a singleton string separated by whitespace.
     message_numbers = message_numbers[0].split()
@@ -168,7 +168,7 @@ def check_notifications(ui, sent_to_identifier):
     # apparent that this is a [vcs] message with YAML.
     # Parenthesis to prevent quotes: http://bugs.python.org/issue917120
     status, subjects = imap.fetch(','.join(message_numbers),
-                                  r'(body.peek[header.fields Subject])')
+                                  r'(body[header.fields Subject])')
 
     # Expecting 2 list items from imaplib for each message, for example:
     # ('5 (body[HEADER.FIELDS Subject] {47}', 'Subject: [vcs]  ...\r\n\r\n'),
@@ -184,17 +184,15 @@ def check_notifications(ui, sent_to_identifier):
                     message_number, subject in zip(message_numbers, subjects))
 
     for message_number, subject in subjects.iteritems():
-        if subject.startswith(VCS_PREFIX):
-            # Read the message at this point.
-            status, fetched = imap.fetch(str(message_number),
-                                         r'(body[text] '
-                                         r'body[header.fields From)')
+        status, fetched = imap.fetch(str(message_number),
+                                     r'(body[text] '
+                                     r'body[header.fields From)')
 
-            # Expecting 3 list items, as with the subject fetch above.
-            body = fetched[0][1]
-            from_address = fetched[1][1][len('From: '):].rstrip()
+        # Expecting 3 list items, as with the subject fetch above.
+        body = fetched[0][1]
+        from_address = fetched[1][1][len('From: '):].rstrip()
 
-            read_message_yaml(ui, from_address, subject, body)
+        read_message_yaml(ui, from_address, subject, body)
 
 
 def read_message_yaml(ui, from_address, subject, body):
@@ -243,7 +241,7 @@ def read_message_yaml(ui, from_address, subject, body):
         separator = ('-' * len(subject)) + '\n'
 
         ui.status(separator)
-        ui.status(subject[len(VCS_PREFIX):] + '\n')
+        ui.status(subject[subject.find(VCS_TOKEN) + len(VCS_TOKEN):] + '\n')
 
         ui.status(separator)
         ui.status(body[:yaml_start])
