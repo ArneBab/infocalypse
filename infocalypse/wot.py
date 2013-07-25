@@ -199,8 +199,13 @@ def read_message_yaml(ui, from_address, subject, body):
     # Get consistent line endings.
     body = '\n'.join(body.splitlines())
     yaml_start = body.rfind('---\n')
-    end_token = '...\n'
-    yaml_end = body.rfind(end_token) + len(end_token)
+    end_token = '...'
+    yaml_end = body.rfind(end_token)
+
+    if not yaml_end == -1:
+        # Better to point to the end of the end token, but don't confuse
+        # failure.
+        yaml_end += len(end_token)
 
     if yaml_start == -1 or yaml_end == -1:
         ui.status("Notification '%s' does not have a request.\n" % subject)
