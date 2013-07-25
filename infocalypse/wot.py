@@ -15,6 +15,7 @@ import threading
 
 FREEMAIL_SMTP_PORT = 4025
 FREEMAIL_IMAP_PORT = 4143
+# TODO: Is whitespace in the search key illegal?
 VCS_TOKEN = "[vcs] "
 PLUGIN_NAME = "org.freenetproject.plugin.infocalypse_webui.main.InfocalypsePlugin"
 
@@ -162,6 +163,11 @@ def check_notifications(ui, sent_to_identifier):
 
     # imaplib returns numbers in a singleton string separated by whitespace.
     message_numbers = message_numbers[0].split()
+
+    if not message_numbers:
+        # TODO: Is aborting appropriate here? Should this be ui.status and
+        # return?
+        raise util.Abort("No notifications found.")
 
     # fetch() expects strings for both. Individual message numbers are
     # separated by commas. It seems desirable to peek because it's not yet
