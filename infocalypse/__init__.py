@@ -708,14 +708,8 @@ def freenetclone(orig, *args, **opts):
     if isfreenetpath(source):
         pulluri = freenetpathtouri(ui, source)
 
-    if not pulluri:
-        raise util.Abort()
-
     if isfreenetpath(dest):
         pushuri = freenetpathtouri(ui, dest, pull=False)
-
-    if not pushuri:
-        return
 
     # decide which infocalypse command to use.
     if pulluri and pushuri:
