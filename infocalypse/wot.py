@@ -251,7 +251,7 @@ def read_message_yaml(ui, from_address, subject, body):
         ui.status(subject[subject.find(VCS_TOKEN) + len(VCS_TOKEN):] + '\n')
 
         ui.status(separator)
-        ui.status(body[:yaml_start])
+        ui.status(body[:yaml_start] + '\n')
         ui.status(separator)
 
         ui.status("To accept this request, pull from: %s\n"
