@@ -189,12 +189,7 @@ def infocalypse_pull(ui_, repo, **opts):
         request_uri = get_uri_from_hash(ui_, repo, params, stored_cfg)
     elif opts['wot']:
         import wot
-        if opts['truster']:
-            local_id = wot.resolve_local_identity(ui_, opts['truster'])
-            truster = local_id['Identity']
-        else:
-            truster = stored_cfg.get_wot_identity(
-                stored_cfg.get_dir_insert_uri(repo.root))
+        truster = get_truster(ui_, repo, opts)
 
         request_uri = wot.resolve_pull_uri(ui_, opts['wot'], truster)
 
@@ -263,11 +258,12 @@ def infocalypse_push(ui_, repo, **opts):
     #    params['REQUEST_URI'] = opts['requesturi']
 
     inserted_to = execute_push(ui_, repo, params, stored_cfg)
-    # TODO: Messy. Is there a better way to check what repos are under WoT?
+
     request_uri = stored_cfg.get_request_uri(repo.root)
-    if inserted_to is not None and stored_cfg.has_wot_identity(request_uri):
+    associated_wot_id = stored_cfg.get_wot_identity(request_uri)
+    if inserted_to and associated_wot_id:
         import wot
-        wot.update_repo_listing(ui_, stored_cfg.get_wot_identity(request_uri))
+        wot.update_repo_listing(ui_, associated_wot_id)
 
 
 def infocalypse_info(ui_, repo, **opts):
@@ -505,12 +501,22 @@ def infocalypse_setupfreemail(ui, repo, **opts):
 
 
 def get_truster(ui, repo, opts):
+    """
+    Return a local WoT ID.
+
+    TODO: Check that it actually is local? Classes would be nice for this.
+    Being stringly typed as present requires a lot of checking and re-checking.
+    """
     if opts['truster']:
         return opts['truster']
     else:
         cfg = Config().from_ui(ui)
-        # TODO: What about if there's no request URI set?
-        return '@' + cfg.get_wot_identity(cfg.get_request_uri(repo.root))
+
+        identity = cfg.get_wot_identity(cfg.get_request_uri(repo.root))
+        if not identity:
+            identity = cfg.defaults['DEFAULT_TRUSTER']
+
+        return '@' + identity
 
 #----------------------------------------------------------"
 

@@ -319,10 +319,7 @@ def build_repo_list(ui, wot_id):
 
     # Add request URIs associated with the given identity.
     for request_uri in config.request_usks.itervalues():
-        # TODO: Getting the default WoT ID instead of an explicit association
-        # (as in get_wot_identity()) is not desirable.
-        if config.has_wot_identity(request_uri) and \
-                config.get_wot_identity(request_uri) == local_id['Identity']:
+        if config.get_wot_identity(request_uri) == local_id['Identity']:
             repos.append(request_uri)
 
     return repos

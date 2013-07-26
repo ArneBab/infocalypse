@@ -214,23 +214,12 @@ class Config:
     def get_wot_identity(self, for_usk_or_id):
         """
         Return the WoT identity associated with the request USK,
-        or the default if none is set.
-
-        TODO: Is falling back to the default sane behavior? Has caused
-        problems with unexpected associations.
+        or None if one is not set.
         """
         if for_usk_or_id is not None:
             repo_id = normalize(for_usk_or_id)
             if repo_id in self.wot_identities:
                 return self.wot_identities[repo_id]
-
-        return self.defaults['DEFAULT_TRUSTER']
-
-    def has_wot_identity(self, for_usk_or_id):
-        """
-        Return whether the given repo has a WoT identity associated with it.
-        """
-        return normalize(for_usk_or_id) in self.wot_identities
 
     def set_freemail_password(self, wot_identity, password):
         """
