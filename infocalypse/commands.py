@@ -41,8 +41,8 @@ def infocalypse_update_repo_list(ui, **opts):
         raise util.Abort("Update which repository list? Use --wot")
 
     import wot
-    local_id = wot.resolve_local_identity(ui, opts['wot'])
-    wot.update_repo_listing(ui, local_id['Identity'])
+    from wot_id import Local_WoT_ID
+    wot.update_repo_listing(ui, Local_WoT_ID(opts['wot']))
 
 
 def infocalypse_create(ui_, repo, **opts):
@@ -50,46 +50,34 @@ def infocalypse_create(ui_, repo, **opts):
     params, stored_cfg = get_config_info(ui_, opts)
 
     insert_uri = ''
-    attributes = None
+    local_id = None
     if opts['uri'] != '' and opts['wot'] != '':
         ui_.warn("Please specify only one of --uri or --wot.\n")
         return
     elif opts['uri'] != '':
         insert_uri = opts['uri']
     elif opts['wot'] != '':
-        # Expecting nick_prefix/repo_name.R<redundancy num>/edition/
-        nick_prefix, repo_desc = opts['wot'].split('/', 1)
+        # Expecting nick_prefix/repo_name.R<redundancy num>/edition
+        nick_prefix, repo_name, repo_edition = opts['wot'].split('/', 2)
 
-        import wot
+        from wot_id import Local_WoT_ID
 
         ui_.status("Querying WoT for local identities.\n")
 
-        attributes = wot.resolve_local_identity(ui_, nick_prefix)
-        if attributes is None:
-            # Something went wrong; the function already printed an error.
-            return
+        local_id = Local_WoT_ID(nick_prefix)
 
-        ui_.status('Found {0}@{1}\n'.format(attributes['Nickname'],
-                                            attributes['Identity']))
+        ui_.status('Found {0}\n'.format(local_id))
 
-        insert_uri = attributes['InsertURI']
+        insert_uri = local_id.insert_uri.clone()
 
-        # LCWoT returns URIs with a "freenet:" prefix, and WoT does not. The
-        # rest of Infocalypse does not support the prefix. The local way to fix
-        # this is to remove it here, but the more flexible way that is also
-        # more work is to expand support to the rest of Infocalypse.
-        # TODO: More widespread support for "freenet:" URI prefix.
-        prefix = "freenet:"
-        if insert_uri.startswith(prefix):
-            insert_uri = insert_uri[len(prefix):]
-
-        # URI is USK@key/WebOfTrust/<edition>, but we only want USK@key
-        insert_uri = insert_uri.split('/', 1)[0]
-        insert_uri += '/' + repo_desc
+        insert_uri.name = repo_name
+        insert_uri.edition = repo_edition
+        # Before passing along into execute_create().
+        insert_uri = str(insert_uri)
 
         # Add "vcs" context. No-op if the identity already has it.
         msg_params = {'Message': 'AddContext',
-                      'Identity': attributes['Identity'],
+                      'Identity': local_id.identity_id,
                       'Context': 'vcs'}
 
         import fcp
@@ -116,14 +104,13 @@ def infocalypse_create(ui_, repo, **opts):
     if inserted_to and opts['wot']:
         # TODO: Would it be friendlier to include the nickname as well?
         # creation returns a list of request URIs; use the first.
-        stored_cfg.set_wot_identity(inserted_to[0],
-                                    attributes['Identity'])
+        stored_cfg.set_wot_identity(inserted_to[0], local_id)
         Config.to_file(stored_cfg)
 
         # TODO: Imports don't go out of scope, right? The variables
         # from the import are only visible in the function, so yes.
         import wot
-        wot.update_repo_listing(ui_, attributes['Identity'])
+        wot.update_repo_listing(ui_, local_id)
 
 
 def infocalypse_copy(ui_, repo, **opts):
@@ -201,9 +188,6 @@ def infocalypse_pull(ui_, repo, **opts):
         truster = get_truster(ui_, repo, opts)
 
         request_uri = wot.resolve_pull_uri(ui_, opts['wot'], truster)
-
-        if request_uri is None:
-            return
     else:
         request_uri = opts['uri']
 
@@ -221,22 +205,25 @@ def infocalypse_pull(ui_, repo, **opts):
 
 def infocalypse_pull_request(ui, repo, **opts):
     import wot
+    from wot_id import WoT_ID
     if not opts['wot']:
         raise util.Abort("Who do you want to send the pull request to? Set "
                          "--wot.\n")
 
     wot_id, repo_name = opts['wot'].split('/', 1)
-    wot.send_pull_request(ui, repo, get_truster(ui, repo, opts), wot_id,
-                          repo_name)
+    from_identity = get_truster(ui, repo, opts)
+    to_identity = WoT_ID(wot_id, from_identity)
+    wot.send_pull_request(ui, repo, from_identity, to_identity, repo_name)
 
 
 def infocalypse_check_notifications(ui, repo, **opts):
     import wot
+    from wot_id import Local_WoT_ID
     if not opts['wot']:
         raise util.Abort("What ID do you want to check for notifications? Set"
                          " --wot.\n")
 
-    wot.check_notifications(ui, opts['wot'])
+    wot.check_notifications(ui, Local_WoT_ID(opts['wot']))
 
 
 def infocalypse_connect(ui, repo, **opts):
@@ -480,8 +467,7 @@ def infocalypse_setup(ui_, **opts):
         ui_.status("Skipped FMS configuration because --nofms was set.\n")
 
     if not opts['nowot']:
-        import wot
-        wot.execute_setup_wot(ui_, opts)
+        infocalypse_setupwot(ui_, **opts)
     else:
         ui_.status("Skipped WoT configuration because --nowot was set.\n")
 
@@ -494,8 +480,12 @@ def infocalypse_setupfms(ui_, **opts):
 
 # TODO: Why ui with trailing underscore? Is there a global "ui" somewhere?
 def infocalypse_setupwot(ui_, **opts):
+    if not opts['truster']:
+        util.Abort("Specify default truster with --truster")
+
     import wot
-    wot.execute_setup_wot(ui_, opts)
+    from wot_id import Local_WoT_ID
+    wot.execute_setup_wot(ui_, Local_WoT_ID(opts['truster']))
 
 
 def infocalypse_setupfreemail(ui, repo, **opts):
@@ -511,21 +501,22 @@ def infocalypse_setupfreemail(ui, repo, **opts):
 
 def get_truster(ui, repo, opts):
     """
-    Return a local WoT ID.
-
-    TODO: Check that it actually is local? Classes would be nice for this.
-    Being stringly typed as present requires a lot of checking and re-checking.
+    Return a local WoT ID - either one that published this repository or the
+    default.
+    :rtype : Local_WoT_ID
     """
+    from wot_id import Local_WoT_ID
     if opts['truster']:
-        return opts['truster']
+        return Local_WoT_ID(opts['truster'])
     else:
         cfg = Config().from_ui(ui)
 
+        # Value is identity ID.
         identity = cfg.get_wot_identity(cfg.get_request_uri(repo.root))
         if not identity:
             identity = cfg.defaults['DEFAULT_TRUSTER']
 
-        return '@' + identity
+        return Local_WoT_ID('@' + identity)
 
 #----------------------------------------------------------"
 

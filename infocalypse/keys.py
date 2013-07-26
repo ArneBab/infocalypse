@@ -17,6 +17,9 @@ class USK:
         elif self.key.startswith('freenet://'):
             self.key = self.key[len('freenet://'):]
 
+    def clone(self):
+        return USK(str(self))
+
     def __str__(self):
         return '%s/%s/%s' % (self.key, self.name, self.edition)
 

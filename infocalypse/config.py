@@ -127,6 +127,7 @@ class Config:
         self.insert_usks = {}
         # repo id -> publisher WoT identity
         self.wot_identities = {}
+        # TODO: Should this be keyed by str(WoT_ID) ?
         # WoT public key hash -> Freemail password
         self.freemail_passwords = {}
         # fms_id -> (usk_hash, ...) map
@@ -208,8 +209,10 @@ class Config:
     def set_wot_identity(self, for_usk_or_id, wot_identity):
         """
         Set the WoT identity associated with the request USK.
+        :type wot_identity: WoT_ID
         """
-        self.wot_identities[normalize(for_usk_or_id)] = wot_identity
+        self.wot_identities[normalize(for_usk_or_id)] =\
+            wot_identity.identity_id
 
     def get_wot_identity(self, for_usk_or_id):
         """
@@ -225,20 +228,21 @@ class Config:
         """
         Set the password for the given WoT identity.
         """
-        self.freemail_passwords[wot_identity] = password
+        self.freemail_passwords[wot_identity.identity_id] = password
 
     def get_freemail_password(self, wot_identity):
         """
         Return the password associated with the given WoT identity.
         Raise util.Abort if one is not set.
+        :type wot_identity: WoT_ID
         """
-        if wot_identity in self.freemail_passwords:
-            return self.freemail_passwords[wot_identity]
+        identity_id = wot_identity.identity_id
+        if identity_id in self.freemail_passwords:
+            return self.freemail_passwords[identity_id]
         else:
             raise util.Abort("{0} does not have a Freemail password set.\n"
-                             "Run hg fn-setupfreemail --truster {0}@{1}\n"
-                             .format(wot_identity['Nickname'],
-                                     wot_identity['Identity']))
+                             "Run hg fn-setupfreemail --truster {0}\n"
+                             .format(wot_identity))
 
     # Hmmm... really nescessary?
     def get_dir_insert_uri(self, repo_dir):
