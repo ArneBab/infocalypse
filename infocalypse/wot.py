@@ -209,6 +209,8 @@ def read_message_yaml(ui, from_address, subject, body):
     end_token = '...'
     yaml_end = body.rfind(end_token)
 
+    cfg = Config.from_ui(ui)
+
     if not yaml_end == -1:
         # Better to point to the end of the end token, but don't confuse
         # failure.
@@ -256,7 +258,7 @@ def read_message_yaml(ui, from_address, subject, body):
 
         ui.status("To accept this request, pull from: %s\n"
                   "               To your repository: %s\n" %
-                  (request['source'], request['target']))
+                  (request['source'], cfg.get_repo_dir(request['target'])))
         return
 
     ui.status("Notification '%s' has an unrecognized request of type '%s'"

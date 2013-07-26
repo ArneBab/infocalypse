@@ -179,6 +179,31 @@ class Config:
         repo_dir = norm_path(repo_dir)
         self.request_usks[repo_dir] = usk
 
+    def get_repo_dir(self, request_uri):
+        """
+        Return the normalized path for a repo with the given request URI.
+        Abort if the request URI does not match exactly one directory.
+        """
+        normalized = normalize(request_uri)
+        match = None
+
+        for repo_dir, uri in self.request_usks.iteritems():
+            if normalized == normalize(uri):
+                if match:
+                    raise util.Abort("Multiple directories match {0}."
+                                     .format(request_uri))
+                else:
+                    match = repo_dir
+
+        if not match:
+            raise util.Abort("No repository matches {0}.".format(request_uri))
+
+        # Assuming path has not become un-normalized since being set with
+        # update_dir().
+        assert norm_path(match) == match
+
+        return match
+
     def get_request_uri(self, for_dir):
         """ Get the repo USK used to pull changes into for_dir or None. """
         uri = self.request_usks.get(norm_path(for_dir))
