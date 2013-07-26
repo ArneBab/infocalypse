@@ -36,6 +36,15 @@ def set_target_version(ui_, repo, opts, params, msg_fmt):
         #print params['TO_VERSIONS']
 
 
+def infocalypse_update_repo_list(ui, **opts):
+    if not opts['wot']:
+        raise util.Abort("Update which repository list? Use --wot")
+
+    import wot
+    local_id = wot.resolve_local_identity(ui, opts['wot'])
+    wot.update_repo_listing(ui, local_id['Identity'])
+
+
 def infocalypse_create(ui_, repo, **opts):
     """ Create a new Infocalypse repository in Freenet. """
     params, stored_cfg = get_config_info(ui_, opts)

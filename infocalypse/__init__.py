@@ -391,6 +391,9 @@ cmdtable = {
                 + AGGRESSIVE_OPT,
                 "[options]"),
 
+    "fn-updaterepolist": (infocalypse_update_repo_list,
+                          WOT_CREATE_OPTS),
+
     "fn-pull-request": (infocalypse_pull_request,
                         [('', 'wot', '', 'WoT nick@key/repo to send request '
                                          'to')]
@@ -538,6 +541,7 @@ commands.norepo += ' fn-setupfms'
 commands.norepo += ' fn-genkey'
 commands.norepo += ' fn-archive'
 commands.norepo += ' fn-setupwot'
+commands.norepo += ' fn-updaterepolist'
 
 
 ## Wrap core commands for use with freenet keys.
