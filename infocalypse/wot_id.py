@@ -33,7 +33,9 @@ class WoT_ID(object):
         be omitted.
         """
         # id_num and message are internal and used to allow constructing
-        # a WoT_ID for a Local_WoT_ID.
+        # a WoT_ID for a Local_WoT_ID. Their default values parse the first
+        # (and only) identity described by an unspecified message, in which case
+        # it queries WoT to produce one.
         if not message:
             message = get_identity(wot_identifier, truster)
 
@@ -44,18 +46,12 @@ class WoT_ID(object):
         self.request_uri = USK(get_attribute('RequestURI'))
         self.identity_id = get_attribute('Identity')
 
-        # Add contexts and other properties.
-        # TODO: Unflattening WoT response? Several places check for prefix like
-        # this.
         self.contexts = []
         self.properties = {}
         context_prefix = "Replies.Contexts{0}.Context".format(id_num)
         property_prefix = "Replies.Properties{0}.Property".format(id_num)
         for key in message.iterkeys():
             if key.startswith(context_prefix):
-                #num = key[len(context_prefix):]
-                # TODO: Is there a reason to keep the numbers? (As in key it.)
-                #identity.contexts["Context{0}".format(num)] = message[key]
                 self.contexts.append(message[key])
             elif key.startswith(property_prefix) and key.endswith(".Name"):
                 # ".Name" is 5 characters, before which is the number.
@@ -111,6 +107,10 @@ class Local_WoT_ID(WoT_ID):
     """
 
     def __init__(self, wot_identifier):
+        # Query WoT for local identities, and find a match if one exists.
+        # If not, abort. Otherwise define insert_uri and pass the WoT result
+        # and id_num along to WoT_ID.__init__() for further processing.
+
         nickname_prefix, key_prefix = parse_name(wot_identifier)
 
         node = fcp.FCPNode()
@@ -168,6 +168,12 @@ class Local_WoT_ID(WoT_ID):
 
 
 def get_identity(wot_identifier, truster):
+    """
+    Internal.
+
+    Return an FCP reply from WoT for an identity on the truster's trust list
+    matching the identifier. Abort if anything but exactly one match is found.
+    """
     nickname_prefix, key_prefix = parse_name(wot_identifier)
     # TODO: Support different FCP IP / port.
     node = fcp.FCPNode()
