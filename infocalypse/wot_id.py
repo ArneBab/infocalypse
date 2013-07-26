@@ -107,64 +107,11 @@ class Local_WoT_ID(WoT_ID):
     """
 
     def __init__(self, wot_identifier):
-        # Query WoT for local identities, and find a match if one exists.
-        # If not, abort. Otherwise define insert_uri and pass the WoT result
-        # and id_num along to WoT_ID.__init__() for further processing.
+        id_num, message = get_local_identity(wot_identifier)
 
-        nickname_prefix, key_prefix = parse_name(wot_identifier)
+        self.insert_uri = USK(message['Replies.InsertURI{0}'.format(id_num)])
 
-        node = fcp.FCPNode()
-        response = \
-            node.fcpPluginMessage(async=False,
-                                  plugin_name="plugins.WebOfTrust.WebOfTrust",
-                                  plugin_params={'Message':
-                                                 'GetOwnIdentities'})[0]
-
-        if response['header'] != 'FCPPluginReply' or \
-                'Replies.Message' not in response or \
-                response['Replies.Message'] != 'OwnIdentities':
-            raise util.Abort("Unexpected reply. Got {0}\n.".format(response))
-
-        # Find nicknames starting with the supplied nickname prefix.
-        prefix = 'Replies.Nickname'
-        # Key: nickname, value (id_num, public key hash).
-        matches = {}
-        for key in response.iterkeys():
-            if key.startswith(prefix) and \
-                    response[key].startswith(nickname_prefix):
-
-                # Key is Replies.Nickname<number>, where number is used in
-                # the other attributes returned for that identity.
-                id_num = key[len(prefix):]
-
-                nickname = response[key]
-                pubkey_hash = response['Replies.Identity{0}'.format(id_num)]
-
-                matches[nickname] = (id_num, pubkey_hash)
-
-        # Remove matching nicknames not also matching the (possibly partial)
-        # public key hash.
-        for key in matches.keys():
-            # public key hash is second member of value tuple.
-            if not matches[key][1].startswith(key_prefix):
-                del matches[key]
-
-        if len(matches) > 1:
-            raise util.Abort("'{0}' is ambiguous.\n".format(wot_identifier))
-
-        if len(matches) == 0:
-            raise util.Abort("No local identities match '{0}'.\n".format(
-                wot_identifier))
-
-        assert len(matches) == 1
-
-        # id_num is first member of value tuple.
-        only_key = matches.keys()[0]
-        id_num = matches[only_key][0]
-
-        self.insert_uri = USK(response['Replies.InsertURI{0}'.format(id_num)])
-
-        WoT_ID.__init__(self, None, None, id_num=id_num, message=response)
+        WoT_ID.__init__(self, None, None, id_num=id_num, message=message)
 
 
 def get_identity(wot_identifier, truster):
@@ -234,6 +181,67 @@ def get_identity(wot_identifier, truster):
     # There should be only one result.
     # Depends on https://bugs.freenetproject.org/view.php?id=5729
     return response
+
+
+def get_local_identity(wot_identifier):
+    """
+    Internal.
+
+    Return (id_number, FCP reply) from WoT for a local identity matching the
+    identifier. Abort if anything but exactly one match is found.
+    """
+    nickname_prefix, key_prefix = parse_name(wot_identifier)
+
+    node = fcp.FCPNode()
+    response = \
+        node.fcpPluginMessage(async=False,
+                              plugin_name="plugins.WebOfTrust.WebOfTrust",
+                              plugin_params={'Message':
+                                             'GetOwnIdentities'})[0]
+
+    if response['header'] != 'FCPPluginReply' or \
+            'Replies.Message' not in response or \
+            response['Replies.Message'] != 'OwnIdentities':
+        raise util.Abort("Unexpected reply. Got {0}\n.".format(response))
+
+    # Find nicknames starting with the supplied nickname prefix.
+    prefix = 'Replies.Nickname'
+    # Key: nickname, value (id_num, public key hash).
+    matches = {}
+    for key in response.iterkeys():
+        if key.startswith(prefix) and \
+                response[key].startswith(nickname_prefix):
+
+            # Key is Replies.Nickname<number>, where number is used in
+            # the other attributes returned for that identity.
+            id_num = key[len(prefix):]
+
+            nickname = response[key]
+            pubkey_hash = response['Replies.Identity{0}'.format(id_num)]
+
+            matches[nickname] = (id_num, pubkey_hash)
+
+    # Remove matching nicknames not also matching the (possibly partial)
+    # public key hash.
+    for key in matches.keys():
+        # public key hash is second member of value tuple.
+        if not matches[key][1].startswith(key_prefix):
+            del matches[key]
+
+    if len(matches) > 1:
+        raise util.Abort("'{0}' is ambiguous.\n".format(wot_identifier))
+
+    if len(matches) == 0:
+        raise util.Abort("No local identities match '{0}'.\n".format(
+            wot_identifier))
+
+    assert len(matches) == 1
+
+    # id_num is first member of value tuple.
+    only_key = matches.keys()[0]
+    id_num = matches[only_key][0]
+
+    return id_num, response
 
 
 def parse_name(wot_identifier):
