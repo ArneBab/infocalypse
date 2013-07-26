@@ -1,6 +1,6 @@
 minimize dependencies                                        | owner:Arne Babenhauserheide <bab@draketo.de>, open:True, id:0fc25f7b84f3e1fb89e9134a28eeabbe76bf054f, time:1372231529.45
 Add command to reinsert repo list.                           | owner:, open:True, id:2dcc27c850209062080906368530b4b9202271d0, time:1373407233.84
-pull fails, because config.get_wot_identity requests self.defaults['DEFAULT_TRUSTER'] which is not in defaults. | owner:Arne Babenhauserheide <bab@draketo.de>, open:True, id:31beb672d404944a4655a546b21c95c7baa91002, time:1371735138.39
+pull fails, because config.get_wot_identity requests self.defaults['DEFAULT_TRUSTER'] which is not in defaults. | owner:Arne Babenhauserheide <bab@draketo.de>, open:False, id:31beb672d404944a4655a546b21c95c7baa91002, time:1371735138.39
 set the timezone to UTC on cloning a freenet repo to avoid timezone-based attacks. | owner:Arne Babenhauserheide <bab@draketo.de>, open:True, id:4dfc4cc28a7fa69f040776a7138da78ee89ec819, time:1355764180.36
 mime-type problems                                           | owner:Arne Babenhauserheide <bab@draketo.de>, open:False, id:5916e6e8328e20d8b0276b76b7116dd432730778, time:1353463866.97
                                                              | owner:, open:False, id:65d8d544370f80538e325dae0b6c2da449c5bcfe, time:1373407147.03
