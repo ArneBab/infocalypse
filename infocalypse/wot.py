@@ -13,8 +13,7 @@ from wot_id import Local_WoT_ID, WoT_ID
 
 FREEMAIL_SMTP_PORT = 4025
 FREEMAIL_IMAP_PORT = 4143
-# TODO: Is whitespace in the search key illegal?
-VCS_TOKEN = "[vcs] "
+VCS_TOKEN = "[vcs]"
 PLUGIN_NAME = "org.freenetproject.plugin.infocalypse_webui.main.InfocalypsePlugin"
 
 
@@ -133,7 +132,7 @@ HG: Following lines are the body of the message.
 
     # Body is third line and after.
     msg = MIMEText('\n'.join(source_lines[2:]) + footer)
-    msg['Subject'] = VCS_TOKEN + source_lines[0]
+    msg['Subject'] = VCS_TOKEN + ' ' + source_lines[0]
     msg['To'] = to_address
     msg['From'] = from_address
 
