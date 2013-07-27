@@ -77,7 +77,8 @@ def connect(ui, repo):
 
 def send_pull_request(ui, repo, from_identity, to_identity, to_repo_name):
     """
-
+    Prompt for a pull request message, and send a pull request from
+    from_identity to to_identity for the repository to_repo_name.
 
     :type to_identity: WoT_ID
     :type from_identity: Local_WoT_ID
@@ -146,6 +147,8 @@ HG: Following lines are the body of the message.
 
 def check_notifications(ui, local_identity):
     """
+    Check Freemail for local_identity and print information on any VCS
+    messages received.
 
     :type local_identity: Local_WoT_ID
     """
@@ -202,9 +205,14 @@ def check_notifications(ui, local_identity):
 
 
 def read_message_yaml(ui, from_address, subject, body):
+    """
+    Print information about the given message.
+    """
     # Get consistent line endings.
     body = '\n'.join(body.splitlines())
     yaml_start = body.rfind('---\n')
+    # The .join() does not add a trailing newline, and the end token might be
+    # the last line.
     end_token = '...'
     yaml_end = body.rfind(end_token)
 
@@ -269,6 +277,7 @@ def require_freemail(wot_identity):
     Return the given identity's Freemail address.
     Abort with an error message if the given identity does not have a
     Freemail address / context.
+
     :type wot_identity: WoT_ID
     """
     if not wot_identity.freemail_address:
@@ -278,12 +287,13 @@ def require_freemail(wot_identity):
 
 
 def update_repo_listing(ui, for_identity):
-    # TODO: WoT property containing edition. Used when requesting.
-    # Version number to support possible format changes.
     """
+    Insert list of repositories published by the given identity.
 
     :type for_identity: Local_WoT_ID
     """
+    # TODO: WoT property containing repo list edition. Used when requesting.
+    # Version number to support possible format changes.
     root = ET.Element('vcs', {'version': '0'})
 
     ui.status("Updating repo listing for '%s'\n" % for_identity)
@@ -341,6 +351,7 @@ def find_repo(ui, identity, repo_name):
     identity matching the given identifier.
     Raise util.Abort if unable to read repo listing or a repo by that name
     does not exist.
+
     :type identity: WoT_ID
     """
     listing = read_repo_listing(ui, identity)
@@ -356,6 +367,7 @@ def read_repo_listing(ui, identity):
     """
     Read a repo listing for a given identity.
     Return a dictionary of repository request URIs keyed by name.
+
     :type identity: WoT_ID
     """
     uri = identity.request_uri.clone()
@@ -388,12 +400,13 @@ def resolve_pull_uri(ui, path, truster):
         """
         Return a pull URI for the given path.
         Print an error message and abort on failure.
-        :type truster: Local_WoT_ID
+
         TODO: Is it appropriate to outline possible errors?
         Possible failures are being unable to fetch a repo list for the given
         identity, which may be a fetch failure or being unable to find the
         identity, and not finding the requested repo in the list.
 
+        :type truster: Local_WoT_ID
         :param ui: For feedback.
         :param path: path describing a repo. nick@key/reponame
         :param truster: identity whose trust list to use.
@@ -438,12 +451,13 @@ def resolve_push_uri(ui, path):
 
     return str(repo_uri)
 
-# Support for querying WoT for own identities and identities meeting various
-# criteria.
-# TODO: "cmds" suffix to module name to fit fms, arc, inf?
-
 
 def execute_setup_wot(ui_, local_id):
+    """
+    Set WoT-related defaults.
+
+    :type local_id: Local_WoT_ID
+    """
     cfg = Config.from_ui(ui_)
 
     ui_.status("Setting default truster to {0}.\n".format(local_id))
@@ -455,6 +469,8 @@ def execute_setup_wot(ui_, local_id):
 def execute_setup_freemail(ui, local_id):
     """
     Prompt for, test, and set a Freemail password for the identity.
+
+    :type local_id: Local_WoT_ID
     """
     address = require_freemail(local_id)
 
