@@ -590,6 +590,7 @@ def freenetpathtouri(ui, path, pull=True):
         import wot
         if pull:
             cfg = Config.from_ui(ui)
+            # TODO: Check for ID associated with this repo first.
             truster = cfg.defaults['DEFAULT_TRUSTER']
             return wot.resolve_pull_uri(ui, path, truster)
         else:
@@ -706,10 +707,11 @@ def freenetclone(orig, *args, **opts):
     # check whether to create, pull or copy
     pulluri, pushuri = None, None
     if isfreenetpath(source):
-        pulluri = freenetpathtouri(ui, source)
+        pulluri = parse_repo_path(freenetpathtouri(ui, source))
 
     if isfreenetpath(dest):
-        pushuri = freenetpathtouri(ui, dest, pull=False)
+        pushuri = parse_repo_path(freenetpathtouri(ui, dest, pull=False),
+                                  assume_redundancy=True)
 
     # decide which infocalypse command to use.
     if pulluri and pushuri:

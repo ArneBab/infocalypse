@@ -5,4 +5,5 @@ cloning from a freenet:// uri does not work right now.       | owner:Arne Babenh
 set the timezone to UTC on cloning a freenet repo to avoid timezone-based attacks. | owner:Arne Babenhauserheide <bab@draketo.de>, open:True, id:4dfc4cc28a7fa69f040776a7138da78ee89ec819, time:1355764180.36
 mime-type problems                                           | owner:Arne Babenhauserheide <bab@draketo.de>, open:False, id:5916e6e8328e20d8b0276b76b7116dd432730778, time:1353463866.97
                                                              | owner:, open:False, id:65d8d544370f80538e325dae0b6c2da449c5bcfe, time:1373407147.03
+Add i18n support for messages.                               | owner:, open:True, id:7760991aef41c6d38be5315f742f6a6f350a0a76, time:1375010635.52
 simpler-wot-uris: name/repo                                  | owner:Arne Babenhauserheide <bab@draketo.de>, open:True, id:d4f2df3ca2c441e4be389be846634f5a4a08906e, time:1372232568.9

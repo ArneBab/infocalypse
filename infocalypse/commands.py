@@ -18,6 +18,8 @@ from validate import is_hex_string, is_fms_id
 
 import os
 
+from keys import parse_repo_path
+
 
 def set_target_version(ui_, repo, opts, params, msg_fmt):
     """ INTERNAL: Update TARGET_VERSION in params. """
@@ -55,10 +57,14 @@ def infocalypse_create(ui_, repo, **opts):
         ui_.warn("Please specify only one of --uri or --wot.\n")
         return
     elif opts['uri'] != '':
-        insert_uri = opts['uri']
+        insert_uri = parse_repo_path(opts['uri'])
     elif opts['wot'] != '':
-        # Expecting nick_prefix/repo_name.R<redundancy num>/edition
+        opts['wot'] = parse_repo_path(opts['wot'])
         nick_prefix, repo_name, repo_edition = opts['wot'].split('/', 2)
+
+        if not repo_name.endswith('.R1') and not repo_name.endswith('.R0'):
+            ui_.warning("Warning: Creating repository without redundancy. (R0"
+                        " or R1)")
 
         from wot_id import Local_WoT_ID
 
@@ -122,6 +128,8 @@ def infocalypse_copy(ui_, repo, **opts):
         # REDFLAG: fix parameter definition so that it is required?
         ui_.warn("Please set the insert URI with --inserturi.\n")
         return
+    else:
+        insert_uri = parse_repo_path(opts['inserturi'])
 
     request_uri = opts['requesturi']
     if request_uri == '':
@@ -130,6 +138,8 @@ def infocalypse_copy(ui_, repo, **opts):
             ui_.warn("There is no stored request URI for this repo.\n"
                      "Please set one with the --requesturi option.\n")
             return
+    else:
+        request_uri = parse_repo_path(opts['requesturi'])
 
     params['INSERT_URI'] = insert_uri
     params['REQUEST_URI'] = request_uri
@@ -147,6 +157,8 @@ def infocalypse_reinsert(ui_, repo, **opts):
             ui_.warn("There is no stored request URI for this repo.\n"
                      "Do a fn-pull from a repository USK and try again.\n")
             return
+    else:
+        request_uri = parse_repo_path(opts['uri'])
 
     level = opts['level']
     if level < 1 or level > 5:
@@ -174,6 +186,8 @@ def infocalypse_pull(ui_, repo, **opts):
      """
     params, stored_cfg = get_config_info(ui_, opts)
 
+    request_uri = ''
+
     if opts['hash']:
         # Use FMS to lookup the uri from the repo hash.
         if opts['uri'] != '':
@@ -188,8 +202,8 @@ def infocalypse_pull(ui_, repo, **opts):
         truster = get_truster(ui_, repo, opts)
 
         request_uri = wot.resolve_pull_uri(ui_, opts['wot'], truster)
-    else:
-        request_uri = opts['uri']
+    elif opts['uri']:
+        request_uri = parse_repo_path(opts['uri'])
 
     if request_uri == '':
         request_uri = stored_cfg.get_request_uri(repo.root)
@@ -241,6 +255,8 @@ def infocalypse_push(ui_, repo, **opts):
             ui_.warn("There is no stored insert URI for this repo.\n"
                      "Please set one with the --uri option.\n")
             return
+    else:
+        insert_uri = parse_repo_path(opts['uri'])
 
     set_target_version(ui_, repo, opts, params,
                        "Only pushing to version(s): %s\n")
