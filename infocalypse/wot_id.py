@@ -37,7 +37,7 @@ class WoT_ID(object):
         # (and only) identity described by an unspecified message, in which case
         # it queries WoT to produce one.
         if not message:
-            message = get_identity(wot_identifier, truster)
+            message = _get_identity(wot_identifier, truster)
 
         def get_attribute(attribute):
             return message['Replies.{0}{1}'.format(attribute, id_num)]
@@ -107,21 +107,21 @@ class Local_WoT_ID(WoT_ID):
     """
 
     def __init__(self, wot_identifier):
-        id_num, message = get_local_identity(wot_identifier)
+        id_num, message = _get_local_identity(wot_identifier)
 
         self.insert_uri = USK(message['Replies.InsertURI{0}'.format(id_num)])
 
         WoT_ID.__init__(self, None, None, id_num=id_num, message=message)
 
 
-def get_identity(wot_identifier, truster):
+def _get_identity(wot_identifier, truster):
     """
     Internal.
 
     Return an FCP reply from WoT for an identity on the truster's trust list
     matching the identifier. Abort if anything but exactly one match is found.
     """
-    nickname_prefix, key_prefix = parse_name(wot_identifier)
+    nickname_prefix, key_prefix = _parse_name(wot_identifier)
     # TODO: Support different FCP IP / port.
     node = fcp.FCPNode()
 
@@ -183,14 +183,14 @@ def get_identity(wot_identifier, truster):
     return response
 
 
-def get_local_identity(wot_identifier):
+def _get_local_identity(wot_identifier):
     """
     Internal.
 
     Return (id_number, FCP reply) from WoT for a local identity matching the
     identifier. Abort if anything but exactly one match is found.
     """
-    nickname_prefix, key_prefix = parse_name(wot_identifier)
+    nickname_prefix, key_prefix = _parse_name(wot_identifier)
 
     node = fcp.FCPNode()
     response = \
@@ -244,8 +244,10 @@ def get_local_identity(wot_identifier):
     return id_num, response
 
 
-def parse_name(wot_identifier):
+def _parse_name(wot_identifier):
     """
+    Internal.
+
     Parse identifier of the forms: nick
                                    nick@key
                                    @key
