@@ -573,8 +573,7 @@ def freenetpathtouri(ui, path, pull=True):
     Return a usable request or insert URI. Expects a freenet:// or freenet:
     protocol to be specified.
 
-    If the key is not a USK it will be resolved as a WoT identity. In this
-    case if the resolution fails, print an error message and return None.
+    If the key is not a USK it will be resolved as a WoT identity.
     """
     # TODO: Is this the only URL encoding that may happen? Why not use a more
     # semantically meaningful function?
@@ -653,7 +652,7 @@ def freenetpush(orig, *args, **opts):
     # only act differently, if the target is an infocalypse repo.
     if not isfreenetpath(path):
         return orig(*args, **opts)
-    uri = freenetpathtouri(ui, path, pull=False)
+    uri = parse_repo_path(freenetpathtouri(ui, path, pull=False))
     if uri is None:
         return
     # if the uri is the short form (USK@/name/#), generate the key and preprocess the uri.
