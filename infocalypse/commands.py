@@ -101,6 +101,7 @@ def infocalypse_create(ui_, repo, **opts):
 
     else:
         ui_.warn("Please set the insert key with either --uri or --wot.\n")
+        return
 
     set_target_version(ui_, repo, opts, params,
                        "Only inserting to version(s): %s\n")
