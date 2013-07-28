@@ -53,12 +53,12 @@ def infocalypse_create(ui_, repo, **opts):
 
     insert_uri = ''
     local_id = None
-    if opts['uri'] != '' and opts['wot'] != '':
+    if opts['uri'] and opts['wot']:
         ui_.warn("Please specify only one of --uri or --wot.\n")
         return
-    elif opts['uri'] != '':
+    elif opts['uri']:
         insert_uri = parse_repo_path(opts['uri'])
-    elif opts['wot'] != '':
+    elif opts['wot']:
         opts['wot'] = parse_repo_path(opts['wot'])
         nick_prefix, repo_name, repo_edition = opts['wot'].split('/', 2)
 
@@ -123,16 +123,14 @@ def infocalypse_copy(ui_, repo, **opts):
     """ Copy an Infocalypse repository to a new URI. """
     params, stored_cfg = get_config_info(ui_, opts)
 
-    insert_uri = opts['inserturi']
-    if insert_uri == '':
+    if not opts['inserturi']:
         # REDFLAG: fix parameter definition so that it is required?
         ui_.warn("Please set the insert URI with --inserturi.\n")
         return
     else:
         insert_uri = parse_repo_path(opts['inserturi'])
 
-    request_uri = opts['requesturi']
-    if request_uri == '':
+    if not opts['requesturi']:
         request_uri = stored_cfg.get_request_uri(repo.root)
         if not request_uri:
             ui_.warn("There is no stored request URI for this repo.\n"
@@ -150,8 +148,7 @@ def infocalypse_reinsert(ui_, repo, **opts):
     """ Reinsert the current version of an Infocalypse repository. """
     params, stored_cfg = get_config_info(ui_, opts)
 
-    request_uri = opts['uri']
-    if request_uri == '':
+    if not opts['uri']:
         request_uri = stored_cfg.get_request_uri(repo.root)
         if not request_uri:
             ui_.warn("There is no stored request URI for this repo.\n"
@@ -190,7 +187,7 @@ def infocalypse_pull(ui_, repo, **opts):
 
     if opts['hash']:
         # Use FMS to lookup the uri from the repo hash.
-        if opts['uri'] != '':
+        if opts['uri']:
             ui_.warn("Ignoring --uri because --hash is set!\n")
         if len(opts['hash']) != 1:
             raise util.Abort("Only one --hash value is allowed.")
@@ -205,7 +202,7 @@ def infocalypse_pull(ui_, repo, **opts):
     elif opts['uri']:
         request_uri = parse_repo_path(opts['uri'])
 
-    if request_uri == '':
+    if not request_uri:
         request_uri = stored_cfg.get_request_uri(repo.root)
         if not request_uri:
             ui_.warn("There is no stored request URI for this repo.\n"
@@ -248,8 +245,8 @@ def infocalypse_connect(ui, repo, **opts):
 def infocalypse_push(ui_, repo, **opts):
     """ Push to an Infocalypse repository in Freenet. """
     params, stored_cfg = get_config_info(ui_, opts)
-    insert_uri = opts['uri']
-    if insert_uri == '':
+
+    if not opts['uri']:
         insert_uri = stored_cfg.get_dir_insert_uri(repo.root)
         if not insert_uri:
             ui_.warn("There is no stored insert URI for this repo.\n"
@@ -286,7 +283,7 @@ def infocalypse_info(ui_, repo, **opts):
     opts['fcpport'] = 0
     params, stored_cfg = get_config_info(ui_, opts)
     request_uri = opts['uri']
-    if request_uri == '':
+    if not request_uri:
         request_uri = stored_cfg.get_request_uri(repo.root)
         if not request_uri:
             ui_.warn("There is no stored request URI for this repo.\n"
@@ -345,7 +342,7 @@ def infocalypse_fmsread(ui_, repo, **opts):
     opts['fcpport'] = 0
     params, stored_cfg = get_config_info(ui_, opts)
     request_uri = opts['uri']
-    if request_uri == '':
+    if not request_uri:
         request_uri = stored_cfg.get_request_uri(repo.root)
         if not request_uri:
             ui_.status("There is no stored request URI for this repo.\n")
@@ -397,7 +394,7 @@ def infocalypse_putsite(ui_, repo, **opts):
         return
 
     params, stored_cfg = get_config_info(ui_, opts)
-    if opts['key'] != '':  # order important
+    if opts['key']:  # order important
         params['SITE_KEY'] = opts['key']
         if not (params['SITE_KEY'].startswith('SSK') or
                 params['SITE_KEY'] == 'CHK@'):
@@ -447,13 +444,13 @@ def infocalypse_wiki(ui_, repo, **opts):
     if required > 1:
         raise util.Abort("Use either --run, --createconfig, or --apply")
 
-    if opts['apply'] != '':
+    if opts['apply']:
         params, stored_cfg = get_config_info(ui_, opts)
         params['REQUEST_URI'] = opts['apply']
         execute_wiki_apply(ui_, repo, params, stored_cfg)
         return
 
-    if opts['fcphost'] != '' or opts['fcpport'] != 0:
+    if opts['fcphost'] or opts['fcpport']:
         raise util.Abort("--fcphost, --fcpport only for --apply")
 
     # hmmmm.... useless copy?
@@ -540,7 +537,7 @@ def get_truster(ui, repo, opts):
 def do_archive_create(ui_, opts, params, stored_cfg):
     """ fn-archive --create."""
     insert_uri = opts['uri']
-    if insert_uri == '':
+    if not insert_uri:
         raise util.Abort("Please set the insert URI with --uri.")
 
     params['INSERT_URI'] = insert_uri
@@ -551,7 +548,7 @@ def do_archive_create(ui_, opts, params, stored_cfg):
 def do_archive_push(ui_, opts, params, stored_cfg):
     """ fn-archive --push."""
     insert_uri = opts['uri']
-    if insert_uri == '':
+    if not insert_uri:
         insert_uri = (
             stored_cfg.get_dir_insert_uri(params['ARCHIVE_CACHE_DIR']))
         if not insert_uri:
@@ -569,7 +566,7 @@ def do_archive_pull(ui_, opts, params, stored_cfg):
     """ fn-archive --pull."""
     request_uri = opts['uri']
 
-    if request_uri == '':
+    if not request_uri:
         request_uri = (
             stored_cfg.get_request_uri(params['ARCHIVE_CACHE_DIR']))
         if not request_uri:

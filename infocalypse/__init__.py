@@ -661,9 +661,9 @@ def freenetpush(orig, *args, **opts):
         ui.status("creating a new key for the repo. For a new repo with an existing key, use clone.\n")
         from sitecmds import genkeypair
         fcphost, fcpport = opts["fcphost"], opts["fcpport"]
-        if fcphost == '':
+        if not fcphost:
             fcphost = '127.0.0.1'
-        if fcpport == 0:
+        if not fcpport:
             fcpport = 9481
             
         # use redundant keys by default, except if explicitely requested otherwise.
@@ -732,9 +732,9 @@ def freenetclone(orig, *args, **opts):
             ui.status("creating a new key for the repo. To use your default key, call fn-create.\n")
             from sitecmds import genkeypair
             fcphost, fcpport = opts["fcphost"], opts["fcpport"]
-            if fcphost == '':
+            if not fcphost:
                 fcphost = '127.0.0.1'
-            if fcpport == 0:
+            if not fcpport:
                 fcpport = 9481
             
             # use redundant keys by default, except if explicitely requested otherwise.
