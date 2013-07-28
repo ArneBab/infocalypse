@@ -119,8 +119,8 @@ def send_pull_request(ui, repo, from_identity, to_identity, to_repo_name):
 
 HG: Enter pull request message here. Lines beginning with 'HG:' are removed.
 HG: The first line has "{0}" added before it in transit and is the subject.
-HG: The second line should be blank.
-HG: Following lines are the body of the message.
+HG: The second line is ignored.
+HG: Subsequent lines are the body of the message.
 """.format(VCS_TOKEN), str(from_identity))
     # TODO: Save message and load later in case sending fails.
 
