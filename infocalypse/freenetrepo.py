@@ -20,6 +20,10 @@ except ImportError:
 
 class freenetrepo(peerrepository):
     capabilities = ['lookup']
+    
+    # this might be needed here after wrapping hg incoming.
+    # def _capabilities(self):
+    #     return self.capabilities
 
     def __init__(self, ui, path, create):
         if create: # pragma: no cover

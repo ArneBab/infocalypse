@@ -6,3 +6,4 @@ set the timezone to UTC on cloning a freenet repo to avoid timezone-based attack
 mime-type problems                                           | owner:Arne Babenhauserheide <bab@draketo.de>, open:False, id:5916e6e8328e20d8b0276b76b7116dd432730778, time:1353463866.97
                                                              | owner:, open:False, id:65d8d544370f80538e325dae0b6c2da449c5bcfe, time:1373407147.03
 simpler-wot-uris: name/repo                                  | owner:Arne Babenhauserheide <bab@draketo.de>, open:True, id:d4f2df3ca2c441e4be389be846634f5a4a08906e, time:1372232568.9
+add support for hg incoming freenet://…                    | owner:Arne Babenhauserheide <bab@draketo.de>, open:True, id:dbff86d4bba0e38adb81a6e27e7180282222f541, time:1375002083.32
