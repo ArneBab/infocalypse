@@ -157,7 +157,8 @@ def _get_identity(wot_identifier, truster):
             elif matches == 1:
                 return response
             else:
-                raise util.Abort("'{0}' is ambiguous.\n".format(wot_identifier))
+                raise util.Abort("'{0}' matches more than one identity.\n"
+                                 .format(wot_identifier))
 
         # Partial matching not supported, or unknown truster. The only
         # difference in the errors is human-readable, so just try the exact
