@@ -131,39 +131,38 @@ def _get_identity(wot_identifier, truster):
     # TODO: Should this manually ensure an identity has a vcs context
     # otherwise?
 
-    # LCWoT can have * to allow a wildcard match, but a wildcard alone is
-    # not allowed. See Lucine Term Modifiers documentation. The nickname
-    # uses this syntax but the ID is inherently startswith().
-    params = {'Message': 'GetIdentitiesByPartialNickname',
-              'Truster': truster.identity_id,
-              'PartialNickname':
-              nickname_prefix + '*' if nickname_prefix else '',
-              'PartialID': key_prefix,
-              'MaxIdentities': 2,
-              'Context': 'vcs'}
+    # GetIdentitiesByPartialNickname does not support empty nicknames.
+    if nickname_prefix:
+        params = {'Message': 'GetIdentitiesByPartialNickname',
+                  'Truster': truster.identity_id,
+                  'PartialNickname':
+                  nickname_prefix + '*',
+                  'PartialID': key_prefix,
+                  'MaxIdentities': 2,
+                  'Context': 'vcs'}
 
-    response = \
-        node.fcpPluginMessage(async=False,
-                              plugin_name="plugins.WebOfTrust.WebOfTrust",
-                              plugin_params=params)[0]
+        response = \
+            node.fcpPluginMessage(async=False,
+                                  plugin_name="plugins.WebOfTrust.WebOfTrust",
+                                  plugin_params=params)[0]
 
-    if response['header'] != 'FCPPluginReply' or \
-            'Replies.Message' not in response:
-        raise util.Abort('Unexpected reply. Got {0}\n'.format(response))
-    elif response['Replies.Message'] == 'Identities':
-        matches = response['Replies.IdentitiesMatched']
-        if matches == 0:
-            raise util.Abort("No identities match '{0}'\n".format(
-                wot_identifier))
-        elif matches == 1:
-            return response
-        else:
-            raise util.Abort("'{0}' is ambiguous.\n".format(wot_identifier))
+        if response['header'] != 'FCPPluginReply' or \
+                'Replies.Message' not in response:
+            raise util.Abort('Unexpected reply. Got {0}\n'.format(response))
+        elif response['Replies.Message'] == 'Identities':
+            matches = response['Replies.IdentitiesMatched']
+            if matches == 0:
+                raise util.Abort("No identities match '{0}'\n".format(
+                    wot_identifier))
+            elif matches == 1:
+                return response
+            else:
+                raise util.Abort("'{0}' is ambiguous.\n".format(wot_identifier))
 
-    # Partial matching not supported, or unknown truster. The only
-    # difference in the errors is human-readable, so just try the exact
-    # match.
-    assert response['Replies.Message'] == 'Error'
+        # Partial matching not supported, or unknown truster. The only
+        # difference in the errors is human-readable, so just try the exact
+        # match.
+        assert response['Replies.Message'] == 'Error'
 
     # key_prefix must be a complete key for the lookup to succeed.
     params = {'Message': 'GetIdentity',
