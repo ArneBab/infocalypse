@@ -166,7 +166,7 @@ def _get_identity(wot_identifier, truster):
 
     # key_prefix must be a complete key for the lookup to succeed.
     params = {'Message': 'GetIdentity',
-              'Truster': truster,
+              'Truster': truster.identity_id,
               'Identity': key_prefix}
     response = \
         node.fcpPluginMessage(async=False,
