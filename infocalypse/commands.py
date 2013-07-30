@@ -514,8 +514,11 @@ def infocalypse_setupfreemail(ui, repo, **opts):
 
 def get_truster(ui, repo, truster_identifier=None):
     """
-    Return a local WoT ID - either one that published this repository or the
-    default.
+    Return a local WoT ID.
+
+    If truster_identifier is given, use that. Otherwise, either the identity
+    that published this repository, or if one is not set the default truster.
+
     :rtype : Local_WoT_ID
     """
     from wot_id import Local_WoT_ID
