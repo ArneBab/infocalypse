@@ -107,6 +107,11 @@ class Local_WoT_ID(WoT_ID):
     """
 
     def __init__(self, wot_identifier):
+        """
+        Create a WoT_ID for a local identity matching the identifier.
+
+        :type wot_identifier: str
+        """
         id_num, message = _get_local_identity(wot_identifier)
 
         self.insert_uri = USK(message['Replies.InsertURI{0}'.format(id_num)])
@@ -120,6 +125,9 @@ def _get_identity(wot_identifier, truster):
 
     Return an FCP reply from WoT for an identity on the truster's trust list
     matching the identifier. Abort if anything but exactly one match is found.
+
+    :type wot_identifier: str
+    :type truster: Local_WoT_ID
     """
     nickname_prefix, key_prefix = _parse_name(wot_identifier)
     # TODO: Support different FCP IP / port.
@@ -189,6 +197,8 @@ def _get_local_identity(wot_identifier):
 
     Return (id_number, FCP reply) from WoT for a local identity matching the
     identifier. Abort if anything but exactly one match is found.
+
+    :type wot_identifier: str
     """
     nickname_prefix, key_prefix = _parse_name(wot_identifier)
 
