@@ -176,7 +176,9 @@ def _get_identity(wot_identifier, truster):
 
     if response['Replies.Message'] == 'Error':
         # Searching by exact public key hash, not matching.
-        raise util.Abort("No such identity '{0}'.\n".format(wot_identifier))
+        raise util.Abort("No identity has the complete public key hash '{0}'. "
+                         "({1}) To flexibly match by partial nickname and key "
+                         "use LCWoT.\n".format(key_prefix, wot_identifier))
 
     # There should be only one result.
     # Depends on https://bugs.freenetproject.org/view.php?id=5729
