@@ -89,8 +89,7 @@ def infocalypse_create(ui_, repo, **opts):
         import fcp
         node = fcp.FCPNode()
         vcs_response =\
-            node.fcpPluginMessage(async=False,
-                                  plugin_name="plugins.WebOfTrust.WebOfTrust",
+            node.fcpPluginMessage(plugin_name="plugins.WebOfTrust.WebOfTrust",
                                   plugin_params=msg_params)[0]
 
         if vcs_response['header'] != 'FCPPluginReply' or\

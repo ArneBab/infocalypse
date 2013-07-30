@@ -142,8 +142,7 @@ def _get_identity(wot_identifier, truster):
                   'Context': 'vcs'}
 
         response = \
-            node.fcpPluginMessage(async=False,
-                                  plugin_name="plugins.WebOfTrust.WebOfTrust",
+            node.fcpPluginMessage(plugin_name="plugins.WebOfTrust.WebOfTrust",
                                   plugin_params=params)[0]
 
         if response['header'] != 'FCPPluginReply' or \
@@ -169,8 +168,7 @@ def _get_identity(wot_identifier, truster):
               'Truster': truster.identity_id,
               'Identity': key_prefix}
     response = \
-        node.fcpPluginMessage(async=False,
-                              plugin_name="plugins.WebOfTrust.WebOfTrust",
+        node.fcpPluginMessage(plugin_name="plugins.WebOfTrust.WebOfTrust",
                               plugin_params=params)[0]
 
     if response['Replies.Message'] == 'Error':
@@ -196,8 +194,7 @@ def _get_local_identity(wot_identifier):
 
     node = fcp.FCPNode()
     response = \
-        node.fcpPluginMessage(async=False,
-                              plugin_name="plugins.WebOfTrust.WebOfTrust",
+        node.fcpPluginMessage(plugin_name="plugins.WebOfTrust.WebOfTrust",
                               plugin_params={'Message':
                                              'GetOwnIdentities'})[0]
 
