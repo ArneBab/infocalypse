@@ -568,7 +568,7 @@ extensions.wrapfunction(discovery, 'findcommonoutgoing', findcommonoutgoing)
 # wrap the commands
 
 
-def freenetpathtouri(ui, path, pull=True):
+def freenetpathtouri(ui, path, pull=True, repo=None):
     """
     Return a usable request or insert URI. Expects a freenet:// or freenet:
     protocol to be specified.
@@ -588,9 +588,7 @@ def freenetpathtouri(ui, path, pull=True):
     if not path.startswith("USK"):
         import wot
         if pull:
-            cfg = Config.from_ui(ui)
-            # TODO: Check for ID associated with this repo first.
-            truster = cfg.defaults['DEFAULT_TRUSTER']
+            truster = get_truster(ui, repo)
             return wot.resolve_pull_uri(ui, path, truster)
         else:
             return wot.resolve_push_uri(ui, path)
@@ -703,13 +701,16 @@ def freenetclone(orig, *args, **opts):
             if dest.endswith(".R1") or dest.endswith(".R0"):
                 dest = dest[:-3]
 
+    # TODO: source holds the "repo" argument, but the naming is confusing in
+    # the context of freenetpathtouri().
     # check whether to create, pull or copy
     pulluri, pushuri = None, None
     if isfreenetpath(source):
-        pulluri = parse_repo_path(freenetpathtouri(ui, source))
+        pulluri = parse_repo_path(freenetpathtouri(ui, source, repo=source))
 
     if isfreenetpath(dest):
-        pushuri = parse_repo_path(freenetpathtouri(ui, dest, pull=False),
+        pushuri = parse_repo_path(freenetpathtouri(ui, dest, pull=False,
+                                                   repo=source),
                                   assume_redundancy=True)
 
     # decide which infocalypse command to use.
