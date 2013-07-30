@@ -161,8 +161,7 @@ def _get_identity(wot_identifier, truster):
                                  .format(wot_identifier))
 
         # Partial matching not supported, or unknown truster. The only
-        # difference in the errors is human-readable, so just try the exact
-        # match.
+        # difference in the errors is human-readable, so try the exact match.
         assert response['Replies.Message'] == 'Error'
 
     # key_prefix must be a complete key for the lookup to succeed.
