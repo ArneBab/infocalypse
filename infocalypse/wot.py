@@ -437,8 +437,6 @@ def resolve_push_uri(ui, path):
 
     local_id = Local_WoT_ID(wot_id)
 
-    insert_uri = local_id.insert_uri
-
     # TODO: find_repo should make it clearer that it returns a request URI,
     # and return a USK.
     repo = find_repo(ui, local_id, repo_name)
@@ -447,7 +445,7 @@ def resolve_push_uri(ui, path):
     repo_uri = USK(repo)
 
     # Maintains name, edition.
-    repo_uri.key = insert_uri.key
+    repo_uri.key = local_id.insert_uri.key
 
     return str(repo_uri)
 
