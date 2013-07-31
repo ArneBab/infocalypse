@@ -512,12 +512,15 @@ def infocalypse_setupfreemail(ui, repo, **opts):
     wot.execute_setup_freemail(ui, get_truster(ui, repo, opts['truster']))
 
 
-def get_truster(ui, repo, truster_identifier=None):
+def get_truster(ui, repo=None, truster_identifier=None):
     """
     Return a local WoT ID.
 
-    If truster_identifier is given, use that. Otherwise, either the identity
-    that published this repository, or if one is not set the default truster.
+    Search for a local identity from most to least specific:
+    1. truster_identifier (if given)
+    2. identity that published this respository (if repo is given and an
+                                                 identity is set)
+    3. default truster
 
     :rtype : Local_WoT_ID
     """
@@ -529,7 +532,11 @@ def get_truster(ui, repo, truster_identifier=None):
 
         # Value is identity ID, so '@' prefix makes it an identifier with an
         # empty nickname.
-        identity = cfg.get_wot_identity(cfg.get_request_uri(repo.root))
+        identity = None
+        if repo:
+            identity = cfg.get_wot_identity(cfg.get_request_uri(repo.root))
+
+        # Either repo is not given or there is no associated identity.
         if not identity:
             identity = cfg.defaults['DEFAULT_TRUSTER']
 
