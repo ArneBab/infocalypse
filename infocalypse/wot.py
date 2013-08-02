@@ -87,7 +87,7 @@ def send_pull_request(ui, repo, from_identity, to_identity, to_repo_name):
     to_address = require_freemail(to_identity)
 
     cfg = Config.from_ui(ui)
-    password = cfg.get_freemail_password(from_identity.identity_id)
+    password = cfg.get_freemail_password(from_identity)
 
     to_repo = find_repo(ui, to_identity, to_repo_name)
 
