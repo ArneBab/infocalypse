@@ -423,11 +423,16 @@ def resolve_pull_uri(ui, path, truster):
         return find_repo(ui, identity, repo_name)
 
 
-def resolve_push_uri(ui, path):
+def resolve_push_uri(ui, path, resolve_edition=True):
     """
     Return a push URI for the given path.
     Raise util.Abort if unable to resolve identity or repository.
 
+    :param resolve_edition: Defaults to True. If False, skips resolving the
+                            repository, uses the edition number 0. and does
+                            not modify the repository name. This is useful
+                            for finding a push URI for a repository that does
+                            not already exist.
     :param ui: For feedback.
     :param path: path describing a repo - nick@key/repo_name,
     where the identity is a local one. (Such that the insert URI is known.)
@@ -437,17 +442,25 @@ def resolve_push_uri(ui, path):
 
     local_id = Local_WoT_ID(wot_id)
 
-    # TODO: find_repo should make it clearer that it returns a request URI,
-    # and return a USK.
-    repo = find_repo(ui, local_id, repo_name)
+    if resolve_edition:
+        # TODO: find_repo should make it clearer that it returns a request URI,
+        # and return a USK.
+        repo = find_repo(ui, local_id, repo_name)
 
-    # Request URI
-    repo_uri = USK(repo)
+        # Request URI
+        repo_uri = USK(repo)
 
-    # Maintains name, edition.
-    repo_uri.key = local_id.insert_uri.key
+        # Maintains name, edition.
+        repo_uri.key = local_id.insert_uri.key
 
-    return str(repo_uri)
+        return str(repo_uri)
+    else:
+        repo_uri = local_id.insert_uri.clone()
+
+        repo_uri.name = repo_name
+        repo_uri.edition = 0
+
+        return str(repo_uri)
 
 
 def execute_setup_wot(ui_, local_id):

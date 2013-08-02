@@ -568,12 +568,24 @@ extensions.wrapfunction(discovery, 'findcommonoutgoing', findcommonoutgoing)
 # wrap the commands
 
 
-def freenetpathtouri(ui, path, repo=None, pull=True):
+def freenetpathtouri(ui, path, operation, repo=None):
     """
     Return a usable request or insert URI. Expects a freenet:// or freenet:
     protocol to be specified.
 
     If the key is not a USK it will be resolved as a WoT identity.
+
+
+    :param repo: Mercurial localrepository, used to resolve the truster set
+                 for the repository.
+    :param operation: A string name of the operation the URI will be used to
+                      perform. Used to return the appropriate result with
+                      WoT-integrated URI resolution. Valid operations are:
+                       * "pull" - request URI for existing repository.
+                       * "push" - insert URI for existing repository.
+                       * "clone-push" - insert URI for repository that might
+                                        not exist. (Skips looking up
+                                        published name and edition.)
     """
     # TODO: Is this the only URL encoding that may happen? Why not use a more
     # semantically meaningful function?
@@ -587,11 +599,16 @@ def freenetpathtouri(ui, path, repo=None, pull=True):
     # nick to be "USK", but this is a corner case. Using --wot will still work.
     if not path.startswith("USK"):
         import wot
-        if pull:
+        if operation == "pull":
             truster = get_truster(ui, repo)
             return wot.resolve_pull_uri(ui, path, truster)
-        else:
+        elif operation == "push":
             return wot.resolve_push_uri(ui, path)
+        elif operation == "clone-push":
+            return wot.resolve_push_uri(ui, path, resolve_edition=False)
+        else:
+            raise util.Abort("Internal error: invalid operation '{0}' when "
+                             "resolving WoT-integrated URI.".format(operation))
     else:
         return path
 
@@ -613,7 +630,7 @@ def freenetpull(orig, *args, **opts):
     # only act differently, if the target is an infocalypse repo.
     if not isfreenetpath(path):
         return orig(*args, **opts)
-    uri = freenetpathtouri(ui, path, repo)
+    uri = freenetpathtouri(ui, path, "pull", repo)
     opts["uri"] = uri
     opts["aggressive"] = True # always search for the latest revision.
     return infocalypse_pull(ui, repo, **opts)
@@ -650,7 +667,7 @@ def freenetpush(orig, *args, **opts):
     # only act differently, if the target is an infocalypse repo.
     if not isfreenetpath(path):
         return orig(*args, **opts)
-    uri = parse_repo_path(freenetpathtouri(ui, path, repo, pull=False))
+    uri = parse_repo_path(freenetpathtouri(ui, path, "push", repo))
     if uri is None:
         return
     # if the uri is the short form (USK@/name/#), generate the key and preprocess the uri.
@@ -706,10 +723,10 @@ def freenetclone(orig, *args, **opts):
     # check whether to create, pull or copy
     pulluri, pushuri = None, None
     if isfreenetpath(source):
-        pulluri = parse_repo_path(freenetpathtouri(ui, source))
+        pulluri = parse_repo_path(freenetpathtouri(ui, source, "pull"))
 
     if isfreenetpath(dest):
-        pushuri = parse_repo_path(freenetpathtouri(ui, dest, pull=False),
+        pushuri = parse_repo_path(freenetpathtouri(ui, dest, "clone-push"),
                                   assume_redundancy=True)
 
     # decide which infocalypse command to use.
