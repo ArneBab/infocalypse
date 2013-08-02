@@ -14,7 +14,7 @@ from wot_id import Local_WoT_ID, WoT_ID
 FREEMAIL_SMTP_PORT = 4025
 FREEMAIL_IMAP_PORT = 4143
 VCS_TOKEN = "[vcs]"
-PLUGIN_NAME = "org.freenetproject.plugin.infocalypse_webui.main.InfocalypsePlugin"
+PLUGIN_NAME = "org.freenetproject.plugin.dvcs_webui.main.Plugin"
 
 
 def connect(ui, repo):
