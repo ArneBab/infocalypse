@@ -1,0 +1,27 @@
+# Lines starting with '#' and sections without content
+# are not displayed by a call to 'details'
+#
+[paths]
+# Paths related to this bug.
+# suggested format: REPO_PATH:LINENUMBERS
+
+
+[details]
+When using clone . freenet:nickname/reponame to create a repository:
+    - The repository list is not updated. (No request URI in ~/.infocalypse)
+    - "hg push" doesn't work as the default path cannot be reversed to an insert URI and default-push is not set. Set default-push.
+
+[expected]
+# The expected result
+
+
+[actual]
+# What happened instead
+
+
+[reproduce]
+# Reproduction steps
+
+
+[comments]
+# Comments and updates - leave your name
