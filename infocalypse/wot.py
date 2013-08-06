@@ -15,6 +15,9 @@ FREEMAIL_SMTP_PORT = 4025
 FREEMAIL_IMAP_PORT = 4143
 VCS_TOKEN = "[vcs]"
 PLUGIN_NAME = "org.freenetproject.plugin.dvcs_webui.main.Plugin"
+# "infocalypse" is lower case in case it is used somewhere mixed case can
+# cause problems like a filesystem path. Used for machine-readable VCS name.
+VCS_NAME = "infocalypse"
 
 
 def connect(ui, repo):
@@ -103,10 +106,8 @@ def send_pull_request(ui, repo, from_identity, to_identity, to_repo_name):
     from_branch = repo_context.branch()
 
     # Use double-quoted scalars so that Unicode can be included. (Nicknames.)
-    # "infocalypse" is lower case in case it is used somewhere mixed case can
-    # cause problems like a filesystem path.
     footer = yaml.dump({'request': 'pull',
-                        'vcs': 'infocalypse',
+                        'vcs': VCS_NAME,
                         'source': from_uri + '#' + from_branch,
                         'target': to_repo}, default_style='"',
                        explicit_start=True, explicit_end=True,
@@ -245,9 +246,7 @@ def read_message_yaml(ui, from_address, subject, body):
                   " formatted. Details:\n%s\n" % (subject, e))
         return
 
-    # "infocalypse" is lower case in case it is used somewhere mixed case can
-    # cause problems like a filesystem path.
-    if request['vcs'] != 'infocalypse':
+    if request['vcs'] != VCS_NAME:
         ui.status("Notification '%s' is for '%s', not Infocalypse.\n"
                   % (subject, request['vcs']))
         return
@@ -300,7 +299,7 @@ def update_repo_listing(ui, for_identity):
 
     for request_uri in build_repo_list(ui, for_identity):
         repo = ET.SubElement(root, 'repository', {
-            'vcs': 'Infocalypse',
+            'vcs': VCS_NAME,
         })
         repo.text = request_uri
 
@@ -386,7 +385,7 @@ def read_repo_listing(ui, identity):
     repositories = {}
     root = fromstring(repo_xml)
     for repository in root.iterfind('repository'):
-        if repository.get('vcs') == 'Infocalypse':
+        if repository.get('vcs') == VCS_NAME:
             uri = repository.text
             # Expecting key/reponame.R<num>/edition
             name = uri.split('/')[1].split('.')[0]
