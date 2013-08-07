@@ -568,7 +568,7 @@ extensions.wrapfunction(discovery, 'findcommonoutgoing', findcommonoutgoing)
 # wrap the commands
 
 
-def freenetpathtouri(ui, path, pull=True):
+def freenetpathtouri(ui, path, repo=None, pull=True):
     """
     Return a usable request or insert URI. Expects a freenet:// or freenet:
     protocol to be specified.
@@ -588,9 +588,7 @@ def freenetpathtouri(ui, path, pull=True):
     if not path.startswith("USK"):
         import wot
         if pull:
-            cfg = Config.from_ui(ui)
-            # TODO: Check for ID associated with this repo first.
-            truster = cfg.defaults['DEFAULT_TRUSTER']
+            truster = get_truster(ui, repo)
             return wot.resolve_pull_uri(ui, path, truster)
         else:
             return wot.resolve_push_uri(ui, path)
@@ -615,7 +613,7 @@ def freenetpull(orig, *args, **opts):
     # only act differently, if the target is an infocalypse repo.
     if not isfreenetpath(path):
         return orig(*args, **opts)
-    uri = freenetpathtouri(ui, path)
+    uri = freenetpathtouri(ui, path, repo)
     opts["uri"] = uri
     opts["aggressive"] = True # always search for the latest revision.
     return infocalypse_pull(ui, repo, **opts)
@@ -652,7 +650,7 @@ def freenetpush(orig, *args, **opts):
     # only act differently, if the target is an infocalypse repo.
     if not isfreenetpath(path):
         return orig(*args, **opts)
-    uri = parse_repo_path(freenetpathtouri(ui, path, pull=False))
+    uri = parse_repo_path(freenetpathtouri(ui, path, repo, pull=False))
     if uri is None:
         return
     # if the uri is the short form (USK@/name/#), generate the key and preprocess the uri.
@@ -703,6 +701,8 @@ def freenetclone(orig, *args, **opts):
             if dest.endswith(".R1") or dest.endswith(".R0"):
                 dest = dest[:-3]
 
+    # TODO: source holds the "repo" argument, but the naming is confusing in
+    # the context of freenetpathtouri().
     # check whether to create, pull or copy
     pulluri, pushuri = None, None
     if isfreenetpath(source):

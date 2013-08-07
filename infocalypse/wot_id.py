@@ -107,6 +107,11 @@ class Local_WoT_ID(WoT_ID):
     """
 
     def __init__(self, wot_identifier):
+        """
+        Create a WoT_ID for a local identity matching the identifier.
+
+        :type wot_identifier: str
+        """
         id_num, message = _get_local_identity(wot_identifier)
 
         self.insert_uri = USK(message['Replies.InsertURI{0}'.format(id_num)])
@@ -120,6 +125,9 @@ def _get_identity(wot_identifier, truster):
 
     Return an FCP reply from WoT for an identity on the truster's trust list
     matching the identifier. Abort if anything but exactly one match is found.
+
+    :type wot_identifier: str
+    :type truster: Local_WoT_ID
     """
     nickname_prefix, key_prefix = _parse_name(wot_identifier)
     # TODO: Support different FCP IP / port.
@@ -131,52 +139,52 @@ def _get_identity(wot_identifier, truster):
     # TODO: Should this manually ensure an identity has a vcs context
     # otherwise?
 
-    # LCWoT can have * to allow a wildcard match, but a wildcard alone is
-    # not allowed. See Lucine Term Modifiers documentation. The nickname
-    # uses this syntax but the ID is inherently startswith().
-    params = {'Message': 'GetIdentitiesByPartialNickname',
-              'Truster': truster.identity_id,
-              'PartialNickname':
-              nickname_prefix + '*' if nickname_prefix else '',
-              'PartialID': key_prefix,
-              'MaxIdentities': 2,
-              'Context': 'vcs'}
+    # GetIdentitiesByPartialNickname does not support empty nicknames.
+    if nickname_prefix:
+        params = {'Message': 'GetIdentitiesByPartialNickname',
+                  'Truster': truster.identity_id,
+                  'PartialNickname':
+                  nickname_prefix + '*',
+                  'PartialID': key_prefix,
+                  'MaxIdentities': 2,
+                  'Context': 'vcs'}
 
-    response = \
-        node.fcpPluginMessage(async=False,
-                              plugin_name="plugins.WebOfTrust.WebOfTrust",
-                              plugin_params=params)[0]
+        response = \
+            node.fcpPluginMessage(plugin_name="plugins.WebOfTrust.WebOfTrust",
+                                  plugin_params=params)[0]
 
-    if response['header'] != 'FCPPluginReply' or \
-            'Replies.Message' not in response:
-        raise util.Abort('Unexpected reply. Got {0}\n'.format(response))
-    elif response['Replies.Message'] == 'Identities':
-        matches = response['Replies.IdentitiesMatched']
-        if matches == 0:
-            raise util.Abort("No identities match '{0}'\n".format(
-                wot_identifier))
-        elif matches == 1:
-            return response
-        else:
-            raise util.Abort("'{0}' is ambiguous.\n".format(wot_identifier))
+        if response['header'] != 'FCPPluginReply' or \
+                'Replies.Message' not in response:
+            raise util.Abort('Unexpected reply. Got {0}\n'.format(response))
+        elif response['Replies.Message'] == 'Identities':
+            matches = response['Replies.IdentitiesMatched']
+            if matches == 0:
+                raise util.Abort("No identities match '{0}'\n".format(
+                    wot_identifier))
+            elif matches == 1:
+                return response
+            else:
+                raise util.Abort("'{0}' matches more than one identity.\n"
+                                 .format(wot_identifier))
 
-    # Partial matching not supported, or unknown truster. The only
-    # difference in the errors is human-readable, so just try the exact
-    # match.
-    assert response['Replies.Message'] == 'Error'
+        # Partial matching not supported, or unknown truster. The only
+        # difference in the errors is human-readable, so try the exact match.
+        assert response['Replies.Message'] == 'Error'
 
     # key_prefix must be a complete key for the lookup to succeed.
     params = {'Message': 'GetIdentity',
-              'Truster': truster,
+              'Truster': truster.identity_id,
               'Identity': key_prefix}
     response = \
-        node.fcpPluginMessage(async=False,
-                              plugin_name="plugins.WebOfTrust.WebOfTrust",
+        node.fcpPluginMessage(plugin_name="plugins.WebOfTrust.WebOfTrust",
                               plugin_params=params)[0]
 
     if response['Replies.Message'] == 'Error':
         # Searching by exact public key hash, not matching.
-        raise util.Abort("No such identity '{0}'.\n".format(wot_identifier))
+        raise util.Abort("No identity has the complete public key hash '{0}'. "
+                         "({1}) To flexibly match by partial nickname and key "
+                         "use LCWoT for now.\n".format(key_prefix,
+                                                       wot_identifier))
 
     # There should be only one result.
     # Depends on https://bugs.freenetproject.org/view.php?id=5729
@@ -189,13 +197,14 @@ def _get_local_identity(wot_identifier):
 
     Return (id_number, FCP reply) from WoT for a local identity matching the
     identifier. Abort if anything but exactly one match is found.
+
+    :type wot_identifier: str
     """
     nickname_prefix, key_prefix = _parse_name(wot_identifier)
 
     node = fcp.FCPNode()
     response = \
-        node.fcpPluginMessage(async=False,
-                              plugin_name="plugins.WebOfTrust.WebOfTrust",
+        node.fcpPluginMessage(plugin_name="plugins.WebOfTrust.WebOfTrust",
                               plugin_params={'Message':
                                              'GetOwnIdentities'})[0]
 

@@ -89,8 +89,7 @@ def infocalypse_create(ui_, repo, **opts):
         import fcp
         node = fcp.FCPNode()
         vcs_response =\
-            node.fcpPluginMessage(async=False,
-                                  plugin_name="plugins.WebOfTrust.WebOfTrust",
+            node.fcpPluginMessage(plugin_name="plugins.WebOfTrust.WebOfTrust",
                                   plugin_params=msg_params)[0]
 
         if vcs_response['header'] != 'FCPPluginReply' or\
@@ -197,7 +196,7 @@ def infocalypse_pull(ui_, repo, **opts):
         request_uri = get_uri_from_hash(ui_, repo, params, stored_cfg)
     elif opts['wot']:
         import wot
-        truster = get_truster(ui_, repo, opts)
+        truster = get_truster(ui_, repo, opts['truster'])
 
         request_uri = wot.resolve_pull_uri(ui_, opts['wot'], truster)
     elif opts['uri']:
@@ -223,7 +222,7 @@ def infocalypse_pull_request(ui, repo, **opts):
                          "--wot.\n")
 
     wot_id, repo_name = opts['wot'].split('/', 1)
-    from_identity = get_truster(ui, repo, opts)
+    from_identity = get_truster(ui, repo, opts['truster'])
     to_identity = WoT_ID(wot_id, from_identity)
     wot.send_pull_request(ui, repo, from_identity, to_identity, repo_name)
 
@@ -510,23 +509,34 @@ def infocalypse_setupfreemail(ui, repo, **opts):
     import wot
     # TODO: Here --truster doesn't make sense. There is no trust involved.
     # TODO: Should this be part of the normal fn-setup?
-    wot.execute_setup_freemail(ui, get_truster(ui, repo, opts))
+    wot.execute_setup_freemail(ui, get_truster(ui, repo, opts['truster']))
 
 
-def get_truster(ui, repo, opts):
+def get_truster(ui, repo=None, truster_identifier=None):
     """
-    Return a local WoT ID - either one that published this repository or the
-    default.
+    Return a local WoT ID.
+
+    Search for a local identity from most to least specific:
+    1. truster_identifier (if given)
+    2. identity that published this respository (if repo is given and an
+                                                 identity is set)
+    3. default truster
+
     :rtype : Local_WoT_ID
     """
     from wot_id import Local_WoT_ID
-    if opts['truster']:
-        return Local_WoT_ID(opts['truster'])
+    if truster_identifier:
+        return Local_WoT_ID(truster_identifier)
     else:
-        cfg = Config().from_ui(ui)
+        cfg = Config.from_ui(ui)
 
-        # Value is identity ID.
-        identity = cfg.get_wot_identity(cfg.get_request_uri(repo.root))
+        # Value is identity ID, so '@' prefix makes it an identifier with an
+        # empty nickname.
+        identity = None
+        if repo:
+            identity = cfg.get_wot_identity(cfg.get_request_uri(repo.root))
+
+        # Either repo is not given or there is no associated identity.
         if not identity:
             identity = cfg.defaults['DEFAULT_TRUSTER']
 

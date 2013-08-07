@@ -9,14 +9,8 @@ WoT identifier -
                  Web of Trust identifier. This is MyNickname@public-key-hash.
                  Often abbreviated "wot_id". Not to be confused with a WoT
                  identity.
-WoT identity -
+WoT identity ID -
               name given to the public key hash when returned by WoT.
-              Can also refer to a dictionary containing the Identity and
-              other attributes such as a request URI and contexts.
-
-              TODO: Apparently in the WoT code this is actually called
-              "identity ID". "ID" -> "identification" ~ "identifier",
-              right? What does that leave to call "nick@public key hash"?
 
 ------------------------------------------------------------
 Dev log:
