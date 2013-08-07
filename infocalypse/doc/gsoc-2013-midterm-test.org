@@ -2,11 +2,11 @@
 
 * Intro
 
-Testing Infocalypse Features for the midterm evaluation.
+Testing Infocalypse Features from the midterm plans. Firstoff only personal notes, pending an LCWoT rebuild.
 
 * Setup
 
-Infocalypse at 
+Get infocalypse:
 
 #+BEGIN_SRC 
 hg -R ~/infocalypse_wiki_hacking/ up f5800540e7f6
