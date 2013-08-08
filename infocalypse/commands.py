@@ -63,8 +63,8 @@ def infocalypse_create(ui_, repo, **opts):
         nick_prefix, repo_name, repo_edition = opts['wot'].split('/', 2)
 
         if not repo_name.endswith('.R1') and not repo_name.endswith('.R0'):
-            ui_.warning("Warning: Creating repository without redundancy. (R0"
-                        " or R1)")
+            ui_.warn("Warning: Creating repository without redundancy. (R0 or"
+                     " R1)\n")
 
         from wot_id import Local_WoT_ID
 
