@@ -128,8 +128,13 @@ class Config:
         # repo id -> publisher WoT identity
         self.wot_identities = {}
         # TODO: Should this be keyed by str(WoT_ID) ?
-        # WoT public key hash -> Freemail password
+        # WoT identity ID -> Freemail password
         self.freemail_passwords = {}
+        # WoT identity ID -> last known repo list edition.
+        # TODO: Once WoT allows setting a property without triggering an
+        # immediate insert, this can move to a WoT property. (Can then query
+        # remote identities! Easier bootstrapping than from edition 0.)
+        self.repo_list_editions = {}
         # fms_id -> (usk_hash, ...) map
         self.fmsread_trust_map = DEFAULT_TRUST.copy()
         self.fmsread_groups = DEFAULT_GROUPS
@@ -269,6 +274,23 @@ class Config:
                              "Run hg fn-setupfreemail --truster {0}\n"
                              .format(wot_identity))
 
+    def set_repo_list_edition(self, wot_identity, edition):
+        """
+        Set the repository list edition for the given WoT identity.
+        :type wot_identity: WoT_ID
+        """
+        self.repo_list_editions[wot_identity.identity_id] = edition
+
+    def get_repo_list_edition(self, wot_identity):
+        """
+        Return the repository list edition associated with the given WoT
+        identity. Return 0 if one is not set.
+        """
+        if wot_identity.identity_id in self.repo_list_editions:
+            return self.repo_list_editions[wot_identity.identity_id]
+        else:
+            return 0
+
     # Hmmm... really nescessary?
     def get_dir_insert_uri(self, repo_dir):
         """ Return the insert USK for repo_dir or None. """
@@ -383,6 +405,11 @@ class Config:
                 cfg.freemail_passwords[wot_id] = parser.get(
                     'freemail_passwords', wot_id)
 
+        if parser.has_section('repo_list_editions'):
+            for wot_id in parser.options('repo_list_editions'):
+                cfg.repo_list_editions[wot_id] = int(parser.get(
+                    'repo_list_editions', wot_id))
+
         # ignored = fms_id|usk_hash|usk_hash|...
         if parser.has_section('fmsread_trust_map'):
             cfg.fmsread_trust_map.clear() # Wipe defaults.
@@ -466,6 +493,10 @@ class Config:
         parser.add_section('freemail_passwords')
         for wot_id in cfg.freemail_passwords:
             parser.set('freemail_passwords', wot_id, cfg.freemail_passwords[
+                wot_id])
+        parser.add_section('repo_list_editions')
+        for wot_id in cfg.repo_list_editions:
+            parser.set('repo_list_editions', wot_id, cfg.repo_list_editions[
                 wot_id])
         parser.add_section('fmsread_trust_map')
         for index, fms_id in enumerate(cfg.fmsread_trust_map):

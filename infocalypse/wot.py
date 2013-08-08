@@ -311,8 +311,10 @@ def update_repo_listing(ui, for_identity):
     # TODO: Somehow store the edition, perhaps in ~/.infocalypse. WoT
     # properties are apparently not appropriate.
 
+    cfg = Config.from_ui(ui)
+
     insert_uri.name = 'vcs'
-    insert_uri.edition = '0'
+    insert_uri.edition = cfg.get_repo_list_edition(for_identity)
 
     ui.status("Inserting with URI:\n{0}\n".format(insert_uri))
     uri = node.put(uri=str(insert_uri), mimetype='application/xml',
@@ -322,6 +324,8 @@ def update_repo_listing(ui, for_identity):
         ui.warn("Failed to update repository listing.")
     else:
         ui.status("Updated repository listing:\n{0}\n".format(uri))
+        cfg.set_repo_list_edition(for_identity, USK(uri).edition)
+        Config.to_file(cfg)
 
 
 def build_repo_list(ui, for_identity):
@@ -369,19 +373,19 @@ def read_repo_listing(ui, identity):
 
     :type identity: WoT_ID
     """
+    cfg = Config.from_ui(ui)
     uri = identity.request_uri.clone()
     uri.name = 'vcs'
-    uri.edition = 0
+    uri.edition = cfg.get_repo_list_edition(identity)
 
     # TODO: Set and read vcs edition property.
-    node = fcp.FCPNode()
-    ui.status("Fetching {0}\n".format(uri))
-    # TODO: What exception can this throw on failure? Catch it,
-    # print its description, and return None.
-    mime_type, repo_xml, msg = node.get(str(uri), priority=1,
-                                        followRedirect=True)
+    ui.status("Fetching.\n")
+    mime_type, repo_xml, msg = fetch_edition(uri)
+    ui.status("Fetched {0}.\n".format(uri))
 
-    ui.status("Parsing.\n")
+    cfg.set_repo_list_edition(identity, uri.edition)
+    Config.to_file(cfg)
+
     repositories = {}
     root = fromstring(repo_xml)
     for repository in root.iterfind('repository'):
@@ -393,6 +397,30 @@ def read_repo_listing(ui, identity):
             repositories[name] = uri
 
     return repositories
+
+
+def fetch_edition(uri):
+    """
+    Fetch a USK uri, following redirects. Change the uri edition to the one
+    fetched.
+    :type uri: USK
+    """
+    node = fcp.FCPNode()
+    # Following a redirect automatically does not provide the edition used,
+    # so manually following redirects is required.
+    # TODO: Is there ever legitimately more than one redirect?
+    try:
+        return node.get(str(uri), priority=1)
+    except fcp.FCPGetFailed, e:
+        # Error code 27 is permanent redirect: there's a newer edition of
+        # the USK.
+        # https://wiki.freenetproject.org/FCPv2/GetFailed#Fetch_Error_Codes
+        if not e.info['Code'] == 27:
+            raise
+
+        uri.edition = USK(e.info['RedirectURI']).edition
+
+        return node.get(str(uri), priority=1)
 
 
 def resolve_pull_uri(ui, path, truster):
