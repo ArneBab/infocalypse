@@ -238,8 +238,8 @@ def infocalypse_check_notifications(ui, repo, **opts):
 
 
 def infocalypse_connect(ui, repo, **opts):
-    import wot
-    wot.connect(ui, repo)
+    import plugin_connect
+    plugin_connect.connect(ui, repo)
 
 
 def infocalypse_push(ui_, repo, **opts):
