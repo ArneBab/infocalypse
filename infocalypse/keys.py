@@ -18,6 +18,28 @@ class USK:
         elif self.key.startswith('freenet://'):
             self.key = self.key[len('freenet://'):]
 
+    def get_repo_name(self):
+        """
+        Return name with the redundancy level, if any, removed.
+
+        # TODO: tests. Use in detecting duplicate names. (Also
+        # determining repo names from URI.)
+
+        >>> USK('USK@.../name/5').get_repo_name()
+        'name'
+        >>> USK('USK@.../name.R1/5').get_repo_name()
+        'name'
+        >>> USK('USK@.../name.R0/5').get_repo_name()
+        'name'
+        >>> USK('USK@.../name.something/5').get_repo_name()
+        'name.something'
+        >>> USK('USK@.../name.R2/5').get_repo_name()
+        'name.R2'
+        """
+        if self.name.endswith('.R1') or self.name.endswith('.R0'):
+            return self.name[:-3]
+        return self.name
+
     def clone(self):
         return USK(str(self))
 

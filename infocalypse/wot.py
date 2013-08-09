@@ -387,14 +387,43 @@ def read_repo_listing(ui, identity):
     Config.to_file(cfg)
 
     repositories = {}
+    ambiguous = []
     root = fromstring(repo_xml)
     for repository in root.iterfind('repository'):
         if repository.get('vcs') == VCS_NAME:
-            uri = repository.text
-            # Expecting key/reponame.R<num>/edition
-            name = uri.split('/')[1].split('.')[0]
-            ui.status("Found repository \"{0}\" at {1}\n".format(name, uri))
-            repositories[name] = uri
+            uri = USK(repository.text)
+            name = uri.get_repo_name()
+            if name not in repositories:
+                repositories[name] = uri
+            else:
+                existing = repositories[name]
+                if uri.key == existing.key and uri.name == existing.name:
+                    # Different edition of same key and complete name.
+                    # Use the latest edition.
+                    if uri.edition > existing.edition:
+                        repositories[name] = uri
+                else:
+                    # Different key or complete name. Later remove and give
+                    # warning.
+                    ambiguous.append(name)
+
+    for name in ambiguous:
+        # Same repo name but different key or exact name.
+        ui.warn("\"{0}\" refers ambiguously to multiple paths. Ignoring.\n"
+                .format(name))
+        del repositories[name]
+
+    # TODO: Would it make sense to mention those for which multiple editions
+    # are specified? It has no practical impact from this perspective,
+    # and these problems should be pointed out (or prevented) for local repo
+    # lists.
+
+    for name in repositories.iterkeys():
+        ui.status("Found repository \"{0}\".\n".format(name))
+
+    # Convert values from USKs to strings - USKs are not expected elsewhere.
+    for key in repositories.keys():
+        repositories[key] = str(repositories[key])
 
     return repositories
 
