@@ -9,17 +9,32 @@ PLUGIN_NAME = "org.freenetproject.plugin.dvcs_webui.main.Plugin"
 def connect(ui, repo):
     node = fcp.FCPNode()
 
-    # TODO: Should I be using this? Looks internal. The identifier needs to
-    # be consistent though.
-    fcp_id = node._getUniqueId()
+    ui.status("Connecting.\n")
 
-    ui.status("Connecting as '%s'.\n" % fcp_id)
+    # TODO: Would it be worthwhile to have a wrapper that includes PLUGIN_NAME?
+    # TODO: Where to document the spec? devnotes.txt? How to format?
+    hi_there = node.fcpPluginMessage(plugin_name=PLUGIN_NAME,
+                                     plugin_params={'Message': 'Hello',
+                                                    'GetRepoList': 'true'})[0]
+
+    if hi_there['header'] == 'Error':
+        raise util.Abort("The DVCS web UI plugin is not loaded.")
+
+    if hi_there['Replies.Message'] == 'Error':
+        raise util.Abort("Another VCS instance is already connected.")
+
+    print "Connected."
+    import sys
+    sys.exit()
 
     def ping():
-        pong = node.fcpPluginMessage(plugin_name=PLUGIN_NAME, id=fcp_id,
+        pong = node.fcpPluginMessage(plugin_name=PLUGIN_NAME,
                                      plugin_params={'Message': 'Ping'})[0]
         if pong['Replies.Message'] == 'Error':
             raise util.Abort(pong['Replies.Description'])
+        elif pong['Replies.Message'] != 'Pong':
+            ui.warn("Got unrecognized Ping reply '{0}'.\n".format(pong[
+                    'Replies.Message']))
         # Must be faster than the timeout threshold. (5 seconds)
         threading.Timer(4.0, ping).start()
 
@@ -36,7 +51,7 @@ def connect(ui, repo):
         # everything waits on the completion of the current operation.
         # Asynchronous code would require changes on the plugin side but
         # potentially have much lower latency.
-        command = node.fcpPluginMessage(plugin_name=PLUGIN_NAME, id=fcp_id,
+        command = node.fcpPluginMessage(plugin_name=PLUGIN_NAME,
                                         plugin_params=
                                         {'Message': 'ClearToSend',
                                          'SequenceID': sequenceID})[0]
