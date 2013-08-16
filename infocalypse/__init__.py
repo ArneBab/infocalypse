@@ -714,7 +714,13 @@ def freenetclone(orig, *args, **opts):
         else: # this is a freenet key.  It has a /# at the end and
               # could contain .R1 or .R0 as pure technical identifiers
               # which we do not need in the local name.
-            dest = source.split("/")[-2]
+            segments = source.split("/")
+            pathindex = -2
+            try:
+                int(segments[-1])
+            except ValueError: # no number revision
+                pathindex = -1
+            dest = segments[pathindex]
             if dest.endswith(".R1") or dest.endswith(".R0"):
                 dest = dest[:-3]
 
