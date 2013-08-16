@@ -494,7 +494,7 @@ def infocalypse_setupfms(ui_, **opts):
 # TODO: Why ui with trailing underscore? Is there a global "ui" somewhere?
 def infocalypse_setupwot(ui_, **opts):
     if not opts['truster']:
-        util.Abort("Specify default truster with --truster")
+        raise util.Abort("Specify default truster with --truster")
 
     import wot
     from wot_id import Local_WoT_ID
