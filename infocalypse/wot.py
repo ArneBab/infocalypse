@@ -8,77 +8,20 @@ from keys import USK
 import yaml
 from email.mime.text import MIMEText
 import imaplib
-import threading
 from wot_id import Local_WoT_ID, WoT_ID
 
 FREEMAIL_SMTP_PORT = 4025
 FREEMAIL_IMAP_PORT = 4143
-# TODO: Is whitespace in the search key illegal?
-VCS_TOKEN = "[vcs] "
-PLUGIN_NAME = "org.freenetproject.plugin.infocalypse_webui.main.InfocalypsePlugin"
-
-
-def connect(ui, repo):
-    node = fcp.FCPNode()
-
-    # TODO: Should I be using this? Looks internal. The identifier needs to
-    # be consistent though.
-    fcp_id = node._getUniqueId()
-
-    ui.status("Connecting as '%s'.\n" % fcp_id)
-
-    def ping():
-        pong = node.fcpPluginMessage(plugin_name=PLUGIN_NAME, id=fcp_id,
-                                     plugin_params={'Message': 'Ping'})[0]
-        if pong['Replies.Message'] == 'Error':
-            raise util.Abort(pong['Replies.Description'])
-        # Must be faster than the timeout threshold. (5 seconds)
-        threading.Timer(4.0, ping).start()
-
-    # Start self-perpetuating pinging in the background.
-    t = threading.Timer(0.0, ping)
-    # Daemon threads do not hold up the process exiting. Allows prompt
-    # response to - for instance - SIGTERM.
-    t.daemon = True
-    t.start()
-
-    while True:
-        sequenceID = node._getUniqueId()
-        # The event-querying is single-threaded, which makes things slow as
-        # everything waits on the completion of the current operation.
-        # Asynchronous code would require changes on the plugin side but
-        # potentially have much lower latency.
-        command = node.fcpPluginMessage(plugin_name=PLUGIN_NAME, id=fcp_id,
-                                        plugin_params=
-                                        {'Message': 'ClearToSend',
-                                         'SequenceID': sequenceID})[0]
-        # TODO: Look up handlers in a dictionary.
-        print command
-
-        # Reload the config each time - it may have changed between messages.
-        cfg = Config.from_ui(ui)
-
-        response = command['Replies.Message']
-        if response == 'Error':
-            raise util.Abort(command['Replies.Description'])
-        elif response == 'ListLocalRepos':
-            params = {'Message': 'RepoList',
-                      'SequenceID': sequenceID}
-
-            # Request USKs are keyed by repo path.
-            repo_index = 0
-            for path in cfg.request_usks.iterkeys():
-                params['Repo%s' % repo_index] = path
-                repo_index += 1
-
-            ack = node.fcpPluginMessage(plugin_name=PLUGIN_NAME, id=fcp_id,
-                                        plugin_params=params)[0]
-            print ack
+VCS_TOKEN = "[vcs]"
+# "infocalypse" is lower case in case it is used somewhere mixed case can
+# cause problems like a filesystem path. Used for machine-readable VCS name.
+VCS_NAME = "infocalypse"
 
 
 def send_pull_request(ui, repo, from_identity, to_identity, to_repo_name):
     """
-
+    Prompt for a pull request message, and send a pull request from
+    from_identity to to_identity for the repository to_repo_name.
 
     :type to_identity: WoT_ID
     :type from_identity: Local_WoT_ID
@@ -87,7 +30,7 @@ def send_pull_request(ui, repo, from_identity, to_identity, to_repo_name):
     to_address = require_freemail(to_identity)
 
     cfg = Config.from_ui(ui)
-    password = cfg.get_freemail_password(from_identity.identity_id)
+    password = cfg.get_freemail_password(from_identity)
 
     to_repo = find_repo(ui, to_identity, to_repo_name)
 
@@ -103,10 +46,8 @@ def send_pull_request(ui, repo, from_identity, to_identity, to_repo_name):
     from_branch = repo_context.branch()
 
     # Use double-quoted scalars so that Unicode can be included. (Nicknames.)
-    # "infocalypse" is lower case in case it is used somewhere mixed case can
-    # cause problems like a filesystem path.
     footer = yaml.dump({'request': 'pull',
-                        'vcs': 'infocalypse',
+                        'vcs': VCS_NAME,
                         'source': from_uri + '#' + from_branch,
                         'target': to_repo}, default_style='"',
                        explicit_start=True, explicit_end=True,
@@ -119,8 +60,8 @@ def send_pull_request(ui, repo, from_identity, to_identity, to_repo_name):
 
 HG: Enter pull request message here. Lines beginning with 'HG:' are removed.
 HG: The first line has "{0}" added before it in transit and is the subject.
-HG: The second line should be blank.
-HG: Following lines are the body of the message.
+HG: The second line is ignored.
+HG: Subsequent lines are the body of the message.
 """.format(VCS_TOKEN), str(from_identity))
     # TODO: Save message and load later in case sending fails.
 
@@ -133,7 +74,7 @@ HG: Following lines are the body of the message.
 
     # Body is third line and after.
     msg = MIMEText('\n'.join(source_lines[2:]) + footer)
-    msg['Subject'] = VCS_TOKEN + source_lines[0]
+    msg['Subject'] = VCS_TOKEN + ' ' + source_lines[0]
     msg['To'] = to_address
     msg['From'] = from_address
 
@@ -147,6 +88,8 @@ HG: Following lines are the body of the message.
 
 def check_notifications(ui, local_identity):
     """
+    Check Freemail for local_identity and print information on any VCS
+    messages received.
 
     :type local_identity: Local_WoT_ID
     """
@@ -203,9 +146,14 @@ def check_notifications(ui, local_identity):
 
 
 def read_message_yaml(ui, from_address, subject, body):
+    """
+    Print information about the given message.
+    """
     # Get consistent line endings.
     body = '\n'.join(body.splitlines())
     yaml_start = body.rfind('---\n')
+    # The .join() does not add a trailing newline, and the end token might be
+    # the last line.
     end_token = '...'
     yaml_end = body.rfind(end_token)
 
@@ -238,9 +186,7 @@ def read_message_yaml(ui, from_address, subject, body):
                   " formatted. Details:\n%s\n" % (subject, e))
         return
 
-    # "infocalypse" is lower case in case it is used somewhere mixed case can
-    # cause problems like a filesystem path.
-    if request['vcs'] != 'infocalypse':
+    if request['vcs'] != VCS_NAME:
         ui.status("Notification '%s' is for '%s', not Infocalypse.\n"
                   % (subject, request['vcs']))
         return
@@ -270,6 +216,7 @@ def require_freemail(wot_identity):
     Return the given identity's Freemail address.
     Abort with an error message if the given identity does not have a
     Freemail address / context.
+
     :type wot_identity: WoT_ID
     """
     if not wot_identity.freemail_address:
@@ -279,19 +226,20 @@ def require_freemail(wot_identity):
 
 
 def update_repo_listing(ui, for_identity):
-    # TODO: WoT property containing edition. Used when requesting.
-    # Version number to support possible format changes.
     """
+    Insert list of repositories published by the given identity.
 
     :type for_identity: Local_WoT_ID
     """
+    # TODO: WoT property containing repo list edition. Used when requesting.
+    # Version number to support possible format changes.
     root = ET.Element('vcs', {'version': '0'})
 
     ui.status("Updating repo listing for '%s'\n" % for_identity)
 
     for request_uri in build_repo_list(ui, for_identity):
         repo = ET.SubElement(root, 'repository', {
-            'vcs': 'Infocalypse',
+            'vcs': VCS_NAME,
         })
         repo.text = request_uri
 
@@ -303,8 +251,10 @@ def update_repo_listing(ui, for_identity):
     # TODO: Somehow store the edition, perhaps in ~/.infocalypse. WoT
     # properties are apparently not appropriate.
 
+    cfg = Config.from_ui(ui)
+
     insert_uri.name = 'vcs'
-    insert_uri.edition = '0'
+    insert_uri.edition = cfg.get_repo_list_edition(for_identity)
 
     ui.status("Inserting with URI:\n{0}\n".format(insert_uri))
     uri = node.put(uri=str(insert_uri), mimetype='application/xml',
@@ -314,6 +264,8 @@ def update_repo_listing(ui, for_identity):
         ui.warn("Failed to update repository listing.")
     else:
         ui.status("Updated repository listing:\n{0}\n".format(uri))
+        cfg.set_repo_list_edition(for_identity, USK(uri).edition)
+        Config.to_file(cfg)
 
 
 def build_repo_list(ui, for_identity):
@@ -342,6 +294,7 @@ def find_repo(ui, identity, repo_name):
     identity matching the given identifier.
     Raise util.Abort if unable to read repo listing or a repo by that name
     does not exist.
+
     :type identity: WoT_ID
     """
     listing = read_repo_listing(ui, identity)
@@ -357,44 +310,99 @@ def read_repo_listing(ui, identity):
     """
     Read a repo listing for a given identity.
     Return a dictionary of repository request URIs keyed by name.
+
     :type identity: WoT_ID
     """
+    cfg = Config.from_ui(ui)
     uri = identity.request_uri.clone()
     uri.name = 'vcs'
-    uri.edition = 0
+    uri.edition = cfg.get_repo_list_edition(identity)
 
     # TODO: Set and read vcs edition property.
-    node = fcp.FCPNode()
-    ui.status("Fetching {0}\n".format(uri))
-    # TODO: What exception can this throw on failure? Catch it,
-    # print its description, and return None.
-    mime_type, repo_xml, msg = node.get(str(uri), priority=1,
-                                        followRedirect=True)
+    ui.status("Fetching.\n")
+    mime_type, repo_xml, msg = fetch_edition(uri)
+    ui.status("Fetched {0}.\n".format(uri))
 
-    ui.status("Parsing.\n")
+    cfg.set_repo_list_edition(identity, uri.edition)
+    Config.to_file(cfg)
+
     repositories = {}
+    ambiguous = []
     root = fromstring(repo_xml)
     for repository in root.iterfind('repository'):
-        if repository.get('vcs') == 'Infocalypse':
-            uri = repository.text
-            # Expecting key/reponame.R<num>/edition
-            name = uri.split('/')[1].split('.')[0]
-            ui.status("Found repository \"{0}\" at {1}\n".format(name, uri))
-            repositories[name] = uri
+        if repository.get('vcs') == VCS_NAME:
+            uri = USK(repository.text)
+            name = uri.get_repo_name()
+            if name not in repositories:
+                repositories[name] = uri
+            else:
+                existing = repositories[name]
+                if uri.key == existing.key and uri.name == existing.name:
+                    # Different edition of same key and complete name.
+                    # Use the latest edition.
+                    if uri.edition > existing.edition:
+                        repositories[name] = uri
+                else:
+                    # Different key or complete name. Later remove and give
+                    # warning.
+                    ambiguous.append(name)
+
+    for name in ambiguous:
+        # Same repo name but different key or exact name.
+        ui.warn("\"{0}\" refers ambiguously to multiple paths. Ignoring.\n"
+                .format(name))
+        del repositories[name]
+
+    # TODO: Would it make sense to mention those for which multiple editions
+    # are specified? It has no practical impact from this perspective,
+    # and these problems should be pointed out (or prevented) for local repo
+    # lists.
+
+    for name in repositories.iterkeys():
+        ui.status("Found repository \"{0}\".\n".format(name))
+
+    # Convert values from USKs to strings - USKs are not expected elsewhere.
+    for key in repositories.keys():
+        repositories[key] = str(repositories[key])
 
     return repositories
+
+
+def fetch_edition(uri):
+    """
+    Fetch a USK uri, following redirects. Change the uri edition to the one
+    fetched.
+    :type uri: USK
+    """
+    node = fcp.FCPNode()
+    # Following a redirect automatically does not provide the edition used,
+    # so manually following redirects is required.
+    # TODO: Is there ever legitimately more than one redirect?
+    try:
+        return node.get(str(uri), priority=1)
+    except fcp.FCPGetFailed, e:
+        # Error code 27 is permanent redirect: there's a newer edition of
+        # the USK.
+        # https://wiki.freenetproject.org/FCPv2/GetFailed#Fetch_Error_Codes
+        if not e.info['Code'] == 27:
+            raise
+
+        uri.edition = USK(e.info['RedirectURI']).edition
+
+        return node.get(str(uri), priority=1)
 
 
 def resolve_pull_uri(ui, path, truster):
         """
         Return a pull URI for the given path.
         Print an error message and abort on failure.
-        :type truster: Local_WoT_ID
+
         TODO: Is it appropriate to outline possible errors?
         Possible failures are being unable to fetch a repo list for the given
         identity, which may be a fetch failure or being unable to find the
         identity, and not finding the requested repo in the list.
 
+        :type truster: Local_WoT_ID
         :param ui: For feedback.
         :param path: path describing a repo. nick@key/reponame
         :param truster: identity whose trust list to use.
@@ -411,11 +419,16 @@ def resolve_pull_uri(ui, path, truster):
         return find_repo(ui, identity, repo_name)
 
 
-def resolve_push_uri(ui, path):
+def resolve_push_uri(ui, path, resolve_edition=True):
     """
     Return a push URI for the given path.
     Raise util.Abort if unable to resolve identity or repository.
 
+    :param resolve_edition: Defaults to True. If False, skips resolving the
+                            repository, uses the edition number 0. and does
+                            not modify the repository name. This is useful
+                            for finding a push URI for a repository that does
+                            not already exist.
     :param ui: For feedback.
     :param path: path describing a repo - nick@key/repo_name,
     where the identity is a local one. (Such that the insert URI is known.)
@@ -425,26 +438,33 @@ def resolve_push_uri(ui, path):
 
     local_id = Local_WoT_ID(wot_id)
 
-    insert_uri = local_id.insert_uri
+    if resolve_edition:
+        # TODO: find_repo should make it clearer that it returns a request URI,
+        # and return a USK.
+        repo = find_repo(ui, local_id, repo_name)
 
-    # TODO: find_repo should make it clearer that it returns a request URI,
-    # and return a USK.
-    repo = find_repo(ui, local_id, repo_name)
+        # Request URI
+        repo_uri = USK(repo)
 
-    # Request URI
-    repo_uri = USK(repo)
+        # Maintains name, edition.
+        repo_uri.key = local_id.insert_uri.key
 
-    # Maintains name, edition.
-    repo_uri.key = insert_uri.key
+        return str(repo_uri)
+    else:
+        repo_uri = local_id.insert_uri.clone()
 
-    return str(repo_uri)
+        repo_uri.name = repo_name
+        repo_uri.edition = 0
 
-# Support for querying WoT for own identities and identities meeting various
-# criteria.
-# TODO: "cmds" suffix to module name to fit fms, arc, inf?
+        return str(repo_uri)
 
 
 def execute_setup_wot(ui_, local_id):
+    """
+    Set WoT-related defaults.
+
+    :type local_id: Local_WoT_ID
+    """
     cfg = Config.from_ui(ui_)
 
     ui_.status("Setting default truster to {0}.\n".format(local_id))
@@ -456,6 +476,8 @@ def execute_setup_wot(ui_, local_id):
 def execute_setup_freemail(ui, local_id):
     """
     Prompt for, test, and set a Freemail password for the identity.
+
+    :type local_id: Local_WoT_ID
     """
     address = require_freemail(local_id)
 

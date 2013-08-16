@@ -18,6 +18,8 @@ from validate import is_hex_string, is_fms_id
 
 import os
 
+from keys import parse_repo_path
+
 
 def set_target_version(ui_, repo, opts, params, msg_fmt):
     """ INTERNAL: Update TARGET_VERSION in params. """
@@ -51,14 +53,18 @@ def infocalypse_create(ui_, repo, **opts):
 
     insert_uri = ''
     local_id = None
-    if opts['uri'] != '' and opts['wot'] != '':
+    if opts['uri'] and opts['wot']:
         ui_.warn("Please specify only one of --uri or --wot.\n")
         return
-    elif opts['uri'] != '':
-        insert_uri = opts['uri']
-    elif opts['wot'] != '':
-        # Expecting nick_prefix/repo_name.R<redundancy num>/edition
+    elif opts['uri']:
+        insert_uri = parse_repo_path(opts['uri'])
+    elif opts['wot']:
+        opts['wot'] = parse_repo_path(opts['wot'])
         nick_prefix, repo_name, repo_edition = opts['wot'].split('/', 2)
+
+        if not repo_name.endswith('.R1') and not repo_name.endswith('.R0'):
+            ui_.warn("Warning: Creating repository without redundancy. (R0 or"
+                     " R1)\n")
 
         from wot_id import Local_WoT_ID
 
@@ -83,8 +89,7 @@ def infocalypse_create(ui_, repo, **opts):
         import fcp
         node = fcp.FCPNode()
         vcs_response =\
-            node.fcpPluginMessage(async=False,
-                                  plugin_name="plugins.WebOfTrust.WebOfTrust",
+            node.fcpPluginMessage(plugin_name="plugins.WebOfTrust.WebOfTrust",
                                   plugin_params=msg_params)[0]
 
         if vcs_response['header'] != 'FCPPluginReply' or\
@@ -95,6 +100,7 @@ def infocalypse_create(ui_, repo, **opts):
 
     else:
         ui_.warn("Please set the insert key with either --uri or --wot.\n")
+        return
 
     set_target_version(ui_, repo, opts, params,
                        "Only inserting to version(s): %s\n")
@@ -117,19 +123,21 @@ def infocalypse_copy(ui_, repo, **opts):
     """ Copy an Infocalypse repository to a new URI. """
     params, stored_cfg = get_config_info(ui_, opts)
 
-    insert_uri = opts['inserturi']
-    if insert_uri == '':
+    if not opts['inserturi']:
         # REDFLAG: fix parameter definition so that it is required?
         ui_.warn("Please set the insert URI with --inserturi.\n")
         return
+    else:
+        insert_uri = parse_repo_path(opts['inserturi'])
 
-    request_uri = opts['requesturi']
-    if request_uri == '':
+    if not opts['requesturi']:
         request_uri = stored_cfg.get_request_uri(repo.root)
         if not request_uri:
             ui_.warn("There is no stored request URI for this repo.\n"
                      "Please set one with the --requesturi option.\n")
             return
+    else:
+        request_uri = parse_repo_path(opts['requesturi'])
 
     params['INSERT_URI'] = insert_uri
     params['REQUEST_URI'] = request_uri
@@ -140,13 +148,14 @@ def infocalypse_reinsert(ui_, repo, **opts):
     """ Reinsert the current version of an Infocalypse repository. """
     params, stored_cfg = get_config_info(ui_, opts)
 
-    request_uri = opts['uri']
-    if request_uri == '':
+    if not opts['uri']:
         request_uri = stored_cfg.get_request_uri(repo.root)
         if not request_uri:
             ui_.warn("There is no stored request URI for this repo.\n"
                      "Do a fn-pull from a repository USK and try again.\n")
             return
+    else:
+        request_uri = parse_repo_path(opts['uri'])
 
     level = opts['level']
     if level < 1 or level > 5:
@@ -174,9 +183,11 @@ def infocalypse_pull(ui_, repo, **opts):
      """
     params, stored_cfg = get_config_info(ui_, opts)
 
+    request_uri = ''
+
     if opts['hash']:
         # Use FMS to lookup the uri from the repo hash.
-        if opts['uri'] != '':
+        if opts['uri']:
             ui_.warn("Ignoring --uri because --hash is set!\n")
         if len(opts['hash']) != 1:
             raise util.Abort("Only one --hash value is allowed.")
@@ -185,13 +196,13 @@ def infocalypse_pull(ui_, repo, **opts):
         request_uri = get_uri_from_hash(ui_, repo, params, stored_cfg)
     elif opts['wot']:
         import wot
-        truster = get_truster(ui_, repo, opts)
+        truster = get_truster(ui_, repo, opts['truster'])
 
         request_uri = wot.resolve_pull_uri(ui_, opts['wot'], truster)
-    else:
-        request_uri = opts['uri']
+    elif opts['uri']:
+        request_uri = parse_repo_path(opts['uri'])
 
-    if request_uri == '':
+    if not request_uri:
         request_uri = stored_cfg.get_request_uri(repo.root)
         if not request_uri:
             ui_.warn("There is no stored request URI for this repo.\n"
@@ -211,7 +222,7 @@ def infocalypse_pull_request(ui, repo, **opts):
                          "--wot.\n")
 
     wot_id, repo_name = opts['wot'].split('/', 1)
-    from_identity = get_truster(ui, repo, opts)
+    from_identity = get_truster(ui, repo, opts['truster'])
     to_identity = WoT_ID(wot_id, from_identity)
     wot.send_pull_request(ui, repo, from_identity, to_identity, repo_name)
 
@@ -227,20 +238,22 @@ def infocalypse_check_notifications(ui, repo, **opts):
 
 
 def infocalypse_connect(ui, repo, **opts):
-    import wot
-    wot.connect(ui, repo)
+    import plugin_connect
+    plugin_connect.connect(ui, repo)
 
 
 def infocalypse_push(ui_, repo, **opts):
     """ Push to an Infocalypse repository in Freenet. """
     params, stored_cfg = get_config_info(ui_, opts)
-    insert_uri = opts['uri']
-    if insert_uri == '':
+
+    if not opts['uri']:
         insert_uri = stored_cfg.get_dir_insert_uri(repo.root)
         if not insert_uri:
             ui_.warn("There is no stored insert URI for this repo.\n"
                      "Please set one with the --uri option.\n")
             return
+    else:
+        insert_uri = parse_repo_path(opts['uri'])
 
     set_target_version(ui_, repo, opts, params,
                        "Only pushing to version(s): %s\n")
@@ -270,7 +283,7 @@ def infocalypse_info(ui_, repo, **opts):
     opts['fcpport'] = 0
     params, stored_cfg = get_config_info(ui_, opts)
     request_uri = opts['uri']
-    if request_uri == '':
+    if not request_uri:
         request_uri = stored_cfg.get_request_uri(repo.root)
         if not request_uri:
             ui_.warn("There is no stored request URI for this repo.\n"
@@ -329,7 +342,7 @@ def infocalypse_fmsread(ui_, repo, **opts):
     opts['fcpport'] = 0
     params, stored_cfg = get_config_info(ui_, opts)
     request_uri = opts['uri']
-    if request_uri == '':
+    if not request_uri:
         request_uri = stored_cfg.get_request_uri(repo.root)
         if not request_uri:
             ui_.status("There is no stored request URI for this repo.\n")
@@ -381,7 +394,7 @@ def infocalypse_putsite(ui_, repo, **opts):
         return
 
     params, stored_cfg = get_config_info(ui_, opts)
-    if opts['key'] != '':  # order important
+    if opts['key']:  # order important
         params['SITE_KEY'] = opts['key']
         if not (params['SITE_KEY'].startswith('SSK') or
                 params['SITE_KEY'] == 'CHK@'):
@@ -431,13 +444,13 @@ def infocalypse_wiki(ui_, repo, **opts):
     if required > 1:
         raise util.Abort("Use either --run, --createconfig, or --apply")
 
-    if opts['apply'] != '':
+    if opts['apply']:
         params, stored_cfg = get_config_info(ui_, opts)
         params['REQUEST_URI'] = opts['apply']
         execute_wiki_apply(ui_, repo, params, stored_cfg)
         return
 
-    if opts['fcphost'] != '' or opts['fcpport'] != 0:
+    if opts['fcphost'] or opts['fcpport']:
         raise util.Abort("--fcphost, --fcpport only for --apply")
 
     # hmmmm.... useless copy?
@@ -496,23 +509,34 @@ def infocalypse_setupfreemail(ui, repo, **opts):
     import wot
     # TODO: Here --truster doesn't make sense. There is no trust involved.
     # TODO: Should this be part of the normal fn-setup?
-    wot.execute_setup_freemail(ui, get_truster(ui, repo, opts))
+    wot.execute_setup_freemail(ui, get_truster(ui, repo, opts['truster']))
 
 
-def get_truster(ui, repo, opts):
+def get_truster(ui, repo=None, truster_identifier=None):
     """
-    Return a local WoT ID - either one that published this repository or the
-    default.
+    Return a local WoT ID.
+
+    Search for a local identity from most to least specific:
+    1. truster_identifier (if given)
+    2. identity that published this respository (if repo is given and an
+                                                 identity is set)
+    3. default truster
+
     :rtype : Local_WoT_ID
     """
     from wot_id import Local_WoT_ID
-    if opts['truster']:
-        return Local_WoT_ID(opts['truster'])
+    if truster_identifier:
+        return Local_WoT_ID(truster_identifier)
     else:
-        cfg = Config().from_ui(ui)
+        cfg = Config.from_ui(ui)
 
-        # Value is identity ID.
-        identity = cfg.get_wot_identity(cfg.get_request_uri(repo.root))
+        # Value is identity ID, so '@' prefix makes it an identifier with an
+        # empty nickname.
+        identity = None
+        if repo:
+            identity = cfg.get_wot_identity(cfg.get_request_uri(repo.root))
+
+        # Either repo is not given or there is no associated identity.
         if not identity:
             identity = cfg.defaults['DEFAULT_TRUSTER']
 
@@ -524,7 +548,7 @@ def get_truster(ui, repo, opts):
 def do_archive_create(ui_, opts, params, stored_cfg):
     """ fn-archive --create."""
     insert_uri = opts['uri']
-    if insert_uri == '':
+    if not insert_uri:
         raise util.Abort("Please set the insert URI with --uri.")
 
     params['INSERT_URI'] = insert_uri
@@ -535,7 +559,7 @@ def do_archive_create(ui_, opts, params, stored_cfg):
 def do_archive_push(ui_, opts, params, stored_cfg):
     """ fn-archive --push."""
     insert_uri = opts['uri']
-    if insert_uri == '':
+    if not insert_uri:
         insert_uri = (
             stored_cfg.get_dir_insert_uri(params['ARCHIVE_CACHE_DIR']))
         if not insert_uri:
@@ -553,7 +577,7 @@ def do_archive_pull(ui_, opts, params, stored_cfg):
     """ fn-archive --pull."""
     request_uri = opts['uri']
 
-    if request_uri == '':
+    if not request_uri:
         request_uri = (
             stored_cfg.get_request_uri(params['ARCHIVE_CACHE_DIR']))
         if not request_uri:

@@ -1,0 +1,54 @@
+#+title: Infocalypse GSoC midterm test
+
+* Intro
+
+Testing Infocalypse Features from the midterm plans. Firstoff only personal notes, pending an LCWoT rebuild.
+
+* Setup
+
+Get infocalypse:
+
+#+BEGIN_SRC 
+hg -R ~/infocalypse_wiki_hacking/ up f5800540e7f6
+#+END_SRC
+
+* Getting a repo via WoT ID
+
+#+BEGIN_SRC sh
+hg clone freenet://ArneBab/tech
+#+END_SRC
+
+: Abbruch: No such identity 'ArneBab'
+
+hm, did not work.
+
+#+BEGIN_SRC sh
+hg clone freenet://ArneBab@6~ZDYdvAgMoUfG6M5Kwi7SQqyS-gTcyFeaNN1Pf3FvY/tech
+#+END_SRC
+
+: Abbruch: No such identity 'ArneBab@6~ZDYdvAgMoUfG6M5Kwi7SQqyS-gTcyFeaNN1Pf3FvY'
+
+#+BEGIN_SRC sh
+hg fn-pull --wot ArneBab@6~ZDYdvAgMoUfG6M5Kwi7SQqyS-gTcyFeaNN1Pf3FvY/tech.R1/0
+#+END_SRC
+
+: Abbruch: '@' is ambiguous.
+: 
+: _mgrThread: No incoming message from node
+: _mgrThread: Testing for client req
+: Unhandled exception in thread started by 
+: sys.excepthook is missing
+: lost sys.stderr
+: shutdown: entered
+
+#+BEGIN_SRC sh
+hg fn-pull --aggressive --uri USK@6~ZDYdvAgMoUfG6M5Kwi7SQqyS-gTcyFeaNN1Pf3FvY,OSOT4OEeg4xyYnwcGECZUX6~lnmYrZsz05Km7G7bvOQ,AQACAAE/tech.R1/87
+#+END_SRC
+
+Works.
+
+#+BEGIN_SRC sh
+hg pull freenet://USK@6~ZDYdvAgMoUfG6M5Kwi7SQqyS-gTcyFeaNN1Pf3FvY,OSOT4OEeg4xyYnwcGECZUX6~lnmYrZsz05Km7G7bvOQ,AQACAAE/tech.R1/87
+#+END_SRC
+
+Works.
