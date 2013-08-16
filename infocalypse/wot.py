@@ -14,7 +14,10 @@ from wot_id import Local_WoT_ID, WoT_ID
 FREEMAIL_SMTP_PORT = 4025
 FREEMAIL_IMAP_PORT = 4143
 VCS_TOKEN = "[vcs]"
-PLUGIN_NAME = "org.freenetproject.plugin.infocalypse_webui.main.InfocalypsePlugin"
+PLUGIN_NAME = "org.freenetproject.plugin.dvcs_webui.main.Plugin"
+# "infocalypse" is lower case in case it is used somewhere mixed case can
+# cause problems like a filesystem path. Used for machine-readable VCS name.
+VCS_NAME = "infocalypse"
 
 
 def connect(ui, repo):
@@ -87,7 +90,7 @@ def send_pull_request(ui, repo, from_identity, to_identity, to_repo_name):
     to_address = require_freemail(to_identity)
 
     cfg = Config.from_ui(ui)
-    password = cfg.get_freemail_password(from_identity.identity_id)
+    password = cfg.get_freemail_password(from_identity)
 
     to_repo = find_repo(ui, to_identity, to_repo_name)
 
@@ -103,10 +106,8 @@ def send_pull_request(ui, repo, from_identity, to_identity, to_repo_name):
     from_branch = repo_context.branch()
 
     # Use double-quoted scalars so that Unicode can be included. (Nicknames.)
-    # "infocalypse" is lower case in case it is used somewhere mixed case can
-    # cause problems like a filesystem path.
     footer = yaml.dump({'request': 'pull',
-                        'vcs': 'infocalypse',
+                        'vcs': VCS_NAME,
                         'source': from_uri + '#' + from_branch,
                         'target': to_repo}, default_style='"',
                        explicit_start=True, explicit_end=True,
@@ -245,9 +246,7 @@ def read_message_yaml(ui, from_address, subject, body):
                   " formatted. Details:\n%s\n" % (subject, e))
         return
 
-    # "infocalypse" is lower case in case it is used somewhere mixed case can
-    # cause problems like a filesystem path.
-    if request['vcs'] != 'infocalypse':
+    if request['vcs'] != VCS_NAME:
         ui.status("Notification '%s' is for '%s', not Infocalypse.\n"
                   % (subject, request['vcs']))
         return
@@ -300,7 +299,7 @@ def update_repo_listing(ui, for_identity):
 
     for request_uri in build_repo_list(ui, for_identity):
         repo = ET.SubElement(root, 'repository', {
-            'vcs': 'Infocalypse',
+            'vcs': VCS_NAME,
         })
         repo.text = request_uri
 
@@ -386,7 +385,7 @@ def read_repo_listing(ui, identity):
     repositories = {}
     root = fromstring(repo_xml)
     for repository in root.iterfind('repository'):
-        if repository.get('vcs') == 'Infocalypse':
+        if repository.get('vcs') == VCS_NAME:
             uri = repository.text
             # Expecting key/reponame.R<num>/edition
             name = uri.split('/')[1].split('.')[0]
@@ -423,11 +422,16 @@ def resolve_pull_uri(ui, path, truster):
         return find_repo(ui, identity, repo_name)
 
 
-def resolve_push_uri(ui, path):
+def resolve_push_uri(ui, path, resolve_edition=True):
     """
     Return a push URI for the given path.
     Raise util.Abort if unable to resolve identity or repository.
 
+    :param resolve_edition: Defaults to True. If False, skips resolving the
+                            repository, uses the edition number 0. and does
+                            not modify the repository name. This is useful
+                            for finding a push URI for a repository that does
+                            not already exist.
     :param ui: For feedback.
     :param path: path describing a repo - nick@key/repo_name,
     where the identity is a local one. (Such that the insert URI is known.)
@@ -437,19 +441,25 @@ def resolve_push_uri(ui, path):
 
     local_id = Local_WoT_ID(wot_id)
 
-    insert_uri = local_id.insert_uri
+    if resolve_edition:
+        # TODO: find_repo should make it clearer that it returns a request URI,
+        # and return a USK.
+        repo = find_repo(ui, local_id, repo_name)
 
-    # TODO: find_repo should make it clearer that it returns a request URI,
-    # and return a USK.
-    repo = find_repo(ui, local_id, repo_name)
+        # Request URI
+        repo_uri = USK(repo)
 
-    # Request URI
-    repo_uri = USK(repo)
+        # Maintains name, edition.
+        repo_uri.key = local_id.insert_uri.key
 
-    # Maintains name, edition.
-    repo_uri.key = insert_uri.key
+        return str(repo_uri)
+    else:
+        repo_uri = local_id.insert_uri.clone()
 
-    return str(repo_uri)
+        repo_uri.name = repo_name
+        repo_uri.edition = 0
+
+        return str(repo_uri)
 
 
 def execute_setup_wot(ui_, local_id):
