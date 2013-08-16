@@ -533,14 +533,31 @@ def get_truster(ui, repo=None, truster_identifier=None):
         # Value is identity ID, so '@' prefix makes it an identifier with an
         # empty nickname.
         identity = None
+        default = False
         if repo:
             identity = cfg.get_wot_identity(cfg.get_request_uri(repo.root))
 
         # Either repo is not given or there is no associated identity.
         if not identity:
             identity = cfg.defaults['DEFAULT_TRUSTER']
+            default = True
 
-        return Local_WoT_ID('@' + identity)
+        try:
+            return Local_WoT_ID('@' + identity)
+        except util.Abort:
+            if default:
+                raise util.Abort("Cannot resolve the default truster with "
+                                 "public key hash '{0}'. Set it with hg"
+                                 " fn-setupwot --truster".format(identity))
+            else:
+                # TODO: Is this suggestion appropriate?
+                # TODO: Ensure that fn-create on an existing repo does not
+                # leave isolated insert_usks or wot_identities entries in the
+                # config file.
+                raise util.Abort("Cannot resolve the identity with public key "
+                                 "hash '{0}' that published this repository. "
+                                 "To create this repository under a different "
+                                 "identity run hg fn-create".format(identity))
 
 #----------------------------------------------------------"
 
