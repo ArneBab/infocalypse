@@ -8,74 +8,14 @@ from keys import USK
 import yaml
 from email.mime.text import MIMEText
 import imaplib
-import threading
 from wot_id import Local_WoT_ID, WoT_ID
 
 FREEMAIL_SMTP_PORT = 4025
 FREEMAIL_IMAP_PORT = 4143
 VCS_TOKEN = "[vcs]"
-PLUGIN_NAME = "org.freenetproject.plugin.dvcs_webui.main.Plugin"
 # "infocalypse" is lower case in case it is used somewhere mixed case can
 # cause problems like a filesystem path. Used for machine-readable VCS name.
 VCS_NAME = "infocalypse"
-
-
-def connect(ui, repo):
-    node = fcp.FCPNode()
-
-    # TODO: Should I be using this? Looks internal. The identifier needs to
-    # be consistent though.
-    fcp_id = node._getUniqueId()
-
-    ui.status("Connecting as '%s'.\n" % fcp_id)
-
-    def ping():
-        pong = node.fcpPluginMessage(plugin_name=PLUGIN_NAME, id=fcp_id,
-                                     plugin_params={'Message': 'Ping'})[0]
-        if pong['Replies.Message'] == 'Error':
-            raise util.Abort(pong['Replies.Description'])
-        # Must be faster than the timeout threshold. (5 seconds)
-        threading.Timer(4.0, ping).start()
-
-    # Start self-perpetuating pinging in the background.
-    t = threading.Timer(0.0, ping)
-    # Daemon threads do not hold up the process exiting. Allows prompt
-    # response to - for instance - SIGTERM.
-    t.daemon = True
-    t.start()
-
-    while True:
-        sequenceID = node._getUniqueId()
-        # The event-querying is single-threaded, which makes things slow as
-        # everything waits on the completion of the current operation.
-        # Asynchronous code would require changes on the plugin side but
-        # potentially have much lower latency.
-        command = node.fcpPluginMessage(plugin_name=PLUGIN_NAME, id=fcp_id,
-                                        plugin_params=
-                                        {'Message': 'ClearToSend',
-                                         'SequenceID': sequenceID})[0]
-        # TODO: Look up handlers in a dictionary.
-        print command
-
-        # Reload the config each time - it may have changed between messages.
-        cfg = Config.from_ui(ui)
-
-        response = command['Replies.Message']
-        if response == 'Error':
-            raise util.Abort(command['Replies.Description'])
-        elif response == 'ListLocalRepos':
-            params = {'Message': 'RepoList',
-                      'SequenceID': sequenceID}
-
-            # Request USKs are keyed by repo path.
-            repo_index = 0
-            for path in cfg.request_usks.iterkeys():
-                params['Repo%s' % repo_index] = path
-                repo_index += 1
-
-            ack = node.fcpPluginMessage(plugin_name=PLUGIN_NAME, id=fcp_id,
-                                        plugin_params=params)[0]
-            print ack
 
 
 def send_pull_request(ui, repo, from_identity, to_identity, to_repo_name):
@@ -311,8 +251,10 @@ def update_repo_listing(ui, for_identity):
     # TODO: Somehow store the edition, perhaps in ~/.infocalypse. WoT
     # properties are apparently not appropriate.
 
+    cfg = Config.from_ui(ui)
+
     insert_uri.name = 'vcs'
-    insert_uri.edition = '0'
+    insert_uri.edition = cfg.get_repo_list_edition(for_identity)
 
     ui.status("Inserting with URI:\n{0}\n".format(insert_uri))
     uri = node.put(uri=str(insert_uri), mimetype='application/xml',
@@ -322,6 +264,8 @@ def update_repo_listing(ui, for_identity):
         ui.warn("Failed to update repository listing.")
     else:
         ui.status("Updated repository listing:\n{0}\n".format(uri))
+        cfg.set_repo_list_edition(for_identity, USK(uri).edition)
+        Config.to_file(cfg)
 
 
 def build_repo_list(ui, for_identity):
@@ -369,30 +313,83 @@ def read_repo_listing(ui, identity):
 
     :type identity: WoT_ID
     """
+    cfg = Config.from_ui(ui)
     uri = identity.request_uri.clone()
     uri.name = 'vcs'
-    uri.edition = 0
+    uri.edition = cfg.get_repo_list_edition(identity)
 
     # TODO: Set and read vcs edition property.
-    node = fcp.FCPNode()
-    ui.status("Fetching {0}\n".format(uri))
-    # TODO: What exception can this throw on failure? Catch it,
-    # print its description, and return None.
-    mime_type, repo_xml, msg = node.get(str(uri), priority=1,
-                                        followRedirect=True)
+    ui.status("Fetching.\n")
+    mime_type, repo_xml, msg = fetch_edition(uri)
+    ui.status("Fetched {0}.\n".format(uri))
 
-    ui.status("Parsing.\n")
+    cfg.set_repo_list_edition(identity, uri.edition)
+    Config.to_file(cfg)
+
     repositories = {}
+    ambiguous = []
     root = fromstring(repo_xml)
     for repository in root.iterfind('repository'):
         if repository.get('vcs') == VCS_NAME:
-            uri = repository.text
-            # Expecting key/reponame.R<num>/edition
-            name = uri.split('/')[1].split('.')[0]
-            ui.status("Found repository \"{0}\" at {1}\n".format(name, uri))
-            repositories[name] = uri
+            uri = USK(repository.text)
+            name = uri.get_repo_name()
+            if name not in repositories:
+                repositories[name] = uri
+            else:
+                existing = repositories[name]
+                if uri.key == existing.key and uri.name == existing.name:
+                    # Different edition of same key and complete name.
+                    # Use the latest edition.
+                    if uri.edition > existing.edition:
+                        repositories[name] = uri
+                else:
+                    # Different key or complete name. Later remove and give
+                    # warning.
+                    ambiguous.append(name)
+
+    for name in ambiguous:
+        # Same repo name but different key or exact name.
+        ui.warn("\"{0}\" refers ambiguously to multiple paths. Ignoring.\n"
+                .format(name))
+        del repositories[name]
+
+    # TODO: Would it make sense to mention those for which multiple editions
+    # are specified? It has no practical impact from this perspective,
+    # and these problems should be pointed out (or prevented) for local repo
+    # lists.
+
+    for name in repositories.iterkeys():
+        ui.status("Found repository \"{0}\".\n".format(name))
+
+    # Convert values from USKs to strings - USKs are not expected elsewhere.
+    for key in repositories.keys():
+        repositories[key] = str(repositories[key])
 
     return repositories
+
+
+def fetch_edition(uri):
+    """
+    Fetch a USK uri, following redirects. Change the uri edition to the one
+    fetched.
+    :type uri: USK
+    """
+    node = fcp.FCPNode()
+    # Following a redirect automatically does not provide the edition used,
+    # so manually following redirects is required.
+    # TODO: Is there ever legitimately more than one redirect?
+    try:
+        return node.get(str(uri), priority=1)
+    except fcp.FCPGetFailed, e:
+        # Error code 27 is permanent redirect: there's a newer edition of
+        # the USK.
+        # https://wiki.freenetproject.org/FCPv2/GetFailed#Fetch_Error_Codes
+        if not e.info['Code'] == 27:
+            raise
+
+        uri.edition = USK(e.info['RedirectURI']).edition
+
+        return node.get(str(uri), priority=1)
 
 
 def resolve_pull_uri(ui, path, truster):
