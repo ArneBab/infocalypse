@@ -4,8 +4,10 @@ import fcp
 import threading
 from mercurial import util
 import sys
+from config import Config
 
 PLUGIN_NAME = "org.freenetproject.plugin.dvcs_webui.main.Plugin"
+
 
 def connect(ui, repo):
     node = fcp.FCPNode()
@@ -66,6 +68,9 @@ def connect(ui, repo):
     t.start()
 
     while True:
+        # Load the config each time - it could change.
+        cfg = Config.from_ui(ui)
+
         query_identifier = node._getUniqueId()
         # The event-querying is single-threaded, which makes things slow as
         # everything waits on the completion of the current operation.
@@ -83,11 +88,11 @@ def connect(ui, repo):
             raise util.Abort(command['Replies.Description'])
 
         if response not in handlers:
-            raise util.Abort("Unsupported query '{0}'\n")
+            raise util.Abort("Unsupported query '{0}'\n".format(response))
 
         # Handlers are indexed by the query message name, take the query
         # message, and return (result_name, plugin_params).
-        result_name, plugin_params = handlers[response](command)
+        result_name, plugin_params = handlers[response](command, cfg=cfg)
 
         plugin_params['Message'] = result_name
         plugin_params['QueryIdentifier'] = query_identifier
@@ -103,10 +108,27 @@ def connect(ui, repo):
 
 # Handlers return two items: result message name, message-specific parameters.
 # The sending code handles the plugin name, required parameters and plugin name.
+# TODO: Is it reasonable to lock in the "NameQuery"/"NameResult" naming pattern?
+# TODO: Docstrings on handlers. Or would it make more sense to document on
+# the plugin side? Both?
+# Keywords arguments handlers can use: TODO: Appropriate to ignore others?
+# * cfg - configuration
 
 
-def VoidQuery(query):
+def VoidQuery(_, **opts):
     return "VoidResult", {}
 
+
+def LocalRepoQuery(_, cfg, **opts):
+    params = {}
+    # Request USKs are keyed by repo path.
+    repo_index = 0
+    for path in cfg.request_usks.iterkeys():
+        params['Path.{0}'.format(repo_index)] = path
+        repo_index += 1
+
+    return "LocalRepoResult", params
+
 # TODO: Perhaps look up method by name directly?
-handlers = {'VoidQuery': VoidQuery}
+handlers = {'VoidQuery': VoidQuery,
+            'LocalRepoQuery': LocalRepoQuery}
