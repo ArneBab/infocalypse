@@ -5,6 +5,8 @@ import threading
 from mercurial import util
 import sys
 from config import Config
+from wot_id import WoT_ID, Local_WoT_ID
+import wot
 
 PLUGIN_NAME = "org.freenetproject.plugin.dvcs_webui.main.Plugin"
 
@@ -69,6 +71,7 @@ def connect(ui, repo):
 
     while True:
         # Load the config each time - it could change.
+        # TODO: Monitor config file for change events instead.
         cfg = Config.from_ui(ui)
 
         query_identifier = node._getUniqueId()
@@ -90,9 +93,12 @@ def connect(ui, repo):
         if response not in handlers:
             raise util.Abort("Unsupported query '{0}'\n".format(response))
 
+        ui.status("Got query: {0}\n".format(response))
+
         # Handlers are indexed by the query message name, take the query
         # message, and return (result_name, plugin_params).
-        result_name, plugin_params = handlers[response](command, cfg=cfg)
+        result_name, plugin_params = handlers[response](command, cfg=cfg,
+                                                        ui=ui)
 
         plugin_params['Message'] = result_name
         plugin_params['QueryIdentifier'] = query_identifier
@@ -104,6 +110,8 @@ def connect(ui, repo):
         if ack['Replies.Message'] != "Ack":
             raise util.Abort("Received unexpected message instead of result "
                              "acknowledgement:\n{0}\n".format(ack))
+
+        ui.status("Query complete.\n")
 
 
 # Handlers return two items: result message name, message-specific parameters.
@@ -129,6 +137,24 @@ def LocalRepoQuery(_, cfg, **opts):
 
     return "LocalRepoResult", params
 
+
+def RepoListQuery(command, ui, **opts):
+    params = {}
+
+    # TODO: Failure should result in an error message sent to the plugin.
+    # Truster is the ID of the identity only. Prepend '@' for identifier.
+    truster = Local_WoT_ID('@' + command['Replies.Truster'])
+    identity = WoT_ID(command['Replies.RemoteIdentifier'], truster)
+
+    repo_list = wot.read_repo_listing(ui, identity)
+
+    for name, key in repo_list.iteritems():
+        params['Repo.' + name] = key
+
+    return "RepoListResult", params
+
+
 # TODO: Perhaps look up method by name directly?
 handlers = {'VoidQuery': VoidQuery,
+            'RepoListQuery': RepoListQuery,
             'LocalRepoQuery': LocalRepoQuery}
