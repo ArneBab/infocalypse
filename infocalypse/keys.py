@@ -106,9 +106,13 @@ def strip_protocol(uri):
 
     >>> strip_protocol('freenet:USK@.../test/0')
     'USK@.../test/0'
+    >>> strip_protocol('freenet://someone/test')
+    'someone/test'
+    >>> strip_protocol('another/testing')
+    'another/testing'
     """
-    if uri.startswith('freenet:'):
-        return uri[len('freenet:'):]
-    elif uri.startswith('freenet://'):
+    if uri.startswith('freenet://'):
         return uri[len('freenet://'):]
+    elif uri.startswith('freenet:'):
+        return uri[len('freenet:'):]
     return uri
