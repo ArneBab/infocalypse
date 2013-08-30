@@ -18,7 +18,7 @@ from validate import is_hex_string, is_fms_id
 
 import os
 
-from keys import parse_repo_path
+from keys import parse_repo_path, USK
 
 
 def set_target_version(ui_, repo, opts, params, msg_fmt):
@@ -47,12 +47,14 @@ def infocalypse_update_repo_list(ui, **opts):
     wot.update_repo_listing(ui, Local_WoT_ID(opts['wot']))
 
 
-def infocalypse_create(ui_, repo, **opts):
-    """ Create a new Infocalypse repository in Freenet. """
+def infocalypse_create(ui_, repo, local_identity=None, **opts):
+    """ Create a new Infocalypse repository in Freenet.
+    :type local_identity: WoT_ID
+    :param local_identity: If specified the new repository is associated with
+                           that identity.
+    """
     params, stored_cfg = get_config_info(ui_, opts)
 
-    insert_uri = ''
-    local_id = None
     if opts['uri'] and opts['wot']:
         ui_.warn("Please specify only one of --uri or --wot.\n")
         return
@@ -68,18 +70,23 @@ def infocalypse_create(ui_, repo, **opts):
 
         from wot_id import Local_WoT_ID
 
-        local_id = Local_WoT_ID(nick_prefix)
+        local_identity = Local_WoT_ID(nick_prefix)
 
-        insert_uri = local_id.insert_uri.clone()
+        insert_uri = local_identity.insert_uri.clone()
 
         insert_uri.name = repo_name
         insert_uri.edition = repo_edition
         # Before passing along into execute_create().
         insert_uri = str(insert_uri)
+    else:
+        ui_.warn("Please set the insert key with either --uri or --wot.\n")
+        return
 
+    # This is a WoT repository.
+    if local_identity:
         # Add "vcs" context. No-op if the identity already has it.
         msg_params = {'Message': 'AddContext',
-                      'Identity': local_id.identity_id,
+                      'Identity': local_identity.identity_id,
                       'Context': 'vcs'}
 
         import fcp
@@ -91,28 +98,22 @@ def infocalypse_create(ui_, repo, **opts):
         if vcs_response['header'] != 'FCPPluginReply' or\
                 'Replies.Message' not in vcs_response or\
                 vcs_response['Replies.Message'] != 'ContextAdded':
-            ui_.warn("Failed to add context. Got {0}\n.".format(vcs_response))
-            return
-
-    else:
-        ui_.warn("Please set the insert key with either --uri or --wot.\n")
-        return
+            raise util.Abort("Failed to add context. Got {0}\n.".format(
+                             vcs_response))
 
     set_target_version(ui_, repo, opts, params,
                        "Only inserting to version(s): %s\n")
     params['INSERT_URI'] = insert_uri
     inserted_to = execute_create(ui_, repo, params, stored_cfg)
 
-    if inserted_to and opts['wot']:
+    if inserted_to and local_identity:
         # TODO: Would it be friendlier to include the nickname as well?
         # creation returns a list of request URIs; use the first.
-        stored_cfg.set_wot_identity(inserted_to[0], local_id)
+        stored_cfg.set_wot_identity(inserted_to[0], local_identity)
         Config.to_file(stored_cfg)
 
-        # TODO: Imports don't go out of scope, right? The variables
-        # from the import are only visible in the function, so yes.
         import wot
-        wot.update_repo_listing(ui_, local_id)
+        wot.update_repo_listing(ui_, local_identity)
 
 
 def infocalypse_copy(ui_, repo, **opts):

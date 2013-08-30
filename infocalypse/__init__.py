@@ -345,6 +345,8 @@ from mercurial.i18n import _
 
 import freenetrepo
 
+from keys import strip_protocol
+
 _freenetschemes = ('freenet', )
 for _scheme in _freenetschemes:
     hg.schemes[_scheme] = freenetrepo
@@ -592,10 +594,7 @@ def freenetpathtouri(ui, path, operation, repo=None, truster_identifier=None):
     # TODO: Is this the only URL encoding that may happen? Why not use a more
     # semantically meaningful function?
     path = path.replace("%7E", "~").replace("%2C", ",")
-    if path.startswith("freenet://"):
-        path = path[len("freenet://"):]
-    elif path.startswith("freenet:"):
-        path = path[len("freenet:"):]
+    path = strip_protocol(path)
 
     # Guess whether it's WoT. This won't work if someone has chosen their WoT
     # nick to be "USK", but this is a corner case. Using --wot will still work.
@@ -784,7 +783,15 @@ def freenetclone(orig, *args, **opts):
             #pushuri = pushuri[:namepartpos] + namepart
         opts["uri"] = pushuri
         repo = hg.repository(ui, ui.expandpath(source))
-        infocalypse_create(ui, repo, **opts)
+        # TODO: A local identity is looked up for the push URI,
+        # but not returned, yet it is required to update configuration.
+        # Expecting dest to be something like freenet://name@key/reponame
+        local_identifier = strip_protocol(dest).split('/')[0]
+
+        from wot_id import Local_WoT_ID
+        local_identity = Local_WoT_ID(local_identifier)
+
+        infocalypse_create(ui, repo, local_identity, **opts)
 
         with repo.opener("hgrc", "a", text=True) as f:
             f.write("""[paths]
