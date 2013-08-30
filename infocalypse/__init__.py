@@ -781,7 +781,12 @@ def freenetclone(orig, *args, **opts):
             #pushuri = pushuri[:namepartpos] + namepart
         opts["uri"] = pushuri
         repo = hg.repository(ui, ui.expandpath(source))
-        return infocalypse_create(ui, repo, **opts)
+        infocalypse_create(ui, repo, **opts)
+
+        with repo.opener("hgrc", "a", text=True) as f:
+            f.write("""[paths]
+default-push = freenet:{0}
+""".format(pushuri))
 
     if action == "pull":
         if os.path.exists(dest):

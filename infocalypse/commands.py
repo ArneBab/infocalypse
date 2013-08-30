@@ -68,11 +68,7 @@ def infocalypse_create(ui_, repo, **opts):
 
         from wot_id import Local_WoT_ID
 
-        ui_.status("Querying WoT for local identities.\n")
-
         local_id = Local_WoT_ID(nick_prefix)
-
-        ui_.status('Found {0}\n'.format(local_id))
 
         insert_uri = local_id.insert_uri.clone()
 

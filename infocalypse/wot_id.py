@@ -36,6 +36,7 @@ class WoT_ID(object):
         # a WoT_ID for a Local_WoT_ID. Their default values parse the first
         # (and only) identity described by an unspecified message, in which case
         # it queries WoT to produce one.
+        is_local_identity = message is not None
         if not message:
             message = _get_identity(wot_identifier, truster)
 
@@ -89,6 +90,12 @@ class WoT_ID(object):
             # Freemail addresses are lower case.
             self.freemail_address = string.lower(self.nickname + '@' + re_encode
                                                  + '.freemail')
+
+        # TODO: Would it be preferable to use ui to obey quieting switches?
+        if is_local_identity:
+            print("Using local identity {0}".format(self))
+        else:
+            print("Using identity {0}".format(self))
 
     def __str__(self):
         return self.nickname + '@' + self.identity_id
