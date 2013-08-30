@@ -568,7 +568,7 @@ extensions.wrapfunction(discovery, 'findcommonoutgoing', findcommonoutgoing)
 # wrap the commands
 
 
-def freenetpathtouri(ui, path, operation, repo=None):
+def freenetpathtouri(ui, path, operation, repo=None, truster_identifier=None):
     """
     Return a usable request or insert URI. Expects a freenet:// or freenet:
     protocol to be specified.
@@ -586,6 +586,8 @@ def freenetpathtouri(ui, path, operation, repo=None):
                        * "clone-push" - insert URI for repository that might
                                         not exist. (Skips looking up
                                         published name and edition.)
+    :param truster_identifier: An override string identifier for a truster
+                               specified on the command line.
     """
     # TODO: Is this the only URL encoding that may happen? Why not use a more
     # semantically meaningful function?
@@ -600,7 +602,7 @@ def freenetpathtouri(ui, path, operation, repo=None):
     if not path.startswith("USK"):
         import wot
         if operation == "pull":
-            truster = get_truster(ui, repo)
+            truster = get_truster(ui, repo, truster_identifier)
             return wot.resolve_pull_uri(ui, path, truster)
         elif operation == "push":
             return wot.resolve_push_uri(ui, path)
@@ -630,7 +632,7 @@ def freenetpull(orig, *args, **opts):
     # only act differently, if the target is an infocalypse repo.
     if not isfreenetpath(path):
         return orig(*args, **opts)
-    uri = freenetpathtouri(ui, path, "pull", repo)
+    uri = freenetpathtouri(ui, path, "pull", repo, opts.get('truster'))
     opts["uri"] = uri
     opts["aggressive"] = True # always search for the latest revision.
     return infocalypse_pull(ui, repo, **opts)
@@ -729,7 +731,8 @@ def freenetclone(orig, *args, **opts):
     # check whether to create, pull or copy
     pulluri, pushuri = None, None
     if isfreenetpath(source):
-        pulluri = parse_repo_path(freenetpathtouri(ui, source, "pull"))
+        pulluri = parse_repo_path(
+            freenetpathtouri(ui, source, "pull", None, opts.get('truster')))
 
     if isfreenetpath(dest):
         pushuri = parse_repo_path(freenetpathtouri(ui, dest, "clone-push"),
