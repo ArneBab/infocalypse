@@ -13,7 +13,7 @@ from wikicmds import execute_wiki, execute_wiki_apply
 from arccmds import execute_arc_create, execute_arc_pull, execute_arc_push, \
     execute_arc_reinsert
 
-from config import read_freesite_cfg, Config
+from config import read_freesite_cfg, Config, normalize
 from validate import is_hex_string, is_fms_id
 
 import os
@@ -49,7 +49,7 @@ def infocalypse_update_repo_list(ui, **opts):
 
 def infocalypse_create(ui_, repo, local_identity=None, **opts):
     """ Create a new Infocalypse repository in Freenet.
-    :type local_identity: WoT_ID
+    :type local_identity: Local_WoT_ID
     :param local_identity: If specified the new repository is associated with
                            that identity.
     """
@@ -84,6 +84,44 @@ def infocalypse_create(ui_, repo, local_identity=None, **opts):
 
     # This is a WoT repository.
     if local_identity:
+        # Prompt whether to replace in the case of conflicting names.
+        from wot import build_repo_list
+
+        request_usks = build_repo_list(ui_, local_identity)
+        names = map(lambda x: USK(x).get_repo_name(), request_usks)
+        new_name = USK(insert_uri).get_repo_name()
+
+        if new_name in names:
+            replace = ui_.prompt("A repository with the name '{0}' is already"
+                                 " published by {1}. Replace it? [y/N]"
+                                 .format(new_name, local_identity),
+                                 default='n')
+
+            if replace.lower() != 'y':
+                raise util.Abort("A repository with this name already exists.")
+
+            # Remove the existing repository from each configuration section.
+            existing_usk = request_usks[names.index(new_name)]
+
+            existing_dir = None
+            for directory, request_usk in stored_cfg.request_usks.iteritems():
+                if request_usk == existing_usk:
+                    if existing_dir:
+                        raise util.Abort("Configuration lists the same "
+                                         "request USK multiple times.")
+                    existing_dir = directory
+
+            assert existing_dir
+
+            existing_hash = normalize(existing_usk)
+
+            # Config file changes will not be written until a successful insert
+            # below.
+            del stored_cfg.version_table[existing_hash]
+            del stored_cfg.request_usks[existing_dir]
+            del stored_cfg.insert_usks[existing_hash]
+            del stored_cfg.wot_identities[existing_hash]
+
         # Add "vcs" context. No-op if the identity already has it.
         msg_params = {'Message': 'AddContext',
                       'Identity': local_identity.identity_id,
@@ -107,7 +145,6 @@ def infocalypse_create(ui_, repo, local_identity=None, **opts):
     inserted_to = execute_create(ui_, repo, params, stored_cfg)
 
     if inserted_to and local_identity:
-        # TODO: Would it be friendlier to include the nickname as well?
         # creation returns a list of request URIs; use the first.
         stored_cfg.set_wot_identity(inserted_to[0], local_identity)
         Config.to_file(stored_cfg)
