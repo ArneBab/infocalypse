@@ -392,7 +392,7 @@ def fetch_edition(uri):
         return node.get(str(uri), priority=1)
 
 
-def resolve_pull_uri(ui, path, truster):
+def resolve_pull_uri(ui, path, truster, repo=None):
         """
         Return a pull URI for the given path.
         Print an error message and abort on failure.
@@ -406,6 +406,7 @@ def resolve_pull_uri(ui, path, truster):
         :param ui: For feedback.
         :param path: path describing a repo. nick@key/reponame
         :param truster: identity whose trust list to use.
+        :param repo: If given, add a path that points to the resolved URI.
         :return:
         """
         # Expecting <id stuff>/reponame
@@ -416,7 +417,22 @@ def resolve_pull_uri(ui, path, truster):
         # TODO: How to handle redundancy? Does Infocalypse automatically try
         # an R0 if an R1 fails?
 
-        return find_repo(ui, identity, repo_name)
+        request_uri = find_repo(ui, identity, repo_name)
+
+        if repo:
+            # TODO: Writing paths in this way preserves comments,
+            # but does not allow dealing intelligently with paths of the same
+            # name. Also it's duplicated in the clone support.
+            ui.status("Adding this repository as path '{0}'. To pull from the "
+                      "same repository in the future use this path.\n"
+                      .format(identity.nickname))
+            with repo.opener("hgrc", "a", text=True) as f:
+                f.write("""
+[paths]
+{0} = freenet:{1}
+""".format(identity.nickname, request_uri))
+
+        return request_uri
 
 
 def resolve_push_uri(ui, path, resolve_edition=True):

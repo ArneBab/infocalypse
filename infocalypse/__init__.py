@@ -602,7 +602,7 @@ def freenetpathtouri(ui, path, operation, repo=None, truster_identifier=None):
         import wot
         if operation == "pull":
             truster = get_truster(ui, repo, truster_identifier)
-            return wot.resolve_pull_uri(ui, path, truster)
+            return wot.resolve_pull_uri(ui, path, truster, repo)
         elif operation == "push":
             return wot.resolve_push_uri(ui, path)
         elif operation == "clone-push":
@@ -793,6 +793,8 @@ def freenetclone(orig, *args, **opts):
 
         infocalypse_create(ui, repo, local_identity, **opts)
 
+        # TODO: Function for adding paths? It's currently here, for pull,
+        # and in WoT pull URI resolution.
         with repo.opener("hgrc", "a", text=True) as f:
             f.write("""[paths]
 default-push = freenet:{0}
