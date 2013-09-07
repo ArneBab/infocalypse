@@ -306,7 +306,9 @@ def infocalypse_push(ui_, repo, **opts):
     associated_wot_id = stored_cfg.get_wot_identity(request_uri)
     if inserted_to and associated_wot_id:
         import wot
-        wot.update_repo_listing(ui_, associated_wot_id)
+        from wot_id import Local_WoT_ID
+        local_id = Local_WoT_ID('@' + associated_wot_id)
+        wot.update_repo_listing(ui_, local_id)
 
 
 def infocalypse_info(ui_, repo, **opts):
