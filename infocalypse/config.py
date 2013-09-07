@@ -125,7 +125,7 @@ class Config:
         self.request_usks = {}
         # repo_id -> insert uri map
         self.insert_usks = {}
-        # repo id -> publisher WoT identity
+        # repo id -> publisher WoT identity ID
         self.wot_identities = {}
         # TODO: Should this be keyed by str(WoT_ID) ?
         # WoT identity ID -> Freemail password
@@ -246,7 +246,7 @@ class Config:
 
     def get_wot_identity(self, for_usk_or_id):
         """
-        Return the WoT identity associated with the request USK,
+        Return the WoT identity ID associated with the request USK,
         or None if one is not set.
         """
         if for_usk_or_id is not None:
