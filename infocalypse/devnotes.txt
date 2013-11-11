@@ -10,7 +10,13 @@ WoT identifier -
                  Often abbreviated "wot_id". Not to be confused with a WoT
                  identity.
 WoT identity ID -
-              name given to the public key hash when returned by WoT.
+              a WoT identity's public key hash.
+
+------------------------------------------------------------
+Architecture:
+------------------------------------------------------------
+
+
 
 ------------------------------------------------------------
 Dev log:

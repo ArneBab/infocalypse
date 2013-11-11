@@ -69,6 +69,10 @@ def parse_repo_path(path, assume_redundancy=False):
     'USK@.../name/0'
     >>> parse_repo_path('USK@.../name/')
     'USK@.../name/0'
+    >>> parse_repo_path('USK@.../name/10')
+    'USK@.../name/10'
+    >>> parse_repo_path('USK@.../name/10/')
+    'USK@.../name/10'
     >>> parse_repo_path('USK@.../name', assume_redundancy=True)
     'USK@.../name.R1/0'
     >>> parse_repo_path('USK@.../name.R0/5', assume_redundancy=True)
@@ -83,6 +87,13 @@ def parse_repo_path(path, assume_redundancy=False):
     if len(parts) == 2:
         # Assuming USK@..,/name: '/edition' omitted.
         parts.append('0')
+
+    if len(parts) == 4:
+        # Assuming trailing slash - the part after it should be empty.
+        if parts[3]:
+            raise util.Abort("Found unexpected '{0}' trailing the edition "
+                             "number.".format(parts[3]))
+        parts.pop()
 
     if not len(parts) == 3:
         raise util.Abort("Cannot parse '{0}' as repository path.".format(path))
