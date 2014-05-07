@@ -806,8 +806,8 @@ clt = commit
 ci = !$HG clt --date "$(date -u "+%Y-%m-%d %H:%M:%S +0000")" $@
 commit = !$HG clt --date "$(date -u "+%Y-%m-%d %H:%M:%S +0000")" $@
 """
-        # alternative: every commit is done at 04:23:18 (might be
-        # confusing but should be safest): date -u "+%Y-%m-%d 04:23:18 +0000
+        # alternative: every commit is done at 09:42:30 (might be
+        # confusing but should be safest): date -u "+%Y-%m-%d 09:42:30 +0000
         
         # second alternative: commit done at local time but with
         # timezone +0000 (could be correlated against forum entries
