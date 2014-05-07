@@ -924,10 +924,11 @@ def build_version_table(graph, repo):
 # Find most recent ancestors for version which are already in
 # the version map. REDFLAG: fix. don't make reference to time
 
-def find_latest_bases(repo, version, version_map, traversed, base_revs):
-    """ INTERNAL: Add latest known base revs for version to base_revs. """
-    #print "find_latest_bases -- called: ", version[:12]
-    assert version_map != {NULL_REV:FIRST_INDEX}
+def _check_base(repo, version, version_map, traversed, base_revs):
+    """ INTERNAL: Check for a given base,
+    if it's in traversed (do nothing)
+    or version map (add to base_revs).
+    If not one of these, return the parents."""
     if version in traversed:
         return
     traversed.add(version)
@@ -936,8 +937,20 @@ def find_latest_bases(repo, version, version_map, traversed, base_revs):
         base_revs.add(version)
         return
     parents = [hexlify(parent.node()) for parent in repo[version].parents()]
-    for parent in parents:
-        find_latest_bases(repo, parent, version_map, traversed, base_revs)
+    return parents
+
+def find_latest_bases(repo, version, version_map, traversed, base_revs):
+    """ INTERNAL: Add latest known base revs for version to base_revs. """
+    #print "find_latest_bases -- called: ", version[:12]
+    assert version_map != {NULL_REV:FIRST_INDEX}
+    parents = _check_base(repo, version, version_map, traversed, base_revs)
+    while parents:
+        pas = parents[:]
+        parents = []
+        for parent in pas: 
+            ps = _check_base(repo, parent, version_map, traversed, base_revs)
+            if ps is not None:
+                parents.extend(ps)
 
 
 # REDFLAG: correct?  I can't come up with a counter example.
