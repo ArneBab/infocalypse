@@ -812,14 +812,27 @@ default-push = freenet:{0}
         destrepo = hg.repository(ui, dest)
         infocalypse_pull(ui, destrepo, aggressive=True, hash=None, uri=pulluri, **opts)
         # store the request uri for future updates
-        with destrepo.opener("hgrc", "a", text=True) as f:
-            f.write("""[paths]
-default = freenet://""" + pulluri + """
+        _hgrc_template = """[paths]
+default = freenet://{pulluri}
 
 [ui]
 username = anonymous
-""" )
-        ui.warn("As basic protection, infocalypse automatically set the username 'anonymous' for commits in this repo. To change this, edit " + str(os.path.join(destrepo.root, ".hg", "hgrc")))
+
+[alias]
+clt = commit
+ci = !$HG clt --date "$(date -u "+%Y-%m-%d %H:%M:%S +0000")" $@
+commit = !$HG clt --date "$(date -u "+%Y-%m-%d %H:%M:%S +0000")" $@
+"""
+        # alternative: every commit is done at 09:42:30 (might be
+        # confusing but should be safest): date -u "+%Y-%m-%d 09:42:30 +0000
+        
+        # second alternative: commit done at local time but with
+        # timezone +0000 (could be correlated against forum entries
+        # and such to find the real timezone): Leave out the -u
+        with destrepo.opener("hgrc", "a", text=True) as f:
+            f.write(_hgrc_template.format(pulluri=pulluri))
+        
+        ui.warn("As basic protection, infocalypse automatically set the username 'anonymous' for commits in this repo, changed the commands `commit` and `ci` to fake UTC time and added `clt` which commits in the local timezone. To change this, edit " + str(os.path.join(destrepo.root, ".hg", "hgrc")))
         # and update the repo
         return hg.update(destrepo, None)
 
