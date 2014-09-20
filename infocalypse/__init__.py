@@ -480,7 +480,7 @@ cmdtable = {
                  ('', 'createconfig', None, "create default fnwiki.cfg " +
                   "and skeleton wiki_root dir"),
                  ('', 'http_port', 8081, "port for http server"),
-                 ('', 'http_bind', 'localhost', "interface http " +
+                 ('', 'http_bind', 'localhost', "interface x1http " +
                   "listens on, '' to listen on all"),
                  ('', 'apply', '', "apply changes to the wiki from the " +
                   "supplied Request URI ")] +
@@ -802,7 +802,7 @@ default = freenet://""" + pulluri + """
 [ui]
 username = anonymous
 """ )
-        ui.warn("As basic protection, infocalypse automatically set the username 'anonymous' for commits in this repo. To change this, edit " + str(os.path.join(destrepo.root, ".hg", "hgrc")))
+        ui.warn("As basic protection, infocalypse automatically set the username 'anonymous' for commits in this repo. To change this, edit " + str(os.path.join(destrepo.root, ".hg", "hgrc\n")))
         # and update the repo
         return hg.update(destrepo, None)
 
