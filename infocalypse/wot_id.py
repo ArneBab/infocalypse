@@ -36,6 +36,7 @@ class WoT_ID(object):
         # a WoT_ID for a Local_WoT_ID. Their default values parse the first
         # (and only) identity described by an unspecified message, in which case
         # it queries WoT to produce one.
+        is_local_identity = message is not None
         if not message:
             message = _get_identity(wot_identifier, truster)
 
@@ -89,6 +90,12 @@ class WoT_ID(object):
             # Freemail addresses are lower case.
             self.freemail_address = string.lower(self.nickname + '@' + re_encode
                                                  + '.freemail')
+
+        # TODO: Would it be preferable to use ui to obey quieting switches?
+        if is_local_identity:
+            print("Using local identity {0}".format(self))
+        else:
+            print("Using identity {0}".format(self))
 
     def __str__(self):
         return self.nickname + '@' + self.identity_id
@@ -159,12 +166,12 @@ def _get_identity(wot_identifier, truster):
         elif response['Replies.Message'] == 'Identities':
             matches = response['Replies.IdentitiesMatched']
             if matches == 0:
-                raise util.Abort("No identities match '{0}'\n".format(
-                    wot_identifier))
+                raise util.Abort("No identities match '{0}'."
+                                 .format(wot_identifier))
             elif matches == 1:
                 return response
             else:
-                raise util.Abort("'{0}' matches more than one identity.\n"
+                raise util.Abort("'{0}' matches more than one identity."
                                  .format(wot_identifier))
 
         # Partial matching not supported, or unknown truster. The only
@@ -183,8 +190,8 @@ def _get_identity(wot_identifier, truster):
         # Searching by exact public key hash, not matching.
         raise util.Abort("No identity has the complete public key hash '{0}'. "
                          "({1}) To flexibly match by partial nickname and key "
-                         "use LCWoT for now.\n".format(key_prefix,
-                                                       wot_identifier))
+                         "use LCWoT for now."
+                         .format(key_prefix, wot_identifier))
 
     # There should be only one result.
     # Depends on https://bugs.freenetproject.org/view.php?id=5729
@@ -238,11 +245,12 @@ def _get_local_identity(wot_identifier):
             del matches[key]
 
     if len(matches) > 1:
-        raise util.Abort("'{0}' is ambiguous.\n".format(wot_identifier))
+        raise util.Abort("'{0}' matches more than one local identity."
+                         .format(wot_identifier))
 
     if len(matches) == 0:
-        raise util.Abort("No local identities match '{0}'.\n".format(
-            wot_identifier))
+        raise util.Abort("No local identities match '{0}'."
+                         .format(wot_identifier))
 
     assert len(matches) == 1
 

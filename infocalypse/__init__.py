@@ -345,6 +345,8 @@ from mercurial.i18n import _
 
 import freenetrepo
 
+from keys import strip_protocol
+
 _freenetschemes = ('freenet', )
 for _scheme in _freenetschemes:
     hg.schemes[_scheme] = freenetrepo
@@ -568,7 +570,7 @@ extensions.wrapfunction(discovery, 'findcommonoutgoing', findcommonoutgoing)
 # wrap the commands
 
 
-def freenetpathtouri(ui, path, operation, repo=None):
+def freenetpathtouri(ui, path, operation, repo=None, truster_identifier=None):
     """
     Return a usable request or insert URI. Expects a freenet:// or freenet:
     protocol to be specified.
@@ -586,22 +588,21 @@ def freenetpathtouri(ui, path, operation, repo=None):
                        * "clone-push" - insert URI for repository that might
                                         not exist. (Skips looking up
                                         published name and edition.)
+    :param truster_identifier: An override string identifier for a truster
+                               specified on the command line.
     """
     # TODO: Is this the only URL encoding that may happen? Why not use a more
     # semantically meaningful function?
     path = path.replace("%7E", "~").replace("%2C", ",")
-    if path.startswith("freenet://"):
-        path = path[len("freenet://"):]
-    elif path.startswith("freenet:"):
-        path = path[len("freenet:"):]
+    path = strip_protocol(path)
 
     # Guess whether it's WoT. This won't work if someone has chosen their WoT
     # nick to be "USK", but this is a corner case. Using --wot will still work.
     if not path.startswith("USK"):
         import wot
         if operation == "pull":
-            truster = get_truster(ui, repo)
-            return wot.resolve_pull_uri(ui, path, truster)
+            truster = get_truster(ui, repo, truster_identifier)
+            return wot.resolve_pull_uri(ui, path, truster, repo)
         elif operation == "push":
             return wot.resolve_push_uri(ui, path)
         elif operation == "clone-push":
@@ -630,7 +631,7 @@ def freenetpull(orig, *args, **opts):
     # only act differently, if the target is an infocalypse repo.
     if not isfreenetpath(path):
         return orig(*args, **opts)
-    uri = freenetpathtouri(ui, path, "pull", repo)
+    uri = freenetpathtouri(ui, path, "pull", repo, opts.get('truster'))
     opts["uri"] = uri
     opts["aggressive"] = True # always search for the latest revision.
     return infocalypse_pull(ui, repo, **opts)
@@ -729,7 +730,8 @@ def freenetclone(orig, *args, **opts):
     # check whether to create, pull or copy
     pulluri, pushuri = None, None
     if isfreenetpath(source):
-        pulluri = parse_repo_path(freenetpathtouri(ui, source, "pull"))
+        pulluri = parse_repo_path(
+            freenetpathtouri(ui, source, "pull", None, opts.get('truster')))
 
     if isfreenetpath(dest):
         pushuri = parse_repo_path(freenetpathtouri(ui, dest, "clone-push"),
@@ -781,7 +783,22 @@ def freenetclone(orig, *args, **opts):
             #pushuri = pushuri[:namepartpos] + namepart
         opts["uri"] = pushuri
         repo = hg.repository(ui, ui.expandpath(source))
-        return infocalypse_create(ui, repo, **opts)
+        # TODO: A local identity is looked up for the push URI,
+        # but not returned, yet it is required to update configuration.
+        # Expecting dest to be something like freenet://name@key/reponame
+        local_identifier = strip_protocol(dest).split('/')[0]
+
+        from wot_id import Local_WoT_ID
+        local_identity = Local_WoT_ID(local_identifier)
+
+        infocalypse_create(ui, repo, local_identity, **opts)
+
+        # TODO: Function for adding paths? It's currently here, for pull,
+        # and in WoT pull URI resolution.
+        with repo.opener("hgrc", "a", text=True) as f:
+            f.write("""[paths]
+default-push = freenet:{0}
+""".format(pushuri))
 
     if action == "pull":
         if os.path.exists(dest):

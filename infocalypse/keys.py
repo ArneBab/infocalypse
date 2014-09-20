@@ -8,22 +8,16 @@ class USK:
         # Expecting USK@key/name/edition
         assert len(components) == 3
 
-        self.key = components[0]
+        self.key = components[0].split('@')[1]
         self.name = components[1]
         self.edition = int(components[2])
 
         # TODO: Is stripping "freenet://" appropriate?
-        if self.key.startswith('freenet:'):
-            self.key = self.key[len('freenet:'):]
-        elif self.key.startswith('freenet://'):
-            self.key = self.key[len('freenet://'):]
+        self.key = strip_protocol(self.key)
 
     def get_repo_name(self):
         """
         Return name with the redundancy level, if any, removed.
-
-        # TODO: tests. Use in detecting duplicate names. (Also
-        # determining repo names from URI.)
 
         >>> USK('USK@.../name/5').get_repo_name()
         'name'
@@ -40,11 +34,20 @@ class USK:
             return self.name[:-3]
         return self.name
 
+    def get_public_key_hash(self):
+        """
+        Return the public key hash component of the key.
+
+        >>> USK('USK@wHllqvhRlGLZZrXwqgsFFGbv2V9S33lq~-MTIN2FvOw,mN0trI6Yx1W6ecyERrVxANHQmA3vJwk88UEHW3qCsRA,AQACAAE/vcs/22').get_public_key_hash()
+        'wHllqvhRlGLZZrXwqgsFFGbv2V9S33lq~-MTIN2FvOw'
+        """
+        return self.key.split(',')[0]
+
     def clone(self):
         return USK(str(self))
 
     def __str__(self):
-        return '%s/%s/%s' % (self.key, self.name, self.edition)
+        return 'USK@%s/%s/%s' % (self.key, self.name, self.edition)
 
     def __repr__(self):
         return "USK('%s')" % str(self)
@@ -66,6 +69,10 @@ def parse_repo_path(path, assume_redundancy=False):
     'USK@.../name/0'
     >>> parse_repo_path('USK@.../name/')
     'USK@.../name/0'
+    >>> parse_repo_path('USK@.../name/10')
+    'USK@.../name/10'
+    >>> parse_repo_path('USK@.../name/10/')
+    'USK@.../name/10'
     >>> parse_repo_path('USK@.../name', assume_redundancy=True)
     'USK@.../name.R1/0'
     >>> parse_repo_path('USK@.../name.R0/5', assume_redundancy=True)
@@ -81,6 +88,13 @@ def parse_repo_path(path, assume_redundancy=False):
         # Assuming USK@..,/name: '/edition' omitted.
         parts.append('0')
 
+    if len(parts) == 4:
+        # Assuming trailing slash - the part after it should be empty.
+        if parts[3]:
+            raise util.Abort("Found unexpected '{0}' trailing the edition "
+                             "number.".format(parts[3]))
+        parts.pop()
+
     if not len(parts) == 3:
         raise util.Abort("Cannot parse '{0}' as repository path.".format(path))
 
@@ -95,3 +109,21 @@ def parse_repo_path(path, assume_redundancy=False):
             parts[1] += '.R1'
 
     return '/'.join(parts)
+
+
+def strip_protocol(uri):
+    """
+    Return the uri without "freenet:" or "freenet://" at the start, if present.
+
+    >>> strip_protocol('freenet:USK@.../test/0')
+    'USK@.../test/0'
+    >>> strip_protocol('freenet://someone/test')
+    'someone/test'
+    >>> strip_protocol('another/testing')
+    'another/testing'
+    """
+    if uri.startswith('freenet://'):
+        return uri[len('freenet://'):]
+    elif uri.startswith('freenet:'):
+        return uri[len('freenet:'):]
+    return uri

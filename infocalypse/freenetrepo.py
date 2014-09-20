@@ -52,6 +52,9 @@ class freenetrepo(peerrepository):
     def branches(self, nodes):
         return []
 
+    def _capabilities(self):
+        return self.capabilities
+
 instance = freenetrepo
 
 def islocal(path):
