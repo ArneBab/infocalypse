@@ -14,6 +14,7 @@ Add i18n support for messages.                               | owner:, open:True
 Fix implied clone destination when cloning from freenet:.    | owner:Steve Dougherty <steve@asksteved.com>, open:False, id:9bd3ef617ba8871d28fbdae2500542e93302c791, time:1375736289.27
 Unit tests involving the node are hard.                      | owner:Steve Dougherty <steve@asksteved.com>, open:True, id:b01a53e59a2096254ecacdcee7673df5323d786e, time:1375737309.25
 Consider reworking repo list XML for conciseness.            | owner:Steve Dougherty <steve@asksteved.com>, open:True, id:b511106032c58ffe7b33d0eb65bac7ec5555575e, time:1375734587.66
+do not get non-anonymous subrepos on update.                 | owner:, open:True, id:d233a3e49b975f8070feafdd5da86fa8034cb2ec, time:1411402019.09
 simpler-wot-uris: name/repo                                  | owner:Arne Babenhauserheide <bab@draketo.de>, open:False, id:d4f2df3ca2c441e4be389be846634f5a4a08906e, time:1372232568.9
 add support for hg incoming freenet://…                    | owner:Arne Babenhauserheide <bab@draketo.de>, open:True, id:dbff86d4bba0e38adb81a6e27e7180282222f541, time:1375002083.32
 Add a warning that comments and unrecognized entries in ~/.infocalypse are removed. | owner:Steve Dougherty <steve@asksteved.com>, open:True, id:e9236fdd23d44bfbf8565bb1a59317289f324fd6, time:1375735601.35
