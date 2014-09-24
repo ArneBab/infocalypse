@@ -820,8 +820,8 @@ username = anonymous
 
 [alias]
 clt = commit
-ci = !$HG clt --date "$(date -u "+%Y-%m-%d %H:%M:%S +0000")" $@
-commit = !$HG clt --date "$(date -u "+%Y-%m-%d %H:%M:%S +0000")" $@
+ci = !$HG clt --date "$(date -u "+%Y-%m-%d %H:%M:%S +0000")" "$@"
+commit = !$HG clt --date "$(date -u "+%Y-%m-%d %H:%M:%S +0000")" "$@"
 """
         # alternative: every commit is done at 09:42:30 (might be
         # confusing but should be safest): date -u "+%Y-%m-%d 09:42:30 +0000
