@@ -142,9 +142,8 @@ def _get_identity(wot_identifier, truster):
 
     # Test for GetIdentitiesByPartialNickname support. currently LCWoT-only.
     # src/main/java/plugins/WebOfTrust/fcp/GetIdentitiesByPartialNickname
-    # TODO: LCWoT allows limiting by context; how to make sure otherwise?
-    # TODO: Should this manually ensure an identity has a vcs context
-    # otherwise?
+    # TODO: LCWoT allows limiting by context; should we make sure otherwise?
+    # Feature request for WoT: https://bugs.freenetproject.org/view.php?id=6184
 
     # GetIdentitiesByPartialNickname does not support empty nicknames.
     if nickname_prefix:
