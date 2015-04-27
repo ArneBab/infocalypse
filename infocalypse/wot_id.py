@@ -170,8 +170,12 @@ def _get_identity(wot_identifier, truster):
             elif matches == 1:
                 return response
             else:
-                raise util.Abort("'{0}' matches more than one identity."
-                                 .format(wot_identifier))
+                # TODO: Ask the user to choose interactively (select 1, 2, 3, ...)
+                raise util.Abort("'{0}' matches more than one identity. Please choose one."
+                                 .format(wot_identifier)
+                                 + "\n"
+                                 + "\n".join("(" + str(i) + ")" + r
+                                             for i,r in enumerate(response)))
 
         # Partial matching not supported, or unknown truster. The only
         # difference in the errors is human-readable, so try the exact match.
