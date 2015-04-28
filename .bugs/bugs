@@ -1,3 +1,4 @@
+fn-pull-request should take a message argument               | owner:, open:True, id:0032f597bbdccd4e067782c95e202d3fdc1d6cfc, time:1430249619.57
 minimize dependencies                                        | owner:Arne Babenhauserheide <bab@draketo.de>, open:True, id:0fc25f7b84f3e1fb89e9134a28eeabbe76bf054f, time:1372231529.45
 Problems using clone to create repositories.~                | owner:Steve Dougherty <steve@asksteved.com>, open:False, id:210c0e45adba5d500c6c5c00d750bfe43824cd3a, time:1375737210.02
 Update USK hgrc paths                                        | owner:Steve Dougherty <steve@asksteved.com>, open:True, id:2a4a5dfd11551f488701997054d6547ac586165a, time:1377872619.04
