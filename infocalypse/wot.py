@@ -302,8 +302,10 @@ def find_repo(ui, identity, repo_name):
     if repo_name not in listing:
         raise util.Abort("{0} does not publish a repo named '{1}'\n"
                          .format(identity, repo_name))
+    r = listing[repo_name]
+    ui.status("Using repository {}\n".format(r))
 
-    return listing[repo_name]
+    return r
 
 
 def read_repo_listing(ui, identity):
