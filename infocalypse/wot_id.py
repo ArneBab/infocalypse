@@ -19,7 +19,7 @@ class WoT_ID(object):
     * freemail_address - str
     """
 
-    def __init__(self, wot_identifier, truster, id_num=0, message=None):
+    def __init__(self, wot_identifier, truster, id_num=0, message=None, fcpopts={}):
         """
         If using LCWoT, either the nickname prefix should be enough to be
         unambiguous, or failing that enough of the key.
@@ -38,7 +38,7 @@ class WoT_ID(object):
         # it queries WoT to produce one.
         is_local_identity = message is not None
         if not message:
-            message = _get_identity(wot_identifier, truster)
+            message = _get_identity(wot_identifier, truster, fcpopts=fcpopts)
 
         def get_attribute(attribute):
             return message['Replies.{0}{1}'.format(attribute, id_num)]
@@ -113,26 +113,26 @@ class Local_WoT_ID(WoT_ID):
     * properties - dict
     """
 
-    def __init__(self, wot_identifier):
+    def __init__(self, wot_identifier, fcpopts={}):
         """
         Create a WoT_ID for a local identity matching the identifier.
 
         :type wot_identifier: str
         """
-        id_num, message = _get_local_identity(wot_identifier)
+        id_num, message = _get_local_identity(wot_identifier, fcpopts=fcpopts)
 
         self.insert_uri = USK(message['Replies.InsertURI{0}'.format(id_num)])
 
-        WoT_ID.__init__(self, None, None, id_num=id_num, message=message)
+        WoT_ID.__init__(self, None, None, id_num=id_num, message=message, fcpopts=fcpopts)
 
 
-def _request_matching_identities_lcwot(truster, context="vcs", prefix=None):
+def _request_matching_identities_lcwot(truster, context="vcs", prefix=None, fcpopts={}):
     """
     Return a response for a partial nickname request.
     """
     nickname_prefix, key_prefix = _parse_name(prefix)
     # TODO: Support different FCP IP / port.
-    node = fcp.FCPNode()
+    node = fcp.FCPNode(**fcpopts)
 
     # Test for GetIdentitiesByPartialNickname support. currently LCWoT-only.
     # src/main/java/plugins/WebOfTrust/fcp/GetIdentitiesByPartialNickname
@@ -164,11 +164,11 @@ def _request_matching_identities_lcwot(truster, context="vcs", prefix=None):
     return response
             
         
-def _request_matching_identities(truster, context="vcs", prefix=None):
+def _request_matching_identities(truster, context="vcs", prefix=None, fcpopts={}):
     """
     Return a list of responses for all matching identities.
     """
-    node = fcp.FCPNode()
+    node = fcp.FCPNode(**fcpopts)
     params = {'Message': 'GetIdentities', # GetIdentitiesByScore is much slower
               'Truster': truster.identity_id}
 
@@ -193,11 +193,11 @@ def _request_matching_identities(truster, context="vcs", prefix=None):
             (get_attribute("Nickname", i, response),
              get_attribute("Identity", i, response)))
         if not prefix or identifier.startswith(prefix):
-            responses.append(_get_identity(identifier, truster, exact=True))
+            responses.append(_get_identity(identifier, truster, exact=True, fcpopts=fcpopts))
     return responses
         
         
-def _get_identity(wot_identifier, truster, exact=False):
+def _get_identity(wot_identifier, truster, exact=False, fcpopts={}):
     """
     Internal.
 
@@ -210,7 +210,7 @@ def _get_identity(wot_identifier, truster, exact=False):
     """
     nickname_prefix, key_prefix = _parse_name(wot_identifier)
     # TODO: Support different FCP IP / port.
-    node = fcp.FCPNode()
+    node = fcp.FCPNode(**fcpopts)
 
     if not exact:
         # Test for GetIdentitiesByPartialNickname support. currently LCWoT-only.
@@ -221,13 +221,13 @@ def _get_identity(wot_identifier, truster, exact=False):
         # GetIdentitiesByPartialNickname does not support empty nicknames.
         try:
             response = _request_matching_identities_lcwot(
-                truster, context="vcs", prefix=wot_identifier)
+                truster, context="vcs", prefix=wot_identifier, fcpopts=fcpopts)
             if response['Replies.Message'] == 'Identities':
                 matches = response['Replies.IdentitiesMatched']
             else:
                 raise util.Abort("WoT does not support partial matching.")
         except util.Abort:
-            all_responses = _request_matching_identities(truster, prefix=wot_identifier)
+            all_responses = _request_matching_identities(truster, prefix=wot_identifier, fcpopts=fcpopts)
             matches = len(all_responses)
             if matches:
                 response = all_responses[0]
@@ -263,7 +263,7 @@ def _get_identity(wot_identifier, truster, exact=False):
     return response
 
 
-def _get_local_identity(wot_identifier):
+def _get_local_identity(wot_identifier, fcpopts={}):
     """
     Internal.
 
@@ -274,7 +274,7 @@ def _get_local_identity(wot_identifier):
     """
     nickname_prefix, key_prefix = _parse_name(wot_identifier)
 
-    node = fcp.FCPNode()
+    node = fcp.FCPNode(**fcpopts)
     response = \
         node.fcpPluginMessage(plugin_name="plugins.WebOfTrust.WebOfTrust",
                               plugin_params={'Message':

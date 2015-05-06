@@ -231,8 +231,7 @@ def infocalypse_pull(ui_, repo, **opts):
     elif opts['wot']:
         import wot
         truster = get_truster(ui_, repo, opts['truster'])
-
-        request_uri = wot.resolve_pull_uri(ui_, opts['wot'], truster, repo)
+        request_uri = wot.resolve_pull_uri(ui_, opts['wot'], truster, repo, fcphost = opts['fcphost'], fcpport = opts['fcpport'])
     elif opts['uri']:
         request_uri = parse_repo_path(opts['uri'])
 

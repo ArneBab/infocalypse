@@ -347,15 +347,18 @@ import freenetrepo
 
 from keys import strip_protocol
 
-_freenetschemes = ('freenet', )
+_freenetschemes = ('freenet', ) # TODO: add fn
 for _scheme in _freenetschemes:
     hg.schemes[_scheme] = freenetrepo
 
 #----------------------------------------------------------"
 
+DEFAULT_FCP_HOST = "127.0.0.1"
+DEFAULT_FCP_PORT = 9481
+
 # Can't use None as a default? Means "takes no argument'?
-FCP_OPTS = [('', 'fcphost', '', 'fcp host'),
-            ('', 'fcpport', 0, 'fcp port'),
+FCP_OPTS = [('', 'fcphost', '', 'fcp host, defaults to setup or ' + DEFAULT_FCP_HOST),
+            ('', 'fcpport', 0, 'fcp port, defaults to setup or ' + str(DEFAULT_FCP_PORT)),
 ]
 
 FMS_OPTS = [('', 'fmshost', '', 'fms host'),
@@ -570,7 +573,7 @@ extensions.wrapfunction(discovery, 'findcommonoutgoing', findcommonoutgoing)
 # wrap the commands
 
 
-def freenetpathtouri(ui, path, operation, repo=None, truster_identifier=None):
+def freenetpathtouri(ui, path, operation, repo=None, truster_identifier=None, fcphost=None, fcpport=None):
     """
     Return a usable request or insert URI. Expects a freenet:// or freenet:
     protocol to be specified.
@@ -602,11 +605,11 @@ def freenetpathtouri(ui, path, operation, repo=None, truster_identifier=None):
         import wot
         if operation == "pull":
             truster = get_truster(ui, repo, truster_identifier)
-            return wot.resolve_pull_uri(ui, path, truster, repo)
+            return wot.resolve_pull_uri(ui, path, truster, repo, fcphost=fcphost, fcpport=fcpport)
         elif operation == "push":
-            return wot.resolve_push_uri(ui, path)
+            return wot.resolve_push_uri(ui, path, fcphost=fcphost, fcpport=fcpport)
         elif operation == "clone-push":
-            return wot.resolve_push_uri(ui, path, resolve_edition=False)
+            return wot.resolve_push_uri(ui, path, resolve_edition=False, fcphost=fcphost, fcpport=fcpport)
         else:
             raise util.Abort("Internal error: invalid operation '{0}' when "
                              "resolving WoT-integrated URI.".format(operation))
@@ -631,7 +634,7 @@ def freenetpull(orig, *args, **opts):
     # only act differently, if the target is an infocalypse repo.
     if not isfreenetpath(path):
         return orig(*args, **opts)
-    uri = freenetpathtouri(ui, path, "pull", repo, opts.get('truster'))
+    uri = freenetpathtouri(ui, path, "pull", repo, opts.get('truster'), fcphost = opts['fcphost'], fcpport = opts['fcpport'])
     opts["uri"] = uri
     opts["aggressive"] = True # always search for the latest revision.
     return infocalypse_pull(ui, repo, **opts)
@@ -668,7 +671,7 @@ def freenetpush(orig, *args, **opts):
     # only act differently, if the target is an infocalypse repo.
     if not isfreenetpath(path):
         return orig(*args, **opts)
-    uri = parse_repo_path(freenetpathtouri(ui, path, "push", repo))
+    uri = parse_repo_path(freenetpathtouri(ui, path, "push", repo, fcphost = opts['fcphost'], fcpport = opts['fcpport']))
     if uri is None:
         return
     # if the uri is the short form (USK@/name/#), generate the key and preprocess the uri.
@@ -677,9 +680,9 @@ def freenetpush(orig, *args, **opts):
         from sitecmds import genkeypair
         fcphost, fcpport = opts["fcphost"], opts["fcpport"]
         if not fcphost:
-            fcphost = '127.0.0.1'
+            fcphost = DEFAULT_FCP_HOST
         if not fcpport:
-            fcpport = 9481
+            fcpport = DEFAULT_FCP_PORT
             
         # use redundant keys by default, except if explicitely requested otherwise.
         namepart = uri[5:]
@@ -734,7 +737,7 @@ def freenetclone(orig, *args, **opts):
             freenetpathtouri(ui, source, "pull", None, opts.get('truster')))
 
     if isfreenetpath(dest):
-        pushuri = parse_repo_path(freenetpathtouri(ui, dest, "clone-push"),
+        pushuri = parse_repo_path(freenetpathtouri(ui, dest, "clone-push", fcphost = opts['fcphost'], fcpport = opts['fcpport']),
                                   assume_redundancy=True)
 
     # decide which infocalypse command to use.
@@ -757,9 +760,9 @@ def freenetclone(orig, *args, **opts):
             from sitecmds import genkeypair
             fcphost, fcpport = opts["fcphost"], opts["fcpport"]
             if not fcphost:
-                fcphost = '127.0.0.1'
+                fcphost = DEFAULT_FCP_HOST
             if not fcpport:
-                fcpport = 9481
+                fcpport = DEFAULT_FCP_PORT
             
             # use redundant keys by default, except if explicitely requested otherwise.
             namepart = pushuri[5:]

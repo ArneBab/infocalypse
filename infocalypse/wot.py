@@ -394,7 +394,21 @@ def fetch_edition(uri):
         return node.get(str(uri), priority=1)
 
 
-def resolve_pull_uri(ui, path, truster, repo=None):
+def _get_fcpopts(fcphost=None, fcpport=None):
+    """
+    Get the minimal FCP opts.
+
+    TODO: Retrieve defaults from setup.
+    """
+    fcpopts = {}
+    if fcphost:
+        fcpopts["fcphost"] = fcphost
+    if fcpport:
+        fcpopts["fcpport"] = fcpport
+    return fcpopts
+
+    
+def resolve_pull_uri(ui, path, truster, repo=None, fcphost=None, fcpport=None):
         """
         Return a pull URI for the given path.
         Print an error message and abort on failure.
@@ -409,12 +423,13 @@ def resolve_pull_uri(ui, path, truster, repo=None):
         :param path: path describing a repo. nick@key/reponame
         :param truster: identity whose trust list to use.
         :param repo: If given, add a path that points to the resolved URI.
-        :return:
+        :return: pull URI
         """
         # Expecting <id stuff>/reponame
         wot_id, repo_name = path.split('/', 1)
-
-        identity = WoT_ID(wot_id, truster)
+        identity = WoT_ID(wot_id, truster,
+                          fcpopts=_get_fcpopts(fcphost=fcphost,
+                                               fcpport=fcpport))
 
         # TODO: How to handle redundancy? Does Infocalypse automatically try
         # an R0 if an R1 fails?
@@ -437,7 +452,7 @@ def resolve_pull_uri(ui, path, truster, repo=None):
         return request_uri
 
 
-def resolve_push_uri(ui, path, resolve_edition=True):
+def resolve_push_uri(ui, path, resolve_edition=True, fcphost=None, fcpport=None):
     """
     Return a push URI for the given path.
     Raise util.Abort if unable to resolve identity or repository.
@@ -453,8 +468,9 @@ def resolve_push_uri(ui, path, resolve_edition=True):
     """
     # Expecting <id stuff>/repo_name
     wot_id, repo_name = path.split('/', 1)
-
-    local_id = Local_WoT_ID(wot_id)
+    local_id = Local_WoT_ID(wot_id,
+                            fcpopts=_get_fcpopts(fcphost=fcphost,
+                                                 fcpport=fcpport))
 
     if resolve_edition:
         # TODO: find_repo should make it clearer that it returns a request URI,
