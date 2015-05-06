@@ -225,12 +225,17 @@ def require_freemail(wot_identity):
     return wot_identity.freemail_address
 
 
-def update_repo_listing(ui, for_identity):
+def update_repo_listing(ui, for_identity, fcphost=None, fcpport=None):
     """
     Insert list of repositories published by the given identity.
 
     :type for_identity: Local_WoT_ID
     """
+    # TODO: Somehow store the edition, perhaps in ~/.infocalypse. WoT
+    # properties are apparently not appropriate.
+
+    cfg = Config.from_ui(ui)
+
     # TODO: WoT property containing repo list edition. Used when requesting.
     # Version number to support possible format changes.
     root = ET.Element('vcs', {'version': '0'})
@@ -243,15 +248,11 @@ def update_repo_listing(ui, for_identity):
         })
         repo.text = request_uri
 
-    # TODO: Nonstandard IP and port.
-    node = fcp.FCPNode()
+    # TODO: Nonstandard IP and port from cfg
+    node = fcp.FCPNode(**get_fcpopts(fcphost=fcphost,
+                                     fcpport=fcpport))
 
     insert_uri = for_identity.insert_uri.clone()
-
-    # TODO: Somehow store the edition, perhaps in ~/.infocalypse. WoT
-    # properties are apparently not appropriate.
-
-    cfg = Config.from_ui(ui)
 
     insert_uri.name = 'vcs'
     insert_uri.edition = cfg.get_repo_list_edition(for_identity)
@@ -308,12 +309,14 @@ def find_repo(ui, identity, repo_name):
     return r
 
 
-def read_repo_listing(ui, identity):
+def read_repo_listing(ui, identity, fcphost=None, fcpport=None):
     """
     Read a repo listing for a given identity.
     Return a dictionary of repository request URIs keyed by name.
 
     :type identity: WoT_ID
+    
+    TODO: get host and port from config
     """
     cfg = Config.from_ui(ui)
     uri = identity.request_uri.clone()
@@ -322,7 +325,7 @@ def read_repo_listing(ui, identity):
 
     # TODO: Set and read vcs edition property.
     ui.status("Fetching.\n")
-    mime_type, repo_xml, msg = fetch_edition(uri)
+    mime_type, repo_xml, msg = fetch_edition(uri, fcphost=fcphost, fcpport=fcpport)
     ui.status("Fetched {0}.\n".format(uri))
 
     cfg.set_repo_list_edition(identity, uri.edition)
@@ -370,13 +373,14 @@ def read_repo_listing(ui, identity):
     return repositories
 
 
-def fetch_edition(uri):
+def fetch_edition(uri, fcphost=None, fcpport=None):
     """
     Fetch a USK uri, following redirects. Change the uri edition to the one
     fetched.
     :type uri: USK
     """
-    node = fcp.FCPNode()
+    node = fcp.FCPNode(**get_fcpopts(fcphost=fcphost,
+                                     fcpport=fcpport))
     # Following a redirect automatically does not provide the edition used,
     # so manually following redirects is required.
     # TODO: Is there ever legitimately more than one redirect?
@@ -394,7 +398,7 @@ def fetch_edition(uri):
         return node.get(str(uri), priority=1)
 
 
-def _get_fcpopts(fcphost=None, fcpport=None):
+def get_fcpopts(fcphost=None, fcpport=None):
     """
     Get the minimal FCP opts.
 
@@ -402,9 +406,9 @@ def _get_fcpopts(fcphost=None, fcpport=None):
     """
     fcpopts = {}
     if fcphost:
-        fcpopts["fcphost"] = fcphost
+        fcpopts["host"] = fcphost
     if fcpport:
-        fcpopts["fcpport"] = fcpport
+        fcpopts["port"] = fcpport
     return fcpopts
 
     
@@ -428,7 +432,7 @@ def resolve_pull_uri(ui, path, truster, repo=None, fcphost=None, fcpport=None):
         # Expecting <id stuff>/reponame
         wot_id, repo_name = path.split('/', 1)
         identity = WoT_ID(wot_id, truster,
-                          fcpopts=_get_fcpopts(fcphost=fcphost,
+                          fcpopts=get_fcpopts(fcphost=fcphost,
                                                fcpport=fcpport))
 
         # TODO: How to handle redundancy? Does Infocalypse automatically try
@@ -469,7 +473,7 @@ def resolve_push_uri(ui, path, resolve_edition=True, fcphost=None, fcpport=None)
     # Expecting <id stuff>/repo_name
     wot_id, repo_name = path.split('/', 1)
     local_id = Local_WoT_ID(wot_id,
-                            fcpopts=_get_fcpopts(fcphost=fcphost,
+                            fcpopts=get_fcpopts(fcphost=fcphost,
                                                  fcpport=fcpport))
 
     if resolve_edition:

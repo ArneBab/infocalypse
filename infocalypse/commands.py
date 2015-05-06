@@ -44,7 +44,11 @@ def infocalypse_update_repo_list(ui, **opts):
 
     import wot
     from wot_id import Local_WoT_ID
-    wot.update_repo_listing(ui, Local_WoT_ID(opts['wot']))
+    wot.update_repo_listing(ui, Local_WoT_ID(opts['wot'], fcpopts=wot.get_fcpopts(
+        fcphost=opts["fcphost"],
+        fcpport=opts["fcpport"])), 
+                            fcphost=opts["fcphost"],
+                            fcpport=opts["fcpport"])
 
 
 def infocalypse_create(ui_, repo, local_identity=None, **opts):
@@ -128,7 +132,9 @@ def infocalypse_create(ui_, repo, local_identity=None, **opts):
                       'Context': 'vcs'}
 
         import fcp
-        node = fcp.FCPNode()
+        import wot
+        node = fcp.FCPNode(**wot.get_fcpopts(fcphost=opts["fcphost"],
+                                             fcpport=opts["fcpport"]))
         vcs_response =\
             node.fcpPluginMessage(plugin_name="plugins.WebOfTrust.WebOfTrust",
                                   plugin_params=msg_params)[0]
@@ -150,7 +156,9 @@ def infocalypse_create(ui_, repo, local_identity=None, **opts):
         Config.to_file(stored_cfg)
 
         import wot
-        wot.update_repo_listing(ui_, local_identity)
+        wot.update_repo_listing(ui_, local_identity, 
+                                fcphost=opts["fcphost"],
+                                fcpport=opts["fcpport"])
 
 
 def infocalypse_copy(ui_, repo, **opts):
@@ -307,7 +315,9 @@ def infocalypse_push(ui_, repo, **opts):
         import wot
         from wot_id import Local_WoT_ID
         local_id = Local_WoT_ID('@' + associated_wot_id)
-        wot.update_repo_listing(ui_, local_id)
+        wot.update_repo_listing(ui_, local_id, 
+                                fcphost=opts["fcphost"],
+                                fcpport=opts["fcpport"])
 
 
 def infocalypse_info(ui_, repo, **opts):

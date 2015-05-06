@@ -114,6 +114,7 @@ def detect_and_fix_default_bug(ui_, file_path):
         fixed_file.close()
     ui_.warn("Applied fix.\n")
 
+
 # Why didn't I subclass dict?
 # Eventually set state from fms feed. i.e. latest repo updates.
 class Config:

@@ -792,7 +792,10 @@ def freenetclone(orig, *args, **opts):
         local_identifier = strip_protocol(dest).split('/')[0]
 
         from wot_id import Local_WoT_ID
-        local_identity = Local_WoT_ID(local_identifier)
+        from wot import get_fcpopts
+        local_identity = Local_WoT_ID(local_identifier,
+                                      get_fcpopts(fcphost=opts["fcphost"],
+                                                  fcpport=opts["fcpport"]))
 
         infocalypse_create(ui, repo, local_identity, **opts)
 

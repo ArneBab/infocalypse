@@ -12,6 +12,11 @@ PLUGIN_NAME = "org.freenetproject.plugin.dvcs_webui.main.Plugin"
 
 
 def connect(ui, repo):
+    """
+    Connect to the WebUI plugin to provide local support.
+    
+    TODO: Add command option handling (fcphost and fcpport).
+    """
     node = fcp.FCPNode()
 
     ui.status("Connecting.\n")
