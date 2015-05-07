@@ -568,6 +568,8 @@ def get_truster(ui, repo=None, truster_identifier=None):
                                                  identity is set)
     3. default truster
 
+    TODO: Accept fcp port and fcp host parameters.
+
     :rtype : Local_WoT_ID
     """
     from wot_id import Local_WoT_ID

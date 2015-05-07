@@ -10,6 +10,8 @@ from email.mime.text import MIMEText
 import imaplib
 from wot_id import Local_WoT_ID, WoT_ID
 
+# TODO: Instead of fcpport and fcphost, functions should accept a node
+
 FREEMAIL_SMTP_PORT = 4025
 FREEMAIL_IMAP_PORT = 4143
 VCS_TOKEN = "[vcs]"
