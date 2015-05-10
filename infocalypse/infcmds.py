@@ -188,6 +188,7 @@ def get_verbosity(ui_):
     else:
         return 1 # No FCP message status
 
+    
 def get_config_info(ui_, opts):
     """ INTERNAL: Read configuration info out of the config file and
         or command line options. """

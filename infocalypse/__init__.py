@@ -518,10 +518,10 @@ cmdtable = {
                 "[options]"),
 
     "fn-setupfms": (infocalypse_setupfms,
-                 [('', 'fmsid', '', "fmsid (only part before '@'!)"),
-                  ('', 'timeout', 30, "fms socket timeout in seconds"),]
-                 + FMS_OPTS,
-                "[options]"),
+                    [('', 'fmsid', '', "fmsid (only part before '@'!)"),
+                     ('', 'timeout', 30, "fms socket timeout in seconds"),]
+                    + FMS_OPTS,
+                    "[options]"),
 
     "fn-setupwot": (infocalypse_setupwot,
                     FCP_OPTS +
@@ -535,21 +535,21 @@ cmdtable = {
                          "[--truster nick@key]"),
 
     "fn-archive": (infocalypse_archive,
-                  [('', 'uri', '', 'Request URI for --pull, Insert URI ' +
-                    'for --create, --push'),
-                   ('', 'create', None, 'Create a new archive using the ' +
-                    'Insert URI --uri'),
-                   ('', 'push', None, 'Push incremental updates into the ' +
-                    'archive in Freenet'),
-                   ('', 'pull', None, 'Pull incremental updates from the ' +
-                    'archive in Freenet'),
-                   ('', 'reinsert', None, 'Re-insert the entire archive. '),
-                   ]
+                   [('', 'uri', '', 'Request URI for --pull, Insert URI ' +
+                     'for --create, --push'),
+                    ('', 'create', None, 'Create a new archive using the ' +
+                     'Insert URI --uri'),
+                    ('', 'push', None, 'Push incremental updates into the ' +
+                     'archive in Freenet'),
+                    ('', 'pull', None, 'Pull incremental updates from the ' +
+                     'archive in Freenet'),
+                    ('', 'reinsert', None, 'Re-insert the entire archive. '),
+                ]
                    + FCP_OPTS
                    + NOSEARCH_OPT
                    + AGGRESSIVE_OPT,
                    "[options]"),
-    }
+}
 
 
 commands.norepo += ' fn-setup'

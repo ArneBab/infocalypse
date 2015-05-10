@@ -440,7 +440,7 @@ def resolve_pull_uri(ui, path, truster, repo=None, fcphost=None, fcpport=None):
         wot_id, repo_name = path.split('/', 1)
         identity = WoT_ID(wot_id, truster,
                           fcpopts=get_fcpopts(fcphost=fcphost,
-                                               fcpport=fcpport))
+                                              fcpport=fcpport))
 
         # TODO: How to handle redundancy? Does Infocalypse automatically try
         # an R0 if an R1 fails?
@@ -481,7 +481,7 @@ def resolve_push_uri(ui, path, resolve_edition=True, fcphost=None, fcpport=None)
     wot_id, repo_name = path.split('/', 1)
     local_id = Local_WoT_ID(wot_id,
                             fcpopts=get_fcpopts(fcphost=fcphost,
-                                                 fcpport=fcpport))
+                                                fcpport=fcpport))
 
     if resolve_edition:
         # TODO: find_repo should make it clearer that it returns a request URI,
