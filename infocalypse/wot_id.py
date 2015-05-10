@@ -254,9 +254,8 @@ def _get_identity(wot_identifier, truster, exact=False, fcpopts={}):
     if response['Replies.Message'] == 'Error':
         # Searching by exact public key hash, not matching.
         raise util.Abort("No identity has the complete public key hash '{0}'. "
-                         "({1}) To flexibly match by partial nickname and key "
-                         "use LCWoT for now."
-                         .format(key_prefix, wot_identifier))
+                         "({1}). Error: {2}"
+                         .format(key_prefix, wot_identifier, response.get('Replies.Message', "")))
 
     # There should be only one result.
     # Depends on https://bugs.freenetproject.org/view.php?id=5729
