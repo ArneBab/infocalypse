@@ -803,9 +803,11 @@ want to re-run setup.
 Consider before deleting it. It may contain
 the *only copy* of your private key.
 
-If you're just trying to update the FMS configuration run:
+If you're just trying to update the FMS or Web of Trust configuration, run:
 
 hg fn-setupfms
+or
+hg fn-setupwot
 
 instead.
 
