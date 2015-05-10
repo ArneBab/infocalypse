@@ -355,10 +355,18 @@ for _scheme in _freenetschemes:
 
 DEFAULT_FCP_HOST = "127.0.0.1"
 DEFAULT_FCP_PORT = 9481
+# synchronize with wot.py (copied here to a void importing wot)
+FREEMAIL_SMTP_PORT = 4025
+FREEMAIL_IMAP_PORT = 4143
 
 # Can't use None as a default? Means "takes no argument'?
 FCP_OPTS = [('', 'fcphost', '', 'fcp host, defaults to setup or ' + DEFAULT_FCP_HOST),
             ('', 'fcpport', 0, 'fcp port, defaults to setup or ' + str(DEFAULT_FCP_PORT)),
+]
+
+FREEMAIL_OPTS = [('', 'mailhost', '', 'freemail host, defaults to setup or ' + DEFAULT_FCP_HOST),
+                 ('', 'smtpport', 0, 'freemail smtp port, defaults to setup or ' + str(FREEMAIL_SMTP_PORT)),
+                 ('', 'imapport', 0, 'freemail imap port, defaults to setup or ' + str(FREEMAIL_IMAP_PORT)),
 ]
 
 FMS_OPTS = [('', 'fmshost', '', 'fms host'),
@@ -403,14 +411,16 @@ cmdtable = {
                         [('', 'wot', '', 'WoT nick@key/repo to send request '
                                          'to')]
                         + WOT_OPTS
-                        + FCP_OPTS,
+                        + FCP_OPTS
+                        + FREEMAIL_OPTS,
                         "[--truster nick@key] --wot nick@key/repo"),
 
     "fn-check-notifications": (infocalypse_check_notifications,
                                [('', 'wot', '', 'WoT nick@key to check '
                                                 'notifications for')]
                                + WOT_OPTS
-                               + FCP_OPTS,
+                               + FCP_OPTS
+                               + FREEMAIL_OPTS,
                                "--wot nick@key"),
 
     "fn-push": (infocalypse_push,
@@ -520,7 +530,8 @@ cmdtable = {
 
     "fn-setupfreemail": (infocalypse_setupfreemail,
                          WOT_OPTS
-                         + FCP_OPTS,
+                         + FCP_OPTS
+                         + FREEMAIL_OPTS,
                          "[--truster nick@key]"),
 
     "fn-archive": (infocalypse_archive,

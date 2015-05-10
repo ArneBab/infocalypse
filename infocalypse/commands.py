@@ -265,7 +265,8 @@ def infocalypse_pull_request(ui, repo, **opts):
     wot_id, repo_name = opts['wot'].split('/', 1)
     from_identity = get_truster(ui, repo, opts['truster'])
     to_identity = WoT_ID(wot_id, from_identity)
-    wot.send_pull_request(ui, repo, from_identity, to_identity, repo_name)
+    wot.send_pull_request(ui, repo, from_identity, to_identity, repo_name,
+                          mailhost=opts["mailhost"], smtpport=opts["smtpport"])
 
 
 def infocalypse_check_notifications(ui, repo, **opts):
@@ -555,7 +556,9 @@ def infocalypse_setupfreemail(ui, repo, **opts):
     import wot
     # TODO: Here --truster doesn't make sense. There is no trust involved.
     # TODO: Should this be part of the normal fn-setup?
-    wot.execute_setup_freemail(ui, get_truster(ui, repo, opts['truster']))
+    wot.execute_setup_freemail(ui, get_truster(ui, repo, opts['truster'],
+                                               fcpport=opts["fcpport"], fcphost=opts["fcphost"]),
+                               mailhost=opts["mailhost"], smtpport=opts["smtpport"])
 
 
 def get_truster(ui, repo=None, truster_identifier=None):

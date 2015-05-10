@@ -12,6 +12,7 @@ from wot_id import Local_WoT_ID, WoT_ID
 
 # TODO: Instead of fcpport and fcphost, functions should accept a node
 
+# synchronize with __init__.py
 FREEMAIL_SMTP_PORT = 4025
 FREEMAIL_IMAP_PORT = 4143
 VCS_TOKEN = "[vcs]"
@@ -20,7 +21,7 @@ VCS_TOKEN = "[vcs]"
 VCS_NAME = "infocalypse"
 
 
-def send_pull_request(ui, repo, from_identity, to_identity, to_repo_name):
+def send_pull_request(ui, repo, from_identity, to_identity, to_repo_name, mailhost=None, smtpport=None):
     """
     Prompt for a pull request message, and send a pull request from
     from_identity to to_identity for the repository to_repo_name.
@@ -80,7 +81,9 @@ HG: Subsequent lines are the body of the message.
     msg['To'] = to_address
     msg['From'] = from_address
 
-    smtp = smtplib.SMTP(cfg.defaults['HOST'], FREEMAIL_SMTP_PORT)
+    host = mailhost or cfg.defaults['HOST']
+    port = smtpport or FREEMAIL_SMTP_PORT
+    smtp = smtplib.SMTP(host, port)
     smtp.login(from_address, password)
     # TODO: Catch exceptions and give nice error messages.
     smtp.sendmail(from_address, to_address, msg.as_string())
@@ -88,7 +91,7 @@ HG: Subsequent lines are the body of the message.
     ui.status("Pull request sent.\n")
 
 
-def check_notifications(ui, local_identity):
+def check_notifications(ui, local_identity, mailhost=None, imapport=None):
     """
     Check Freemail for local_identity and print information on any VCS
     messages received.
@@ -99,7 +102,9 @@ def check_notifications(ui, local_identity):
 
     # Log in and open inbox.
     cfg = Config.from_ui(ui)
-    imap = imaplib.IMAP4(cfg.defaults['HOST'], FREEMAIL_IMAP_PORT)
+    host = mailhost or cfg.defaults['HOST']
+    port = imapport or FREEMAIL_IMAP_PORT
+    imap = imaplib.IMAP4(host, port)
     imap.login(address, cfg.get_freemail_password(local_identity))
     imap.select()
 
@@ -513,7 +518,7 @@ def execute_setup_wot(ui_, local_id):
     Config.to_file(cfg)
 
 
-def execute_setup_freemail(ui, local_id):
+def execute_setup_freemail(ui, local_id, mailhost=None, smtpport=None):
     """
     Prompt for, test, and set a Freemail password for the identity.
 
@@ -529,11 +534,13 @@ def execute_setup_freemail(ui, local_id):
     ui.status("Checking password for {0}.\n".format(local_id))
 
     cfg = Config.from_ui(ui)
-
+    host = mailhost or cfg.defaults['HOST']
+    port = smtpport or FREEMAIL_SMTP_PORT
+    
     # Check that the password works.
     try:
         # TODO: Is this the correct way to get the configured host?
-        smtp = smtplib.SMTP(cfg.defaults['HOST'], FREEMAIL_SMTP_PORT)
+        smtp = smtplib.SMTP(host, port)
         smtp.login(address, password)
     except smtplib.SMTPAuthenticationError, e:
         raise util.Abort("Could not log in using password '{0}'.\nGot '{1}'\n"
