@@ -238,8 +238,10 @@ def infocalypse_pull(ui_, repo, **opts):
         request_uri = get_uri_from_hash(ui_, repo, params, stored_cfg)
     elif opts['wot']:
         import wot
-        truster = get_truster(ui_, repo, opts['truster'])
-        request_uri = wot.resolve_pull_uri(ui_, opts['wot'], truster, repo, fcphost = opts['fcphost'], fcpport = opts['fcpport'])
+        truster = get_truster(ui_, repo, opts['truster'],
+                              fcpport=opts["fcpport"], fcphost=opts["fcphost"])
+        request_uri = wot.resolve_pull_uri(ui_, opts['wot'], truster, repo,
+                                           fcphost=opts['fcphost'], fcpport=opts['fcpport'])
     elif opts['uri']:
         request_uri = parse_repo_path(opts['uri'])
 
@@ -263,7 +265,8 @@ def infocalypse_pull_request(ui, repo, **opts):
                          "--wot.\n")
 
     wot_id, repo_name = opts['wot'].split('/', 1)
-    from_identity = get_truster(ui, repo, opts['truster'])
+    from_identity = get_truster(ui, repo, opts['truster'],
+                                fcpport=opts["fcpport"], fcphost=opts["fcphost"])
     to_identity = WoT_ID(wot_id, from_identity)
     wot.send_pull_request(ui, repo, from_identity, to_identity, repo_name,
                           mailhost=opts["mailhost"], smtpport=opts["smtpport"])
@@ -276,7 +279,8 @@ def infocalypse_check_notifications(ui, repo, **opts):
         raise util.Abort("What ID do you want to check for notifications? Set"
                          " --wot.\n")
 
-    wot.check_notifications(ui, Local_WoT_ID(opts['wot']))
+    fcpopts = wot.get_fcpopts(fcpport=opts["fcpport"], fcphost=opts["fcphost"])
+    wot.check_notifications(ui, Local_WoT_ID(opts['wot'], fcpopts=fcpopts))
 
 
 def infocalypse_connect(ui, repo, **opts):
@@ -545,7 +549,8 @@ def infocalypse_setupwot(ui_, **opts):
 
     import wot
     from wot_id import Local_WoT_ID
-    wot.execute_setup_wot(ui_, Local_WoT_ID(opts['truster']))
+    fcpopts = wot.get_fcpopts(fcphost=opts["fcphost"], fcpport=opts["fcpport"])
+    wot.execute_setup_wot(ui_, Local_WoT_ID(opts['truster'], fcpopts=fcpopts))
 
 
 def infocalypse_setupfreemail(ui, repo, **opts):
@@ -561,7 +566,7 @@ def infocalypse_setupfreemail(ui, repo, **opts):
                                mailhost=opts["mailhost"], smtpport=opts["smtpport"])
 
 
-def get_truster(ui, repo=None, truster_identifier=None):
+def get_truster(ui, repo=None, truster_identifier=None, fcpport=None, fcphost=None):
     """
     Return a local WoT ID.
 
@@ -575,9 +580,11 @@ def get_truster(ui, repo=None, truster_identifier=None):
 
     :rtype : Local_WoT_ID
     """
-    from wot_id import Local_WoT_ID
+    import wot
+    import wot_id
+    fcpopts = wot.get_fcpopts(fcphost=fcphost, fcpport=fcpport)
     if truster_identifier:
-        return Local_WoT_ID(truster_identifier)
+        return wot_id.Local_WoT_ID(truster_identifier, fcpopts=fcpopts)
     else:
         cfg = Config.from_ui(ui)
 
@@ -594,7 +601,7 @@ def get_truster(ui, repo=None, truster_identifier=None):
             default = True
 
         try:
-            return Local_WoT_ID('@' + identity)
+            return wot_id.Local_WoT_ID('@' + identity)
         except util.Abort:
             if default:
                 raise util.Abort("Cannot resolve the default truster with "
