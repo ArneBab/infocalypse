@@ -543,8 +543,8 @@ def execute_setup_freemail(ui, local_id, mailhost=None, smtpport=None):
         smtp = smtplib.SMTP(host, port)
         smtp.login(address, password)
     except smtplib.SMTPAuthenticationError, e:
-        raise util.Abort("Could not log in using password '{0}'.\nGot '{1}'\n"
-                         .format(password, e.smtp_error))
+        raise util.Abort("Could not log in with the given password .\nGot '{0}'\n"
+                         .format(e.smtp_error))
     except smtplib.SMTPConnectError, e:
         raise util.Abort("Could not connect to server.\nGot '{0}'\n"
                          .format(e.smtp_error))
