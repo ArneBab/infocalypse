@@ -29,6 +29,11 @@ class freenetrepo(peerrepository):
         if create: # pragma: no cover
             raise util.Abort('Cannot create a freenet repository, yet.')
         self.ui = ui
+        # if "/" in path and "#" in path.split("/")[-1]:
+        #     path = "/".join(path.split("/")[:-1] +
+        #                     "#".join(
+        #                         path.split("/")[-1].split("#")[:-1]))
+        #     # branch = path.split("/")[-1].split("#")[-1]
         self.path = path
 
     def lookup(self, key):

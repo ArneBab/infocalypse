@@ -37,7 +37,6 @@ def send_pull_request(ui, repo, from_identity, to_identity, to_repo_name, mailho
 
     to_repo = find_repo(ui, to_identity, to_repo_name)
 
-    repo_context = repo['tip']
     # TODO: Will there always be a request URI set in the config? What about
     # a path? The repo could be missing a request URI, if that URI is
     # set manually. We could check whether the default path is a
@@ -46,12 +45,13 @@ def send_pull_request(ui, repo, from_identity, to_identity, to_repo_name, mailho
     # It might be an URI we used to get some changes which we now want
     # to send back to the maintainer of the canonical repo.
     from_uri = cfg.get_request_uri(repo.root)
-    from_branch = repo_context.branch()
+    # repo_context = repo['tip']
+    # from_branch = repo_context.branch()
 
     # Use double-quoted scalars so that Unicode can be included. (Nicknames.)
     footer = yaml.dump({'request': 'pull',
                         'vcs': VCS_NAME,
-                        'source': from_uri + '#' + from_branch,
+                        'source': "freenet://" + from_uri, # + '#' + from_branch, # TODO: pulling from branch currently not supported with a freenet:// uri
                         'target': to_repo}, default_style='"',
                        explicit_start=True, explicit_end=True,
                        allow_unicode=True)
