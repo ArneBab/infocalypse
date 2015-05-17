@@ -211,6 +211,7 @@ def read_message_yaml(ui, from_address, subject, body):
 
         ui.status("To accept this request, pull from: %s\n" %
                   (request['source'], ))
+        # FIXME: request['target'] can be more up to date than the local listing? Maybe only when sending to myself.
         ui.status("               To your repository: %s\n" %
                   (cfg.get_repo_dir(request['target'])))
         return
