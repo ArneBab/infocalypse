@@ -209,9 +209,10 @@ def read_message_yaml(ui, from_address, subject, body):
         ui.status(body[:yaml_start] + '\n')
         ui.status(separator)
 
-        ui.status("To accept this request, pull from: %s\n"
-                  "               To your repository: %s\n" %
-                  (request['source'], cfg.get_repo_dir(request['target'])))
+        ui.status("To accept this request, pull from: %s\n" %
+                  (request['source'], ))
+        ui.status("               To your repository: %s\n" %
+                  (cfg.get_repo_dir(request['target'])))
         return
 
     ui.status("Notification '%s' has an unrecognized request of type '%s'"
