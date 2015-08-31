@@ -19,7 +19,7 @@ class WoT_ID(object):
     * freemail_address - str
     """
 
-    def __init__(self, wot_identifier, truster, id_num=0, message=None):
+    def __init__(self, wot_identifier, truster, id_num=0, message=None, fcpopts={}):
         """
         If using LCWoT, either the nickname prefix should be enough to be
         unambiguous, or failing that enough of the key.
@@ -36,8 +36,9 @@ class WoT_ID(object):
         # a WoT_ID for a Local_WoT_ID. Their default values parse the first
         # (and only) identity described by an unspecified message, in which case
         # it queries WoT to produce one.
+        is_local_identity = message is not None
         if not message:
-            message = _get_identity(wot_identifier, truster)
+            message = _get_identity(wot_identifier, truster, fcpopts=fcpopts)
 
         def get_attribute(attribute):
             return message['Replies.{0}{1}'.format(attribute, id_num)]
@@ -90,6 +91,12 @@ class WoT_ID(object):
             self.freemail_address = string.lower(self.nickname + '@' + re_encode
                                                  + '.freemail')
 
+        # TODO: Would it be preferable to use ui to obey quieting switches?
+        if is_local_identity:
+            print("Using local identity {0}".format(self))
+        else:
+            print("Using identity {0}".format(self))
+
     def __str__(self):
         return self.nickname + '@' + self.identity_id
 
@@ -106,20 +113,91 @@ class Local_WoT_ID(WoT_ID):
     * properties - dict
     """
 
-    def __init__(self, wot_identifier):
+    def __init__(self, wot_identifier, fcpopts={}):
         """
         Create a WoT_ID for a local identity matching the identifier.
 
         :type wot_identifier: str
         """
-        id_num, message = _get_local_identity(wot_identifier)
+        id_num, message = _get_local_identity(wot_identifier, fcpopts=fcpopts)
 
         self.insert_uri = USK(message['Replies.InsertURI{0}'.format(id_num)])
 
-        WoT_ID.__init__(self, None, None, id_num=id_num, message=message)
+        WoT_ID.__init__(self, None, None, id_num=id_num, message=message, fcpopts=fcpopts)
 
 
-def _get_identity(wot_identifier, truster):
+def _request_matching_identities_lcwot(truster, context="vcs", prefix=None, fcpopts={}):
+    """
+    Return a response for a partial nickname request.
+    """
+    nickname_prefix, key_prefix = _parse_name(prefix)
+    # TODO: Support different FCP IP / port.
+    node = fcp.FCPNode(**fcpopts)
+
+    # Test for GetIdentitiesByPartialNickname support. currently LCWoT-only.
+    # src/main/java/plugins/WebOfTrust/fcp/GetIdentitiesByPartialNickname
+    # TODO: LCWoT allows limiting by context; should we make sure otherwise?
+    # Feature request for WoT: https://bugs.freenetproject.org/view.php?id=6184
+
+    # GetIdentitiesByPartialNickname does not support empty nicknames.
+    if not nickname_prefix:
+        raise util.Abort(
+            "Partial matching in LCWoT does not support empty nicknames. Got {}"
+            .format(prefix))
+    
+    params = {'Message': 'GetIdentitiesByPartialNickname',
+              'Truster': truster.identity_id,
+              'PartialNickname':
+              nickname_prefix + '*',
+              'PartialID': key_prefix,
+              'MaxIdentities': 2,
+              'Context': 'vcs'}
+
+    response = \
+        node.fcpPluginMessage(plugin_name="plugins.WebOfTrust.WebOfTrust",
+                              plugin_params=params)[0]
+
+    if response['header'] != 'FCPPluginReply' or \
+            'Replies.Message' not in response:
+        raise util.Abort('Unexpected reply. Got {0}\n'.format(response))
+            
+    return response
+            
+        
+def _request_matching_identities(truster, context="vcs", prefix=None, fcpopts={}):
+    """
+    Return a list of responses for all matching identities.
+    """
+    node = fcp.FCPNode(**fcpopts)
+    params = {'Message': 'GetIdentities', # GetIdentitiesByScore is much slower
+              'Truster': truster.identity_id}
+
+    if context:
+        params['Context'] = context
+    
+    response = node.fcpPluginMessage(
+        plugin_name="plugins.WebOfTrust.WebOfTrust",
+        plugin_params=params)[0]
+    
+    if response['header'] != 'FCPPluginReply' or \
+       'Replies.Message' not in response:
+        raise util.Abort('Unexpected reply. Got {0}\n'.format(response))
+    nIDs = int(response["Replies.Identities.Amount"])
+
+    def get_attribute(attribute, i, message):
+        return message['Replies.Identities.{0}.{1}'.format(i, attribute)]
+    
+    responses = []
+    for i in range(nIDs):
+        identifier = "@".join(
+            (get_attribute("Nickname", i, response),
+             get_attribute("Identity", i, response)))
+        if not prefix or identifier.startswith(prefix):
+            responses.append(_get_identity(identifier, truster, exact=True, fcpopts=fcpopts))
+    return responses
+        
+        
+def _get_identity(wot_identifier, truster, exact=False, fcpopts={}):
     """
     Internal.
 
@@ -128,49 +206,43 @@ def _get_identity(wot_identifier, truster):
 
     :type wot_identifier: str
     :type truster: Local_WoT_ID
+    :param exact: Whether to match the wot_identifier exactly or use it as prefix.
     """
     nickname_prefix, key_prefix = _parse_name(wot_identifier)
     # TODO: Support different FCP IP / port.
-    node = fcp.FCPNode()
+    node = fcp.FCPNode(**fcpopts)
 
-    # Test for GetIdentitiesByPartialNickname support. currently LCWoT-only.
-    # src/main/java/plugins/WebOfTrust/fcp/GetIdentitiesByPartialNickname
-    # TODO: LCWoT allows limiting by context; how to make sure otherwise?
-    # TODO: Should this manually ensure an identity has a vcs context
-    # otherwise?
-
-    # GetIdentitiesByPartialNickname does not support empty nicknames.
-    if nickname_prefix:
-        params = {'Message': 'GetIdentitiesByPartialNickname',
-                  'Truster': truster.identity_id,
-                  'PartialNickname':
-                  nickname_prefix + '*',
-                  'PartialID': key_prefix,
-                  'MaxIdentities': 2,
-                  'Context': 'vcs'}
-
-        response = \
-            node.fcpPluginMessage(plugin_name="plugins.WebOfTrust.WebOfTrust",
-                                  plugin_params=params)[0]
-
-        if response['header'] != 'FCPPluginReply' or \
-                'Replies.Message' not in response:
-            raise util.Abort('Unexpected reply. Got {0}\n'.format(response))
-        elif response['Replies.Message'] == 'Identities':
-            matches = response['Replies.IdentitiesMatched']
-            if matches == 0:
-                raise util.Abort("No identities match '{0}'\n".format(
-                    wot_identifier))
-            elif matches == 1:
-                return response
+    if not exact:
+        # Test for GetIdentitiesByPartialNickname support. currently LCWoT-only.
+        # src/main/java/plugins/WebOfTrust/fcp/GetIdentitiesByPartialNickname
+        # TODO: LCWoT allows limiting by context; should we make sure otherwise?
+        # Feature request for WoT: https://bugs.freenetproject.org/view.php?id=6184
+    
+        # GetIdentitiesByPartialNickname does not support empty nicknames.
+        try:
+            response = _request_matching_identities_lcwot(
+                truster, context="vcs", prefix=wot_identifier, fcpopts=fcpopts)
+            if response['Replies.Message'] == 'Identities':
+                matches = response['Replies.IdentitiesMatched']
             else:
-                raise util.Abort("'{0}' matches more than one identity.\n"
-                                 .format(wot_identifier))
+                raise util.Abort("WoT does not support partial matching.")
+        except util.Abort:
+            all_responses = _request_matching_identities(truster, prefix=wot_identifier, fcpopts=fcpopts)
+            matches = len(all_responses)
+            if matches:
+                response = all_responses[0]
+        
+        if matches == 0:
+            raise util.Abort("No identities match '{0}'."
+                             .format(wot_identifier))
+        elif matches == 1:
+            return response
+        else:
+            # TODO: Ask the user to choose interactively (select 1, 2, 3, ...)
+            raise util.Abort("'{0}' matches more than one identity."
+                             .format(wot_identifier))
 
-        # Partial matching not supported, or unknown truster. The only
-        # difference in the errors is human-readable, so try the exact match.
-        assert response['Replies.Message'] == 'Error'
-
+    # exact matching requested. The key_prefix must be the complete key.
     # key_prefix must be a complete key for the lookup to succeed.
     params = {'Message': 'GetIdentity',
               'Truster': truster.identity_id,
@@ -182,16 +254,15 @@ def _get_identity(wot_identifier, truster):
     if response['Replies.Message'] == 'Error':
         # Searching by exact public key hash, not matching.
         raise util.Abort("No identity has the complete public key hash '{0}'. "
-                         "({1}) To flexibly match by partial nickname and key "
-                         "use LCWoT for now.\n".format(key_prefix,
-                                                       wot_identifier))
+                         "({1}). Error: {2}"
+                         .format(key_prefix, wot_identifier, response.get('Replies.Message', "")))
 
     # There should be only one result.
     # Depends on https://bugs.freenetproject.org/view.php?id=5729
     return response
 
 
-def _get_local_identity(wot_identifier):
+def _get_local_identity(wot_identifier, fcpopts={}):
     """
     Internal.
 
@@ -202,7 +273,7 @@ def _get_local_identity(wot_identifier):
     """
     nickname_prefix, key_prefix = _parse_name(wot_identifier)
 
-    node = fcp.FCPNode()
+    node = fcp.FCPNode(**fcpopts)
     response = \
         node.fcpPluginMessage(plugin_name="plugins.WebOfTrust.WebOfTrust",
                               plugin_params={'Message':
@@ -238,11 +309,12 @@ def _get_local_identity(wot_identifier):
             del matches[key]
 
     if len(matches) > 1:
-        raise util.Abort("'{0}' is ambiguous.\n".format(wot_identifier))
+        raise util.Abort("'{0}' matches more than one local identity."
+                         .format(wot_identifier))
 
     if len(matches) == 0:
-        raise util.Abort("No local identities match '{0}'.\n".format(
-            wot_identifier))
+        raise util.Abort("No local identities match '{0}'."
+                         .format(wot_identifier))
 
     assert len(matches) == 1
 

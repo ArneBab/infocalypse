@@ -10,6 +10,9 @@ from email.mime.text import MIMEText
 import imaplib
 from wot_id import Local_WoT_ID, WoT_ID
 
+# TODO: Instead of fcpport and fcphost, functions should accept a node
+
+# synchronize with __init__.py
 FREEMAIL_SMTP_PORT = 4025
 FREEMAIL_IMAP_PORT = 4143
 VCS_TOKEN = "[vcs]"
@@ -18,7 +21,7 @@ VCS_TOKEN = "[vcs]"
 VCS_NAME = "infocalypse"
 
 
-def send_pull_request(ui, repo, from_identity, to_identity, to_repo_name):
+def send_pull_request(ui, repo, from_identity, to_identity, to_repo_name, mailhost=None, smtpport=None):
     """
     Prompt for a pull request message, and send a pull request from
     from_identity to to_identity for the repository to_repo_name.
@@ -34,7 +37,6 @@ def send_pull_request(ui, repo, from_identity, to_identity, to_repo_name):
 
     to_repo = find_repo(ui, to_identity, to_repo_name)
 
-    repo_context = repo['tip']
     # TODO: Will there always be a request URI set in the config? What about
     # a path? The repo could be missing a request URI, if that URI is
     # set manually. We could check whether the default path is a
@@ -43,12 +45,13 @@ def send_pull_request(ui, repo, from_identity, to_identity, to_repo_name):
     # It might be an URI we used to get some changes which we now want
     # to send back to the maintainer of the canonical repo.
     from_uri = cfg.get_request_uri(repo.root)
-    from_branch = repo_context.branch()
+    # repo_context = repo['tip']
+    # from_branch = repo_context.branch()
 
     # Use double-quoted scalars so that Unicode can be included. (Nicknames.)
     footer = yaml.dump({'request': 'pull',
                         'vcs': VCS_NAME,
-                        'source': from_uri + '#' + from_branch,
+                        'source': "freenet://" + from_uri, # + '#' + from_branch, # TODO: pulling from branch currently not supported with a freenet:// uri
                         'target': to_repo}, default_style='"',
                        explicit_start=True, explicit_end=True,
                        allow_unicode=True)
@@ -78,7 +81,9 @@ HG: Subsequent lines are the body of the message.
     msg['To'] = to_address
     msg['From'] = from_address
 
-    smtp = smtplib.SMTP(cfg.defaults['HOST'], FREEMAIL_SMTP_PORT)
+    host = mailhost or cfg.defaults['HOST']
+    port = smtpport or FREEMAIL_SMTP_PORT
+    smtp = smtplib.SMTP(host, port)
     smtp.login(from_address, password)
     # TODO: Catch exceptions and give nice error messages.
     smtp.sendmail(from_address, to_address, msg.as_string())
@@ -86,7 +91,7 @@ HG: Subsequent lines are the body of the message.
     ui.status("Pull request sent.\n")
 
 
-def check_notifications(ui, local_identity):
+def check_notifications(ui, local_identity, mailhost=None, imapport=None):
     """
     Check Freemail for local_identity and print information on any VCS
     messages received.
@@ -97,7 +102,9 @@ def check_notifications(ui, local_identity):
 
     # Log in and open inbox.
     cfg = Config.from_ui(ui)
-    imap = imaplib.IMAP4(cfg.defaults['HOST'], FREEMAIL_IMAP_PORT)
+    host = mailhost or cfg.defaults['HOST']
+    port = imapport or FREEMAIL_IMAP_PORT
+    imap = imaplib.IMAP4(host, port)
     imap.login(address, cfg.get_freemail_password(local_identity))
     imap.select()
 
@@ -202,9 +209,11 @@ def read_message_yaml(ui, from_address, subject, body):
         ui.status(body[:yaml_start] + '\n')
         ui.status(separator)
 
-        ui.status("To accept this request, pull from: %s\n"
-                  "               To your repository: %s\n" %
-                  (request['source'], cfg.get_repo_dir(request['target'])))
+        ui.status("To accept this request, pull from: %s\n" %
+                  (request['source'], ))
+        # FIXME: request['target'] can be more up to date than the local listing? Maybe only when sending to myself.
+        ui.status("               To your repository: %s\n" %
+                  (cfg.get_repo_dir(request['target'])))
         return
 
     ui.status("Notification '%s' has an unrecognized request of type '%s'"
@@ -225,12 +234,17 @@ def require_freemail(wot_identity):
     return wot_identity.freemail_address
 
 
-def update_repo_listing(ui, for_identity):
+def update_repo_listing(ui, for_identity, fcphost=None, fcpport=None):
     """
     Insert list of repositories published by the given identity.
 
     :type for_identity: Local_WoT_ID
     """
+    # TODO: Somehow store the edition, perhaps in ~/.infocalypse. WoT
+    # properties are apparently not appropriate.
+
+    cfg = Config.from_ui(ui)
+
     # TODO: WoT property containing repo list edition. Used when requesting.
     # Version number to support possible format changes.
     root = ET.Element('vcs', {'version': '0'})
@@ -243,15 +257,11 @@ def update_repo_listing(ui, for_identity):
         })
         repo.text = request_uri
 
-    # TODO: Nonstandard IP and port.
-    node = fcp.FCPNode()
+    # TODO: Nonstandard IP and port from cfg
+    node = fcp.FCPNode(**get_fcpopts(fcphost=fcphost,
+                                     fcpport=fcpport))
 
     insert_uri = for_identity.insert_uri.clone()
-
-    # TODO: Somehow store the edition, perhaps in ~/.infocalypse. WoT
-    # properties are apparently not appropriate.
-
-    cfg = Config.from_ui(ui)
 
     insert_uri.name = 'vcs'
     insert_uri.edition = cfg.get_repo_list_edition(for_identity)
@@ -302,16 +312,20 @@ def find_repo(ui, identity, repo_name):
     if repo_name not in listing:
         raise util.Abort("{0} does not publish a repo named '{1}'\n"
                          .format(identity, repo_name))
+    r = listing[repo_name]
+    ui.status("Using repository {}\n".format(r))
 
-    return listing[repo_name]
+    return r
 
 
-def read_repo_listing(ui, identity):
+def read_repo_listing(ui, identity, fcphost=None, fcpport=None):
     """
     Read a repo listing for a given identity.
     Return a dictionary of repository request URIs keyed by name.
 
     :type identity: WoT_ID
+    
+    TODO: get host and port from config
     """
     cfg = Config.from_ui(ui)
     uri = identity.request_uri.clone()
@@ -320,7 +334,7 @@ def read_repo_listing(ui, identity):
 
     # TODO: Set and read vcs edition property.
     ui.status("Fetching.\n")
-    mime_type, repo_xml, msg = fetch_edition(uri)
+    mime_type, repo_xml, msg = fetch_edition(uri, fcphost=fcphost, fcpport=fcpport)
     ui.status("Fetched {0}.\n".format(uri))
 
     cfg.set_repo_list_edition(identity, uri.edition)
@@ -368,13 +382,14 @@ def read_repo_listing(ui, identity):
     return repositories
 
 
-def fetch_edition(uri):
+def fetch_edition(uri, fcphost=None, fcpport=None):
     """
     Fetch a USK uri, following redirects. Change the uri edition to the one
     fetched.
     :type uri: USK
     """
-    node = fcp.FCPNode()
+    node = fcp.FCPNode(**get_fcpopts(fcphost=fcphost,
+                                     fcpport=fcpport))
     # Following a redirect automatically does not provide the edition used,
     # so manually following redirects is required.
     # TODO: Is there ever legitimately more than one redirect?
@@ -392,7 +407,21 @@ def fetch_edition(uri):
         return node.get(str(uri), priority=1)
 
 
-def resolve_pull_uri(ui, path, truster):
+def get_fcpopts(fcphost=None, fcpport=None):
+    """
+    Get the minimal FCP opts.
+
+    TODO: Retrieve defaults from setup.
+    """
+    fcpopts = {}
+    if fcphost:
+        fcpopts["host"] = fcphost
+    if fcpport:
+        fcpopts["port"] = fcpport
+    return fcpopts
+
+    
+def resolve_pull_uri(ui, path, truster, repo=None, fcphost=None, fcpport=None):
         """
         Return a pull URI for the given path.
         Print an error message and abort on failure.
@@ -406,20 +435,37 @@ def resolve_pull_uri(ui, path, truster):
         :param ui: For feedback.
         :param path: path describing a repo. nick@key/reponame
         :param truster: identity whose trust list to use.
-        :return:
+        :param repo: If given, add a path that points to the resolved URI.
+        :return: pull URI
         """
         # Expecting <id stuff>/reponame
         wot_id, repo_name = path.split('/', 1)
-
-        identity = WoT_ID(wot_id, truster)
+        identity = WoT_ID(wot_id, truster,
+                          fcpopts=get_fcpopts(fcphost=fcphost,
+                                              fcpport=fcpport))
 
         # TODO: How to handle redundancy? Does Infocalypse automatically try
         # an R0 if an R1 fails?
 
-        return find_repo(ui, identity, repo_name)
+        request_uri = find_repo(ui, identity, repo_name)
+
+        if repo:
+            # TODO: Writing paths in this way preserves comments,
+            # but does not allow dealing intelligently with paths of the same
+            # name. Also it's duplicated in the clone support.
+            ui.status("Adding this repository as path '{0}'. To pull from the "
+                      "same repository in the future use this path.\n"
+                      .format(identity.nickname))
+            with repo.opener("hgrc", "a", text=True) as f:
+                f.write("""
+[paths]
+{0} = freenet:{1}
+""".format(identity.nickname, request_uri))
+
+        return request_uri
 
 
-def resolve_push_uri(ui, path, resolve_edition=True):
+def resolve_push_uri(ui, path, resolve_edition=True, fcphost=None, fcpport=None):
     """
     Return a push URI for the given path.
     Raise util.Abort if unable to resolve identity or repository.
@@ -435,8 +481,9 @@ def resolve_push_uri(ui, path, resolve_edition=True):
     """
     # Expecting <id stuff>/repo_name
     wot_id, repo_name = path.split('/', 1)
-
-    local_id = Local_WoT_ID(wot_id)
+    local_id = Local_WoT_ID(wot_id,
+                            fcpopts=get_fcpopts(fcphost=fcphost,
+                                                fcpport=fcpport))
 
     if resolve_edition:
         # TODO: find_repo should make it clearer that it returns a request URI,
@@ -473,7 +520,7 @@ def execute_setup_wot(ui_, local_id):
     Config.to_file(cfg)
 
 
-def execute_setup_freemail(ui, local_id):
+def execute_setup_freemail(ui, local_id, mailhost=None, smtpport=None):
     """
     Prompt for, test, and set a Freemail password for the identity.
 
@@ -489,15 +536,17 @@ def execute_setup_freemail(ui, local_id):
     ui.status("Checking password for {0}.\n".format(local_id))
 
     cfg = Config.from_ui(ui)
-
+    host = mailhost or cfg.defaults['HOST']
+    port = smtpport or FREEMAIL_SMTP_PORT
+    
     # Check that the password works.
     try:
         # TODO: Is this the correct way to get the configured host?
-        smtp = smtplib.SMTP(cfg.defaults['HOST'], FREEMAIL_SMTP_PORT)
+        smtp = smtplib.SMTP(host, port)
         smtp.login(address, password)
     except smtplib.SMTPAuthenticationError, e:
-        raise util.Abort("Could not log in using password '{0}'.\nGot '{1}'\n"
-                         .format(password, e.smtp_error))
+        raise util.Abort("Could not log in with the given password.\nGot '{0}'\n"
+                         .format(e.smtp_error))
     except smtplib.SMTPConnectError, e:
         raise util.Abort("Could not connect to server.\nGot '{0}'\n"
                          .format(e.smtp_error))

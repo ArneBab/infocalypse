@@ -1,18 +1,23 @@
+fn-pull-request should take a message argument               | owner:, open:True, id:0032f597bbdccd4e067782c95e202d3fdc1d6cfc, time:1430249619.57
 minimize dependencies                                        | owner:Arne Babenhauserheide <bab@draketo.de>, open:True, id:0fc25f7b84f3e1fb89e9134a28eeabbe76bf054f, time:1372231529.45
-Problems using clone to create repositories.~                | owner:Steve Dougherty <steve@asksteved.com>, open:True, id:210c0e45adba5d500c6c5c00d750bfe43824cd3a, time:1375737210.02
+Problems using clone to create repositories.~                | owner:Steve Dougherty <steve@asksteved.com>, open:False, id:210c0e45adba5d500c6c5c00d750bfe43824cd3a, time:1375737210.02
+Update USK hgrc paths                                        | owner:Steve Dougherty <steve@asksteved.com>, open:True, id:2a4a5dfd11551f488701997054d6547ac586165a, time:1377872619.04
 Add command to reinsert repo list.                           | owner:, open:False, id:2dcc27c850209062080906368530b4b9202271d0, time:1373407233.84
 pull fails, because config.get_wot_identity requests self.defaults['DEFAULT_TRUSTER'] which is not in defaults. | owner:Arne Babenhauserheide <bab@draketo.de>, open:False, id:31beb672d404944a4655a546b21c95c7baa91002, time:1371735138.39
 cloning from a freenet:// uri does not work right now.       | owner:Arne Babenhauserheide <bab@draketo.de>, open:False, id:35584408d800bb895d52dcf86cfba12c5b3237dd, time:1373100583.27
-Perform sanity check for multiple repos of the same name.    | owner:Steve Dougherty <steve@asksteved.com>, open:True, id:4160157833020b1a33d2e6b05dc12c848c891d03, time:1375733375.04
+Perform sanity check for multiple repos of the same name.    | owner:Steve Dougherty <steve@asksteved.com>, open:False, id:4160157833020b1a33d2e6b05dc12c848c891d03, time:1375733375.04
 Preserve non-Infocalypse repositories in the repository list. | owner:Steve Dougherty <steve@asksteved.com>, open:True, id:4d63383a07faa29083fb0b61846ab6cc3d3151be, time:1375733323.42
 set the timezone to UTC on cloning a freenet repo to avoid timezone-based attacks. | owner:Arne Babenhauserheide <bab@draketo.de>, open:False, id:4dfc4cc28a7fa69f040776a7138da78ee89ec819, time:1355764180.36
 mime-type problems                                           | owner:Arne Babenhauserheide <bab@draketo.de>, open:False, id:5916e6e8328e20d8b0276b76b7116dd432730778, time:1353463866.97
                                                              | owner:, open:False, id:65d8d544370f80538e325dae0b6c2da449c5bcfe, time:1373407147.03
-Add --truster support to built-in commands.                  | owner:Steve Dougherty <steve@asksteved.com>, open:True, id:673a3103a58988552e0ef0b0ab20e8c75c9f6b1f, time:1375736861.8
+Add --truster support to built-in commands.                  | owner:Steve Dougherty <steve@asksteved.com>, open:False, id:673a3103a58988552e0ef0b0ab20e8c75c9f6b1f, time:1375736861.8
 Add i18n support for messages.                               | owner:, open:True, id:7760991aef41c6d38be5315f742f6a6f350a0a76, time:1375010635.52
-Fix implied clone destination when cloning from freenet:.    | owner:Steve Dougherty <steve@asksteved.com>, open:True, id:9bd3ef617ba8871d28fbdae2500542e93302c791, time:1375736289.27
+wot.py: check-notifications can fail to get the local repo when the revision number is higher than the locally known one. Maybe only when sending to myself. | owner:, open:True, id:855b0bbab7b333dc8b9428178515e59dfad6e925, time:1431881066.03
+Fix implied clone destination when cloning from freenet:.    | owner:Steve Dougherty <steve@asksteved.com>, open:False, id:9bd3ef617ba8871d28fbdae2500542e93302c791, time:1375736289.27
 Unit tests involving the node are hard.                      | owner:Steve Dougherty <steve@asksteved.com>, open:True, id:b01a53e59a2096254ecacdcee7673df5323d786e, time:1375737309.25
 Consider reworking repo list XML for conciseness.            | owner:Steve Dougherty <steve@asksteved.com>, open:True, id:b511106032c58ffe7b33d0eb65bac7ec5555575e, time:1375734587.66
+option to include a branch, bookmark or revision as metadata in a pull-request | owner:, open:True, id:ce11e375d88e70b6007be5fe5cae8cd39770659e, time:1431880587.13
+do not get non-anonymous subrepos on update.                 | owner:, open:True, id:d233a3e49b975f8070feafdd5da86fa8034cb2ec, time:1411402019.09
 simpler-wot-uris: name/repo                                  | owner:Arne Babenhauserheide <bab@draketo.de>, open:False, id:d4f2df3ca2c441e4be389be846634f5a4a08906e, time:1372232568.9
 add support for hg incoming freenet://…                    | owner:Arne Babenhauserheide <bab@draketo.de>, open:True, id:dbff86d4bba0e38adb81a6e27e7180282222f541, time:1375002083.32
 Add a warning that comments and unrecognized entries in ~/.infocalypse are removed. | owner:Steve Dougherty <steve@asksteved.com>, open:True, id:e9236fdd23d44bfbf8565bb1a59317289f324fd6, time:1375735601.35

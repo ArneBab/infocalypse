@@ -13,12 +13,12 @@ from wikicmds import execute_wiki, execute_wiki_apply
 from arccmds import execute_arc_create, execute_arc_pull, execute_arc_push, \
     execute_arc_reinsert
 
-from config import read_freesite_cfg, Config
+from config import read_freesite_cfg, Config, normalize
 from validate import is_hex_string, is_fms_id
 
 import os
 
-from keys import parse_repo_path
+from keys import parse_repo_path, USK
 
 
 def set_target_version(ui_, repo, opts, params, msg_fmt):
@@ -44,15 +44,21 @@ def infocalypse_update_repo_list(ui, **opts):
 
     import wot
     from wot_id import Local_WoT_ID
-    wot.update_repo_listing(ui, Local_WoT_ID(opts['wot']))
+    wot.update_repo_listing(ui, Local_WoT_ID(opts['wot'], fcpopts=wot.get_fcpopts(
+        fcphost=opts["fcphost"],
+        fcpport=opts["fcpport"])), 
+                            fcphost=opts["fcphost"],
+                            fcpport=opts["fcpport"])
 
 
-def infocalypse_create(ui_, repo, **opts):
-    """ Create a new Infocalypse repository in Freenet. """
+def infocalypse_create(ui_, repo, local_identity=None, **opts):
+    """ Create a new Infocalypse repository in Freenet.
+    :type local_identity: Local_WoT_ID
+    :param local_identity: If specified the new repository is associated with
+                           that identity.
+    """
     params, stored_cfg = get_config_info(ui_, opts)
 
-    insert_uri = ''
-    local_id = None
     if opts['uri'] and opts['wot']:
         ui_.warn("Please specify only one of --uri or --wot.\n")
         return
@@ -68,26 +74,67 @@ def infocalypse_create(ui_, repo, **opts):
 
         from wot_id import Local_WoT_ID
 
-        ui_.status("Querying WoT for local identities.\n")
+        local_identity = Local_WoT_ID(nick_prefix)
 
-        local_id = Local_WoT_ID(nick_prefix)
-
-        ui_.status('Found {0}\n'.format(local_id))
-
-        insert_uri = local_id.insert_uri.clone()
+        insert_uri = local_identity.insert_uri.clone()
 
         insert_uri.name = repo_name
         insert_uri.edition = repo_edition
         # Before passing along into execute_create().
         insert_uri = str(insert_uri)
+    else:
+        ui_.warn("Please set the insert key with either --uri or --wot.\n")
+        return
+
+    # This is a WoT repository.
+    if local_identity:
+        # Prompt whether to replace in the case of conflicting names.
+        from wot import build_repo_list
+
+        request_usks = build_repo_list(ui_, local_identity)
+        names = map(lambda x: USK(x).get_repo_name(), request_usks)
+        new_name = USK(insert_uri).get_repo_name()
+
+        if new_name in names:
+            replace = ui_.prompt("A repository with the name '{0}' is already"
+                                 " published by {1}. Replace it? [y/N]"
+                                 .format(new_name, local_identity),
+                                 default='n')
+
+            if replace.lower() != 'y':
+                raise util.Abort("A repository with this name already exists.")
+
+            # Remove the existing repository from each configuration section.
+            existing_usk = request_usks[names.index(new_name)]
+
+            existing_dir = None
+            for directory, request_usk in stored_cfg.request_usks.iteritems():
+                if request_usk == existing_usk:
+                    if existing_dir:
+                        raise util.Abort("Configuration lists the same "
+                                         "request USK multiple times.")
+                    existing_dir = directory
+
+            assert existing_dir
+
+            existing_hash = normalize(existing_usk)
+
+            # Config file changes will not be written until a successful insert
+            # below.
+            del stored_cfg.version_table[existing_hash]
+            del stored_cfg.request_usks[existing_dir]
+            del stored_cfg.insert_usks[existing_hash]
+            del stored_cfg.wot_identities[existing_hash]
 
         # Add "vcs" context. No-op if the identity already has it.
         msg_params = {'Message': 'AddContext',
-                      'Identity': local_id.identity_id,
+                      'Identity': local_identity.identity_id,
                       'Context': 'vcs'}
 
         import fcp
-        node = fcp.FCPNode()
+        import wot
+        node = fcp.FCPNode(**wot.get_fcpopts(fcphost=opts["fcphost"],
+                                             fcpport=opts["fcpport"]))
         vcs_response =\
             node.fcpPluginMessage(plugin_name="plugins.WebOfTrust.WebOfTrust",
                                   plugin_params=msg_params)[0]
@@ -95,28 +142,23 @@ def infocalypse_create(ui_, repo, **opts):
         if vcs_response['header'] != 'FCPPluginReply' or\
                 'Replies.Message' not in vcs_response or\
                 vcs_response['Replies.Message'] != 'ContextAdded':
-            ui_.warn("Failed to add context. Got {0}\n.".format(vcs_response))
-            return
-
-    else:
-        ui_.warn("Please set the insert key with either --uri or --wot.\n")
-        return
+            raise util.Abort("Failed to add context. Got {0}\n.".format(
+                             vcs_response))
 
     set_target_version(ui_, repo, opts, params,
                        "Only inserting to version(s): %s\n")
     params['INSERT_URI'] = insert_uri
     inserted_to = execute_create(ui_, repo, params, stored_cfg)
 
-    if inserted_to and opts['wot']:
-        # TODO: Would it be friendlier to include the nickname as well?
+    if inserted_to and local_identity:
         # creation returns a list of request URIs; use the first.
-        stored_cfg.set_wot_identity(inserted_to[0], local_id)
+        stored_cfg.set_wot_identity(inserted_to[0], local_identity)
         Config.to_file(stored_cfg)
 
-        # TODO: Imports don't go out of scope, right? The variables
-        # from the import are only visible in the function, so yes.
         import wot
-        wot.update_repo_listing(ui_, local_id)
+        wot.update_repo_listing(ui_, local_identity, 
+                                fcphost=opts["fcphost"],
+                                fcpport=opts["fcpport"])
 
 
 def infocalypse_copy(ui_, repo, **opts):
@@ -196,9 +238,10 @@ def infocalypse_pull(ui_, repo, **opts):
         request_uri = get_uri_from_hash(ui_, repo, params, stored_cfg)
     elif opts['wot']:
         import wot
-        truster = get_truster(ui_, repo, opts['truster'])
-
-        request_uri = wot.resolve_pull_uri(ui_, opts['wot'], truster)
+        truster = get_truster(ui_, repo, opts['truster'],
+                              fcpport=opts["fcpport"], fcphost=opts["fcphost"])
+        request_uri = wot.resolve_pull_uri(ui_, opts['wot'], truster, repo,
+                                           fcphost=opts['fcphost'], fcpport=opts['fcpport'])
     elif opts['uri']:
         request_uri = parse_repo_path(opts['uri'])
 
@@ -222,9 +265,11 @@ def infocalypse_pull_request(ui, repo, **opts):
                          "--wot.\n")
 
     wot_id, repo_name = opts['wot'].split('/', 1)
-    from_identity = get_truster(ui, repo, opts['truster'])
+    from_identity = get_truster(ui, repo, opts['truster'],
+                                fcpport=opts["fcpport"], fcphost=opts["fcphost"])
     to_identity = WoT_ID(wot_id, from_identity)
-    wot.send_pull_request(ui, repo, from_identity, to_identity, repo_name)
+    wot.send_pull_request(ui, repo, from_identity, to_identity, repo_name,
+                          mailhost=opts["mailhost"], smtpport=opts["smtpport"])
 
 
 def infocalypse_check_notifications(ui, repo, **opts):
@@ -234,7 +279,8 @@ def infocalypse_check_notifications(ui, repo, **opts):
         raise util.Abort("What ID do you want to check for notifications? Set"
                          " --wot.\n")
 
-    wot.check_notifications(ui, Local_WoT_ID(opts['wot']))
+    fcpopts = wot.get_fcpopts(fcpport=opts["fcpport"], fcphost=opts["fcphost"])
+    wot.check_notifications(ui, Local_WoT_ID(opts['wot'], fcpopts=fcpopts))
 
 
 def infocalypse_connect(ui, repo, **opts):
@@ -272,7 +318,11 @@ def infocalypse_push(ui_, repo, **opts):
     associated_wot_id = stored_cfg.get_wot_identity(request_uri)
     if inserted_to and associated_wot_id:
         import wot
-        wot.update_repo_listing(ui_, associated_wot_id)
+        from wot_id import Local_WoT_ID
+        local_id = Local_WoT_ID('@' + associated_wot_id)
+        wot.update_repo_listing(ui_, local_id, 
+                                fcphost=opts["fcphost"],
+                                fcpport=opts["fcpport"])
 
 
 def infocalypse_info(ui_, repo, **opts):
@@ -281,6 +331,7 @@ def infocalypse_info(ui_, repo, **opts):
     # FCP not required. Hmmm... Hack
     opts['fcphost'] = ''
     opts['fcpport'] = 0
+    print get_config_info(ui_, opts)
     params, stored_cfg = get_config_info(ui_, opts)
     request_uri = opts['uri']
     if not request_uri:
@@ -494,11 +545,12 @@ def infocalypse_setupfms(ui_, **opts):
 # TODO: Why ui with trailing underscore? Is there a global "ui" somewhere?
 def infocalypse_setupwot(ui_, **opts):
     if not opts['truster']:
-        util.Abort("Specify default truster with --truster")
+        raise util.Abort("Specify default truster with --truster")
 
     import wot
     from wot_id import Local_WoT_ID
-    wot.execute_setup_wot(ui_, Local_WoT_ID(opts['truster']))
+    fcpopts = wot.get_fcpopts(fcphost=opts["fcphost"], fcpport=opts["fcpport"])
+    wot.execute_setup_wot(ui_, Local_WoT_ID(opts['truster'], fcpopts=fcpopts))
 
 
 def infocalypse_setupfreemail(ui, repo, **opts):
@@ -509,10 +561,12 @@ def infocalypse_setupfreemail(ui, repo, **opts):
     import wot
     # TODO: Here --truster doesn't make sense. There is no trust involved.
     # TODO: Should this be part of the normal fn-setup?
-    wot.execute_setup_freemail(ui, get_truster(ui, repo, opts['truster']))
+    wot.execute_setup_freemail(ui, get_truster(ui, repo, opts['truster'],
+                                               fcpport=opts["fcpport"], fcphost=opts["fcphost"]),
+                               mailhost=opts["mailhost"], smtpport=opts["smtpport"])
 
 
-def get_truster(ui, repo=None, truster_identifier=None):
+def get_truster(ui, repo=None, truster_identifier=None, fcpport=None, fcphost=None):
     """
     Return a local WoT ID.
 
@@ -522,25 +576,46 @@ def get_truster(ui, repo=None, truster_identifier=None):
                                                  identity is set)
     3. default truster
 
+    TODO: Accept fcp port and fcp host parameters.
+
     :rtype : Local_WoT_ID
     """
-    from wot_id import Local_WoT_ID
+    import wot
+    import wot_id
+    fcpopts = wot.get_fcpopts(fcphost=fcphost, fcpport=fcpport)
     if truster_identifier:
-        return Local_WoT_ID(truster_identifier)
+        return wot_id.Local_WoT_ID(truster_identifier, fcpopts=fcpopts)
     else:
         cfg = Config.from_ui(ui)
 
         # Value is identity ID, so '@' prefix makes it an identifier with an
         # empty nickname.
         identity = None
+        default = False
         if repo:
             identity = cfg.get_wot_identity(cfg.get_request_uri(repo.root))
 
         # Either repo is not given or there is no associated identity.
         if not identity:
             identity = cfg.defaults['DEFAULT_TRUSTER']
+            default = True
 
-        return Local_WoT_ID('@' + identity)
+        try:
+            return wot_id.Local_WoT_ID('@' + identity)
+        except util.Abort:
+            if default:
+                raise util.Abort("Cannot resolve the default truster with "
+                                 "public key hash '{0}'. Set it with hg"
+                                 " fn-setupwot --truster".format(identity))
+            else:
+                # TODO: Is this suggestion appropriate?
+                # TODO: Ensure that fn-create on an existing repo does not
+                # leave isolated insert_usks or wot_identities entries in the
+                # config file.
+                raise util.Abort("Cannot resolve the identity with public key "
+                                 "hash '{0}' that published this repository. "
+                                 "To create this repository under a different "
+                                 "identity run hg fn-create".format(identity))
 
 #----------------------------------------------------------"
 

@@ -345,15 +345,28 @@ from mercurial.i18n import _
 
 import freenetrepo
 
-_freenetschemes = ('freenet', )
+from keys import strip_protocol
+
+_freenetschemes = ('freenet', ) # TODO: add fn
 for _scheme in _freenetschemes:
     hg.schemes[_scheme] = freenetrepo
 
 #----------------------------------------------------------"
 
+DEFAULT_FCP_HOST = "127.0.0.1"
+DEFAULT_FCP_PORT = 9481
+# synchronize with wot.py (copied here to a void importing wot)
+FREEMAIL_SMTP_PORT = 4025
+FREEMAIL_IMAP_PORT = 4143
+
 # Can't use None as a default? Means "takes no argument'?
-FCP_OPTS = [('', 'fcphost', '', 'fcp host'),
-            ('', 'fcpport', 0, 'fcp port'),
+FCP_OPTS = [('', 'fcphost', '', 'fcp host, defaults to setup or ' + DEFAULT_FCP_HOST),
+            ('', 'fcpport', 0, 'fcp port, defaults to setup or ' + str(DEFAULT_FCP_PORT)),
+]
+
+FREEMAIL_OPTS = [('', 'mailhost', '', 'freemail host, defaults to setup or ' + DEFAULT_FCP_HOST),
+                 ('', 'smtpport', 0, 'freemail smtp port, defaults to setup or ' + str(FREEMAIL_SMTP_PORT)),
+                 ('', 'imapport', 0, 'freemail imap port, defaults to setup or ' + str(FREEMAIL_IMAP_PORT)),
 ]
 
 FMS_OPTS = [('', 'fmshost', '', 'fms host'),
@@ -398,14 +411,16 @@ cmdtable = {
                         [('', 'wot', '', 'WoT nick@key/repo to send request '
                                          'to')]
                         + WOT_OPTS
-                        + FCP_OPTS,
+                        + FCP_OPTS
+                        + FREEMAIL_OPTS,
                         "[--truster nick@key] --wot nick@key/repo"),
 
     "fn-check-notifications": (infocalypse_check_notifications,
                                [('', 'wot', '', 'WoT nick@key to check '
                                                 'notifications for')]
                                + WOT_OPTS
-                               + FCP_OPTS,
+                               + FCP_OPTS
+                               + FREEMAIL_OPTS,
                                "--wot nick@key"),
 
     "fn-push": (infocalypse_push,
@@ -480,7 +495,7 @@ cmdtable = {
                  ('', 'createconfig', None, "create default fnwiki.cfg " +
                   "and skeleton wiki_root dir"),
                  ('', 'http_port', 8081, "port for http server"),
-                 ('', 'http_bind', 'localhost', "interface http " +
+                 ('', 'http_bind', 'localhost', "interface x1http " +
                   "listens on, '' to listen on all"),
                  ('', 'apply', '', "apply changes to the wiki from the " +
                   "supplied Request URI ")] +
@@ -503,10 +518,10 @@ cmdtable = {
                 "[options]"),
 
     "fn-setupfms": (infocalypse_setupfms,
-                 [('', 'fmsid', '', "fmsid (only part before '@'!)"),
-                  ('', 'timeout', 30, "fms socket timeout in seconds"),]
-                 + FMS_OPTS,
-                "[options]"),
+                    [('', 'fmsid', '', "fmsid (only part before '@'!)"),
+                     ('', 'timeout', 30, "fms socket timeout in seconds"),]
+                    + FMS_OPTS,
+                    "[options]"),
 
     "fn-setupwot": (infocalypse_setupwot,
                     FCP_OPTS +
@@ -515,25 +530,26 @@ cmdtable = {
 
     "fn-setupfreemail": (infocalypse_setupfreemail,
                          WOT_OPTS
-                         + FCP_OPTS,
+                         + FCP_OPTS
+                         + FREEMAIL_OPTS,
                          "[--truster nick@key]"),
 
     "fn-archive": (infocalypse_archive,
-                  [('', 'uri', '', 'Request URI for --pull, Insert URI ' +
-                    'for --create, --push'),
-                   ('', 'create', None, 'Create a new archive using the ' +
-                    'Insert URI --uri'),
-                   ('', 'push', None, 'Push incremental updates into the ' +
-                    'archive in Freenet'),
-                   ('', 'pull', None, 'Pull incremental updates from the ' +
-                    'archive in Freenet'),
-                   ('', 'reinsert', None, 'Re-insert the entire archive. '),
-                   ]
+                   [('', 'uri', '', 'Request URI for --pull, Insert URI ' +
+                     'for --create, --push'),
+                    ('', 'create', None, 'Create a new archive using the ' +
+                     'Insert URI --uri'),
+                    ('', 'push', None, 'Push incremental updates into the ' +
+                     'archive in Freenet'),
+                    ('', 'pull', None, 'Pull incremental updates from the ' +
+                     'archive in Freenet'),
+                    ('', 'reinsert', None, 'Re-insert the entire archive. '),
+                ]
                    + FCP_OPTS
                    + NOSEARCH_OPT
                    + AGGRESSIVE_OPT,
                    "[options]"),
-    }
+}
 
 
 commands.norepo += ' fn-setup'
@@ -568,7 +584,7 @@ extensions.wrapfunction(discovery, 'findcommonoutgoing', findcommonoutgoing)
 # wrap the commands
 
 
-def freenetpathtouri(ui, path, operation, repo=None):
+def freenetpathtouri(ui, path, operation, repo=None, truster_identifier=None, fcphost=None, fcpport=None):
     """
     Return a usable request or insert URI. Expects a freenet:// or freenet:
     protocol to be specified.
@@ -586,26 +602,25 @@ def freenetpathtouri(ui, path, operation, repo=None):
                        * "clone-push" - insert URI for repository that might
                                         not exist. (Skips looking up
                                         published name and edition.)
+    :param truster_identifier: An override string identifier for a truster
+                               specified on the command line.
     """
     # TODO: Is this the only URL encoding that may happen? Why not use a more
     # semantically meaningful function?
     path = path.replace("%7E", "~").replace("%2C", ",")
-    if path.startswith("freenet://"):
-        path = path[len("freenet://"):]
-    elif path.startswith("freenet:"):
-        path = path[len("freenet:"):]
+    path = strip_protocol(path)
 
     # Guess whether it's WoT. This won't work if someone has chosen their WoT
     # nick to be "USK", but this is a corner case. Using --wot will still work.
     if not path.startswith("USK"):
         import wot
         if operation == "pull":
-            truster = get_truster(ui, repo)
-            return wot.resolve_pull_uri(ui, path, truster)
+            truster = get_truster(ui, repo, truster_identifier)
+            return wot.resolve_pull_uri(ui, path, truster, repo, fcphost=fcphost, fcpport=fcpport)
         elif operation == "push":
-            return wot.resolve_push_uri(ui, path)
+            return wot.resolve_push_uri(ui, path, fcphost=fcphost, fcpport=fcpport)
         elif operation == "clone-push":
-            return wot.resolve_push_uri(ui, path, resolve_edition=False)
+            return wot.resolve_push_uri(ui, path, resolve_edition=False, fcphost=fcphost, fcpport=fcpport)
         else:
             raise util.Abort("Internal error: invalid operation '{0}' when "
                              "resolving WoT-integrated URI.".format(operation))
@@ -630,7 +645,7 @@ def freenetpull(orig, *args, **opts):
     # only act differently, if the target is an infocalypse repo.
     if not isfreenetpath(path):
         return orig(*args, **opts)
-    uri = freenetpathtouri(ui, path, "pull", repo)
+    uri = freenetpathtouri(ui, path, "pull", repo, opts.get('truster'), fcphost = opts['fcphost'], fcpport = opts['fcpport'])
     opts["uri"] = uri
     opts["aggressive"] = True # always search for the latest revision.
     return infocalypse_pull(ui, repo, **opts)
@@ -667,7 +682,7 @@ def freenetpush(orig, *args, **opts):
     # only act differently, if the target is an infocalypse repo.
     if not isfreenetpath(path):
         return orig(*args, **opts)
-    uri = parse_repo_path(freenetpathtouri(ui, path, "push", repo))
+    uri = parse_repo_path(freenetpathtouri(ui, path, "push", repo, fcphost = opts['fcphost'], fcpport = opts['fcpport']))
     if uri is None:
         return
     # if the uri is the short form (USK@/name/#), generate the key and preprocess the uri.
@@ -676,9 +691,9 @@ def freenetpush(orig, *args, **opts):
         from sitecmds import genkeypair
         fcphost, fcpport = opts["fcphost"], opts["fcpport"]
         if not fcphost:
-            fcphost = '127.0.0.1'
+            fcphost = DEFAULT_FCP_HOST
         if not fcpport:
-            fcpport = 9481
+            fcpport = DEFAULT_FCP_PORT
             
         # use redundant keys by default, except if explicitely requested otherwise.
         namepart = uri[5:]
@@ -729,10 +744,11 @@ def freenetclone(orig, *args, **opts):
     # check whether to create, pull or copy
     pulluri, pushuri = None, None
     if isfreenetpath(source):
-        pulluri = parse_repo_path(freenetpathtouri(ui, source, "pull"))
+        pulluri = parse_repo_path(
+            freenetpathtouri(ui, source, "pull", None, opts.get('truster')))
 
     if isfreenetpath(dest):
-        pushuri = parse_repo_path(freenetpathtouri(ui, dest, "clone-push"),
+        pushuri = parse_repo_path(freenetpathtouri(ui, dest, "clone-push", fcphost = opts['fcphost'], fcpport = opts['fcpport']),
                                   assume_redundancy=True)
 
     # decide which infocalypse command to use.
@@ -755,9 +771,9 @@ def freenetclone(orig, *args, **opts):
             from sitecmds import genkeypair
             fcphost, fcpport = opts["fcphost"], opts["fcpport"]
             if not fcphost:
-                fcphost = '127.0.0.1'
+                fcphost = DEFAULT_FCP_HOST
             if not fcpport:
-                fcpport = 9481
+                fcpport = DEFAULT_FCP_PORT
             
             # use redundant keys by default, except if explicitely requested otherwise.
             namepart = pushuri[5:]
@@ -781,7 +797,25 @@ def freenetclone(orig, *args, **opts):
             #pushuri = pushuri[:namepartpos] + namepart
         opts["uri"] = pushuri
         repo = hg.repository(ui, ui.expandpath(source))
-        return infocalypse_create(ui, repo, **opts)
+        # TODO: A local identity is looked up for the push URI,
+        # but not returned, yet it is required to update configuration.
+        # Expecting dest to be something like freenet://name@key/reponame
+        local_identifier = strip_protocol(dest).split('/')[0]
+
+        from wot_id import Local_WoT_ID
+        from wot import get_fcpopts
+        local_identity = Local_WoT_ID(local_identifier,
+                                      get_fcpopts(fcphost=opts["fcphost"],
+                                                  fcpport=opts["fcpport"]))
+
+        infocalypse_create(ui, repo, local_identity, **opts)
+
+        # TODO: Function for adding paths? It's currently here, for pull,
+        # and in WoT pull URI resolution.
+        with repo.opener("hgrc", "a", text=True) as f:
+            f.write("""[paths]
+default-push = freenet:{0}
+""".format(pushuri))
 
     if action == "pull":
         if os.path.exists(dest):
@@ -803,8 +837,8 @@ username = anonymous
 
 [alias]
 clt = commit
-ci = !$HG clt --date "$(date -u "+%Y-%m-%d %H:%M:%S +0000")" $@
-commit = !$HG clt --date "$(date -u "+%Y-%m-%d %H:%M:%S +0000")" $@
+ci = !$HG clt --date "$(date -u "+%Y-%m-%d %H:%M:%S +0000")" "$@"
+commit = !$HG clt --date "$(date -u "+%Y-%m-%d %H:%M:%S +0000")" "$@"
 """
         # alternative: every commit is done at 09:42:30 (might be
         # confusing but should be safest): date -u "+%Y-%m-%d 09:42:30 +0000
@@ -815,7 +849,13 @@ commit = !$HG clt --date "$(date -u "+%Y-%m-%d %H:%M:%S +0000")" $@
         with destrepo.opener("hgrc", "a", text=True) as f:
             f.write(_hgrc_template.format(pulluri=pulluri))
         
-        ui.warn("As basic protection, infocalypse automatically set the username 'anonymous' for commits in this repo, changed the commands `commit` and `ci` to fake UTC time and added `clt` which commits in the local timezone. To change this, edit " + str(os.path.join(destrepo.root, ".hg", "hgrc")))
+        ui.warn("As basic protection, infocalypse automatically \n"
+                "  set the username 'anonymous' for commits in this repo, \n"
+                "  changed the commands `commit` and `ci` to fake UTC time \n"
+                "  and added `clt` which commits in the local timezone. \n"
+                "  To change this, edit " 
+                + str(os.path.join(destrepo.root, ".hg", "hgrc"))
+                + "\n")
         # and update the repo
         return hg.update(destrepo, None)
 
