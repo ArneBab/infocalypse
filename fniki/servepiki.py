@@ -275,9 +275,17 @@ def serve_wiki(port=8081, bind_to='localhost', out_func=default_out_func):
 
     out_func("Starting HTTP server on port %s, bound to: %s " %
              (port, bound_to))
+    out_func("")
+    if bind_to == '':
+        out_func("    Your wiki is at http://localhost:%s/" %
+                 (port))
+    else:
+        out_func("    Your wiki is at http://%s:%s/" %
+                 (bound_to, port))
+    out_func("")
     out_func("Press Ctrl+C to stop")
 
-    # Change to 'localhost' to '' to bind to all interface. Not recommended.
+    # Change 'localhost' to '' to bind to all interface. Not recommended.
     server = SimpleAsyncServer.Server(bind_to, port)
 
     # Must set these.
