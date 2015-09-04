@@ -24,5 +24,5 @@ It supports WoT too:
 
 Dependencies for full WoT support:
     - PyYAML http://pyyaml.org/wiki/PyYAMLDocumentation
-    - lib-pyFreenet https://github.com/freenet/lib-pyFreenet-official
+    - lib-pyFreenet https://github.com/freenet/lib-pyFreenet
     - DefusedXML https://pypi.python.org/pypi/defusedxml/
