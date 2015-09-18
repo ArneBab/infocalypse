@@ -2,6 +2,7 @@ from signal import signal, SIGINT
 from time import sleep
 import fcp
 import threading
+import atexit
 from mercurial import util
 import sys
 from config import Config
@@ -18,6 +19,7 @@ def connect(ui, repo):
     TODO: Add command option handling (fcphost and fcpport).
     """
     node = fcp.FCPNode()
+    atexit.register(node.shutdown)
 
     ui.status("Connecting.\n")
 

@@ -17,6 +17,7 @@ from config import read_freesite_cfg, Config, normalize
 from validate import is_hex_string, is_fms_id
 
 import os
+import atexit
 
 from keys import parse_repo_path, USK
 
@@ -135,6 +136,7 @@ def infocalypse_create(ui_, repo, local_identity=None, **opts):
         import wot
         node = fcp.FCPNode(**wot.get_fcpopts(fcphost=opts["fcphost"],
                                              fcpport=opts["fcpport"]))
+        atexit.register(node.shutdown)
         vcs_response =\
             node.fcpPluginMessage(plugin_name="plugins.WebOfTrust.WebOfTrust",
                                   plugin_params=msg_params)[0]

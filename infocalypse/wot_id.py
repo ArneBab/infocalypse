@@ -1,6 +1,7 @@
 import fcp
 from mercurial import util
 import string
+import atexit
 from keys import USK
 from base64 import b32encode
 from fcp.node import base64decode
@@ -133,6 +134,7 @@ def _request_matching_identities_lcwot(truster, context="vcs", prefix=None, fcpo
     nickname_prefix, key_prefix = _parse_name(prefix)
     # TODO: Support different FCP IP / port.
     node = fcp.FCPNode(**fcpopts)
+    atexit.register(node.shutdown)
 
     # Test for GetIdentitiesByPartialNickname support. currently LCWoT-only.
     # src/main/java/plugins/WebOfTrust/fcp/GetIdentitiesByPartialNickname
@@ -169,6 +171,7 @@ def _request_matching_identities(truster, context="vcs", prefix=None, fcpopts={}
     Return a list of responses for all matching identities.
     """
     node = fcp.FCPNode(**fcpopts)
+    atexit.register(node.shutdown)
     params = {'Message': 'GetIdentities', # GetIdentitiesByScore is much slower
               'Truster': truster.identity_id}
 
@@ -211,6 +214,7 @@ def _get_identity(wot_identifier, truster, exact=False, fcpopts={}):
     nickname_prefix, key_prefix = _parse_name(wot_identifier)
     # TODO: Support different FCP IP / port.
     node = fcp.FCPNode(**fcpopts)
+    atexit.register(node.shutdown)
 
     if not exact:
         # Test for GetIdentitiesByPartialNickname support. currently LCWoT-only.
@@ -274,6 +278,7 @@ def _get_local_identity(wot_identifier, fcpopts={}):
     nickname_prefix, key_prefix = _parse_name(wot_identifier)
 
     node = fcp.FCPNode(**fcpopts)
+    atexit.register(node.shutdown)
     response = \
         node.fcpPluginMessage(plugin_name="plugins.WebOfTrust.WebOfTrust",
                               plugin_params={'Message':

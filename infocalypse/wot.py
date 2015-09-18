@@ -4,6 +4,7 @@ from config import Config
 import xml.etree.ElementTree as ET
 from defusedxml.ElementTree import fromstring
 import smtplib
+import atexit
 from keys import USK
 import yaml
 from email.mime.text import MIMEText
@@ -260,6 +261,7 @@ def update_repo_listing(ui, for_identity, fcphost=None, fcpport=None):
     # TODO: Nonstandard IP and port from cfg
     node = fcp.FCPNode(**get_fcpopts(fcphost=fcphost,
                                      fcpport=fcpport))
+    atexit.register(node.shutdown)
 
     insert_uri = for_identity.insert_uri.clone()
 
@@ -390,6 +392,7 @@ def fetch_edition(uri, fcphost=None, fcpport=None):
     """
     node = fcp.FCPNode(**get_fcpopts(fcphost=fcphost,
                                      fcpport=fcpport))
+    atexit.register(node.shutdown)
     # Following a redirect automatically does not provide the edition used,
     # so manually following redirects is required.
     # TODO: Is there ever legitimately more than one redirect?
