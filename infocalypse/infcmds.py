@@ -541,7 +541,7 @@ def execute_copy(ui_, repo, params, stored_cfg):
         update_sm = setup(ui_, repo, params, stored_cfg)
         do_key_setup(ui_, update_sm, params, stored_cfg)
 
-        ui_.status("%sInsert URI:\n%s\n" % (is_redundant(params['INSERT_URI']),
+        ui_.debug("%sInsert URI:\n%s\n" % (is_redundant(params['INSERT_URI']),
                                             params['INSERT_URI']))
         update_sm.start_copying(params['REQUEST_URI'],
                                 params['INSERT_URI'])
@@ -588,7 +588,7 @@ def execute_reinsert(ui_, repo, params, stored_cfg):
                                 params['INVERTED_INSERT_URI']))):
                 raise util.Abort("Request URI doesn't match insert URI.")
 
-            ui_.status("%sInsert URI:\n%s\n" % (is_redundant(params[
+            ui_.debug("%sInsert URI:\n%s\n" % (is_redundant(params[
                 'INSERT_URI']),
                                                 params['INSERT_URI']))
         ui_.status("%sRequest URI:\n%s\n" % (is_redundant(params[
@@ -627,7 +627,7 @@ def execute_push(ui_, repo, params, stored_cfg):
         request_uri, is_keypair = do_key_setup(ui_, update_sm, params,
                                                stored_cfg)
 
-        ui_.status("%sInsert URI:\n%s\n" % (is_redundant(params['INSERT_URI']),
+        ui_.debug("%sInsert URI:\n%s\n" % (is_redundant(params['INSERT_URI']),
                                             params['INSERT_URI']))
         #ui_.status("Current tip: %s\n" % hex_version(repo)[:12])
 
