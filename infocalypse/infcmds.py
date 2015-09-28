@@ -511,7 +511,7 @@ def execute_create(ui_, repo, params, stored_cfg):
         # out of INSERTING_URI instead.
         do_key_setup(ui_, update_sm, params, stored_cfg)
 
-        ui_.status("%sInsert URI:\n%s\n" % (is_redundant(params['INSERT_URI']),
+        ui_.debug("%sInsert URI:\n%s\n" % (is_redundant(params['INSERT_URI']),
                                             params['INSERT_URI']))
         #ui_.status("Current tip: %s\n" % hex_version(repo)[:12])
 

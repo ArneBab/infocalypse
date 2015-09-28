@@ -119,7 +119,7 @@ def execute_arc_create(ui_, params, stored_cfg):
         update_sm = setup(ui_, None, params, stored_cfg)
         request_uri, dummy = do_key_setup(ui_, update_sm, params, stored_cfg)
         create_dirs(ui_, params['ARCHIVE_CACHE_DIR'], request_uri)
-        ui_.status("%sInsert URI:\n%s\n" % (is_redundant(params['INSERT_URI']),
+        ui_.debug("%sInsert URI:\n%s\n" % (is_redundant(params['INSERT_URI']),
                                             params['INSERT_URI']))
 
         # Create the local blocks.
@@ -222,7 +222,7 @@ def execute_arc_push(ui_, params, stored_cfg):
         request_uri, dummy_is_keypair = do_key_setup(ui_, update_sm, params,
                                                      stored_cfg)
         create_dirs(ui_, params['ARCHIVE_CACHE_DIR'], request_uri)
-        ui_.status("%sInsert URI:\n%s\n" % (is_redundant(params['INSERT_URI']),
+        ui_.debug("%sInsert URI:\n%s\n" % (is_redundant(params['INSERT_URI']),
                                             params['INSERT_URI']))
 
 
