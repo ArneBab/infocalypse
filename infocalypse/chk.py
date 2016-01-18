@@ -29,7 +29,7 @@ ENCODED_CHK_SIZE = 99
 # REDFLAG: Is this correct?
 def freenet_base64_encode(data):
     """ INTERNAL: Base64 encode data using Freenet's base64 algo. """
-    encoded =  base64.b64encode(data, ['~', '-'])
+    encoded =  base64.b64encode(data, '~-')
     length = len(encoded)
     while encoded[length - 1] == '=':
         length -= 1
@@ -40,7 +40,7 @@ def freenet_base64_decode(data):
     """ INTERNAL: Base64 decode data using Freenet's base64 algo. """
     while len(data) % 4 != 0:
         data += '='
-    return base64.b64decode(data, ['~', '-'])
+    return base64.b64decode(data, '~-')
 
 def bytes_to_chk(bytes):
     """ Reads the binary representation of a Freenet CHK and returns
