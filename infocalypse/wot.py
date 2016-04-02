@@ -215,6 +215,7 @@ def read_message_yaml(ui, from_address, subject, body):
         # FIXME: request['target'] can be more up to date than the local listing? Maybe only when sending to myself.
         ui.status("               To your repository: %s\n" %
                   (cfg.get_repo_dir(request['target'])))
+        ui.status("hg -R %s pull '%s'\n" % (request['source'], cfg.get_repo_dir(request['target'])))
         return
 
     ui.status("Notification '%s' has an unrecognized request of type '%s'"
