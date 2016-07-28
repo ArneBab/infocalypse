@@ -552,12 +552,22 @@ cmdtable = {
 }
 
 
-commands.norepo += ' fn-setup'
-commands.norepo += ' fn-setupfms'
-commands.norepo += ' fn-genkey'
-commands.norepo += ' fn-archive'
-commands.norepo += ' fn-setupwot'
-commands.norepo += ' fn-updaterepolist'
+try:
+    commands.norepo += ' fn-setup'
+    commands.norepo += ' fn-setupfms'
+    commands.norepo += ' fn-genkey'
+    commands.norepo += ' fn-archive'
+    commands.norepo += ' fn-setupwot'
+    commands.norepo += ' fn-setupfreemail'
+    commands.norepo += ' fn-updaterepolist'
+except AttributeError as e: # Mercurial 3.8 API change
+    infocalypse_setup.norepo = True
+    infocalypse_setupfms.norepo = True
+    infocalypse_setupwot.norepo = True
+    infocalypse_setupfreemail.norepo = True
+    infocalypse_genkey.norepo = True
+    infocalypse_archive.norepo = True
+    infocalypse_update_repo_list.norepo = True
 
 
 ## Wrap core commands for use with freenet keys.
