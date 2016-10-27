@@ -602,7 +602,7 @@ def write_default_config(ui_, repo, is_wiki=False):
         text = \
 """# freesite.cfg used by fn-putsite
 [default]
-# Human readable site name.
+# Human readable site name (the path component of the wiki site).
 site_name = default
 # Directory to insert from relative to the repository root.
 site_dir = site_root
