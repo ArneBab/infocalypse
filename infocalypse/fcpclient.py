@@ -22,10 +22,10 @@
 
 import mimetypes, os, re
 
-from fcpconnection import FCPConnection, IDataSource, READ_BLOCK, \
+from .fcpconnection import FCPConnection, IDataSource, READ_BLOCK, \
      MinimalClient, PolledSocket, FCPError, sha1_hexdigest
 
-from fcpmessage import GETNODE_DEF, GENERATE_SSK_DEF, \
+from .fcpmessage import GETNODE_DEF, GENERATE_SSK_DEF, \
      GET_REQUEST_URI_DEF, GET_DEF, \
      PUT_FILE_DEF, PUT_REDIRECT_DEF,  PUT_COMPLEX_DIR_DEF
 
@@ -202,7 +202,7 @@ class FileInfoDataSource(IDataSource):
         #print "FileInfoDataSource.read -- called"
         assert not self.chunks is None
         if self.chunks:
-            ret = self.chunks.next()
+            ret = next(self.chunks)
             if ret is None:
                 self.chunks = None
                 #print "FileInfoDataSource.read -- returned None"
@@ -353,7 +353,7 @@ def prefetch_usk(client, usk_uri, allowed_redirects = 3,
         in usk_uri.
     """
 
-    if client.in_params.async:
+    if client.in_params._async:
         raise ValueError("This function only works synchronously.")
 
     usk_uri = get_negative_usk(usk_uri)
@@ -394,7 +394,7 @@ def latest_usk_index(client, usk_uri, allowed_redirects = 1,
         a key which points to a large block of data.
     """
 
-    if client.in_params.async:
+    if client.in_params._async:
         raise ValueError("This function only works synchronously.")
 
     client.reset()
@@ -457,11 +457,11 @@ def show_progress(dummy, msg):
     """ Default message callback implementation. """
 
     if msg[0] == 'SimpleProgress':
-        print "Progress: (%s/%s/%s)" % (msg[1]['Succeeded'],
+        print("Progress: (%s/%s/%s)" % (msg[1]['Succeeded'],
                                         msg[1]['Required'],
-                                        msg[1]['Total'])
+                                        msg[1]['Total']))
     else:
-        print "Progress: %s" % msg[0]
+        print("Progress: %s" % msg[0])
 
 def parse_progress(msg):
     """ Parse a SimpleProgress message into a tuple. """
@@ -478,7 +478,7 @@ class FCPClient(MinimalClient):
     """ A class to execute common FCP requests.
 
         This class provides a simplified interface for common FCP commands.
-        Calls are blocking by default.  Set FCPClient.in_params.async = True
+        Calls are blocking by default.  Set FCPClient.in_params.__async = True
         to run asynchronously.
 
         You can set FCP parameters using the
@@ -560,7 +560,7 @@ class FCPClient(MinimalClient):
             REQUIRES: insert_uri is a private SSK or USK.
         """
 
-        if self.in_params.async:
+        if self.in_params._async:
             raise ValueError("This function only works synchronously.")
 
         assert is_usk(insert_uri) or is_ssk(insert_uri)

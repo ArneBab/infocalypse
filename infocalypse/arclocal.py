@@ -24,14 +24,14 @@ import re
 import shutil
 import random
 
-import archivetop
-from fcpclient import get_version, get_usk_hash
-from graph import MAX_METADATA_HACK_LEN
-from archivesm import choose_word, chk_file_name, BLOCK_DIR, TMP_DIR, \
+from . import archivetop
+from .fcpclient import get_version, get_usk_hash
+from .graph import MAX_METADATA_HACK_LEN
+from .archivesm import choose_word, chk_file_name, BLOCK_DIR, TMP_DIR, \
      TOP_KEY_NAME_FMT
 
 # Archive stuff
-from pathhacks import add_parallel_sys_path
+from .pathhacks import add_parallel_sys_path
 add_parallel_sys_path('wormarc')
 from blocks import BlockStorage, ITempFileManager
 from archive import WORMBlockArchive, UpToDateException

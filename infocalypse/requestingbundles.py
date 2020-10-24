@@ -24,18 +24,18 @@
 import os
 import random # Hmmm... good enough?
 
-from fcpmessage import GET_DEF
+from .fcpmessage import GET_DEF
 
-from bundlecache import make_temp_file
-from graph import latest_index, \
+from .bundlecache import make_temp_file
+from .graph import latest_index, \
      FREENET_BLOCK_LEN, chk_to_edge_triple_map, \
      dump_paths, MAX_PATH_LEN, get_heads, canonical_path_itr
-from graphutil import parse_graph
-from choose import get_update_edges, dump_update_edges, SaltingState
+from .graphutil import parse_graph
+from .choose import get_update_edges, dump_update_edges, SaltingState
 
-from statemachine import RetryingRequestList, CandidateRequest
+from .statemachine import RetryingRequestList, CandidateRequest
 
-from chk import clear_control_bytes
+from .chk import clear_control_bytes
 
 def fixup(edges, candidate_list):
     """ INTERNAL : Helper used by _set_graph to fix up CHKs->edges. """
@@ -177,7 +177,7 @@ class RequestingBundles(RetryingRequestList):
                 # Don't attempt to queue updates if we don't know
                 # full parent/head info.
                 # REDFLAG: remove test code
-                print "_queue_from_updates -- bailing out", update[4], update[5]
+                print("_queue_from_updates -- bailing out", update[4], update[5])
                 break
 
             if only_latest and update[0] > 5 * FREENET_BLOCK_LEN:
@@ -358,7 +358,7 @@ class RequestingBundles(RetryingRequestList):
         edges = chk_to_edge_triple_map(graph)
 
         skip_chks = set([]) # REDFLAG: remove!
-        for request in self.pending.values():
+        for request in list(self.pending.values()):
             candidate = request.candidate
             if candidate[6]:
                 continue
@@ -450,7 +450,7 @@ class RequestingBundles(RetryingRequestList):
         # REDFLAG: Magick number
         while len(first_paths) < 20:
             try:
-                first_paths.append(paths.next())
+                first_paths.append(next(paths))
             except StopIteration:
                 break
 
@@ -876,7 +876,7 @@ class RequestingBundles(RetryingRequestList):
             required. """
         #print "_remove_old_candidates -- called"
         # Cancel pending requests which are no longer required.
-        for client in self.pending.values():
+        for client in list(self.pending.values()):
             candidate = client.candidate
             if candidate[6]:
                 continue # Skip graph requests.
@@ -1005,7 +1005,7 @@ class RequestingBundles(RetryingRequestList):
         count_edges(edge_counts, bad_counts, self.pending_candidates())
 
         if len(bad_counts) > 0:
-            print "MULTIPLE EDGES: ", bad_counts
+            print("MULTIPLE EDGES: ", bad_counts)
             self.dump()
             assert False
 

@@ -93,11 +93,11 @@ class HandleTemps(ITempFileManager):
         if not os.path.exists(full_path):
             return
 
-        if full_path in self.callers.keys():
+        if full_path in list(self.callers.keys()):
             del self.callers[full_path]
         else:
-            print "HandleTemps.remove_file() -- removing non-managed file???"
-            print full_path
+            print("HandleTemps.remove_file() -- removing non-managed file???")
+            print(full_path)
 
         os.remove(full_path)
 
@@ -106,18 +106,18 @@ class HandleTemps(ITempFileManager):
             if not os.path.exists(name):
                 continue
 
-            print "LEAKED: ", name
-            print "FROM:"
-            print self.callers[name]
+            print("LEAKED: ", name)
+            print("FROM:")
+            print(self.callers[name])
 
         if len(os.listdir(self.base_dir)) > 0:
             file_count = 0
             for name in os.listdir(self.base_dir):
                 if os.path.isdir(os.path.join(self.base_dir, name)):
                     # Allow directories. e.g. __hg_repo__, __unarchived__.
-                    print "HandleTemps.check_for_leaks -- ignored dir: ", name
+                    print("HandleTemps.check_for_leaks -- ignored dir: ", name)
                     continue
-                print name
+                print(name)
                 file_count += 1
 
             if file_count > 0:
@@ -125,7 +125,7 @@ class HandleTemps(ITempFileManager):
 
 def dump_blocks(blocks, msg=None, brief=False):
     if not msg is None:
-        print msg
+        print(msg)
     values = []
     for index in range(0, len(blocks.tags)):
         path = blocks.full_path(index)
@@ -139,9 +139,9 @@ def dump_blocks(blocks, msg=None, brief=False):
             values.append("%s:[%s]" % (path, length))
 
     if brief:
-        print "blocks: " + " ".join(values)
+        print("blocks: " + " ".join(values))
     else:
-        print "blocks\n" + "\n".join(values)
+        print("blocks\n" + "\n".join(values))
 
 def link_str(link):
     return "(%s, %i, %s, data: %s, %i, %s)" % (str_sha(link[0]),
@@ -152,40 +152,40 @@ def link_str(link):
                                                link[5])
 def dump_links(links, msg=None):
     if not msg is None:
-        print msg
+        print(msg)
     for link in links:
-        print link_str(link)
+        print(link_str(link))
 
 def dump_link_map(link_map, msg=None, brief=False):
     if not msg is None:
-        print msg
-    print "keys: ", len(link_map)
+        print(msg)
+    print("keys: ", len(link_map))
     if brief:
         return
-    keys = link_map.keys()
+    keys = list(link_map.keys())
     keys.sort()
     for key in keys:
-        print str_sha(key)
+        print(str_sha(key))
         dump_links(link_map[key])
 
 def dump_names_map(names_map, msg=None):
     if not msg is None:
-        print msg
-    keys = names_map.keys()
+        print(msg)
+    keys = list(names_map.keys())
     keys.sort()
     for key in keys:
         hashes = names_map[key]
-        print "%s->(%s, %s)" % (key, str_sha(hashes[0]), str_sha(hashes[1]))
+        print("%s->(%s, %s)" % (key, str_sha(hashes[0]), str_sha(hashes[1])))
 
 def dump_archive(archive, msg=None, brief=False):
-    print "--- start archive dump ---"
+    print("--- start archive dump ---")
     if not msg is None:
-        print msg
-    print "age: %i max_blocks: %i" % (archive.age, archive.max_blocks)
+        print(msg)
+    print("age: %i max_blocks: %i" % (archive.age, archive.max_blocks))
     dump_blocks(archive.blocks, "blocks:")
 
     dump_link_map(archive.blocks.link_map, "link_map:", brief)
-    print "--- end ---"
+    print("--- end ---")
 
 
 def words():
@@ -197,7 +197,7 @@ WORD_ITR = words()
 def lines(count):
     line = ""
     while count > 0:
-        line += WORD_ITR.next()
+        line += next(WORD_ITR)
         line += " "
         if len(line) > 60:
             ret = line
@@ -284,12 +284,12 @@ class SmokeTests(ArchiveTestCase):
         return archive
 
     def test_create_archive(self):
-        print
+        print()
         archive = self.make_empty_archive('A')
         dump_archive(archive)
 
     def test_load_archive(self):
-        print
+        print()
         self.make_empty_archive('A')
         b = self.load_archive('A')
         dump_archive(b)
@@ -314,20 +314,20 @@ class SmokeTests(ArchiveTestCase):
             dump_archive(a, "updated")
 
             # Read
-            print
-            print str_sha(link0[0]), a.get_data(link0[0])
-            print str_sha(link1[0]), a.get_data(link1[0])
-            print str_sha(link2[0]), a.get_data(link2[0])
+            print()
+            print(str_sha(link0[0]), a.get_data(link0[0]))
+            print(str_sha(link1[0]), a.get_data(link1[0]))
+            print(str_sha(link2[0]), a.get_data(link2[0]))
 
             a.close()
 
             b = self.load_archive('A')
             dump_archive(b, "[Reloaded from disk]")
-            print
+            print()
             # Mix up order.
-            print str_sha(link1[0]), b.get_data(link1[0])
-            print str_sha(link0[0]), b.get_data(link0[0])
-            print str_sha(link2[0]), b.get_data(link2[0])
+            print(str_sha(link1[0]), b.get_data(link1[0]))
+            print(str_sha(link0[0]), b.get_data(link0[0]))
+            print(str_sha(link2[0]), b.get_data(link2[0]))
         finally:
             self.tmps.remove_temp_file(t1)
             self.tmps.remove_temp_file(r0)
@@ -368,7 +368,7 @@ class SmokeTests(ArchiveTestCase):
 
             prev = new_sha
             if iteration > 0 and iteration % 100 == 0:
-                print "iteration: ", iteration
+                print("iteration: ", iteration)
 
     # grrr... giving up on temp files
     def test_single_update(self):
@@ -392,9 +392,9 @@ class SmokeTests(ArchiveTestCase):
             ('big.txt', '*' * (1 * 128)),
             )
 
-        print "manifest sha: ", str_sha(m.stored_sha)
+        print("manifest sha: ", str_sha(m.stored_sha))
         m.update(a, entries_from_seq(self.tmps, data0))
-        print "manifest sha: ", str_sha(m.stored_sha)
+        print("manifest sha: ", str_sha(m.stored_sha))
 
         dump_archive(a, "AFTER FIRST WRITE:")
         verify_manifest(a, m)
@@ -406,17 +406,17 @@ class SmokeTests(ArchiveTestCase):
             )
 
         m.update(a, entries_from_seq(self.tmps, data1))
-        print "manifest sha: ", str_sha(m.stored_sha)
+        print("manifest sha: ", str_sha(m.stored_sha))
         dump_archive(a)
         verify_link_map(a.blocks.link_map)
         verify_manifest(a, m)
 
     def test_words(self):
-        print WORD_ITR.next()
+        print(next(WORD_ITR))
 
     def test_lines(self):
         for line in lines(10):
-            print line
+            print(line)
 
     def test_many_updates(self):
 
@@ -467,28 +467,28 @@ class SmokeTests(ArchiveTestCase):
         try:
             validate_path(base_dir, "/tmp/test/foo/../../../etc/passwd")
             self.assertTrue(False)
-        except IOError, e:
-            print "Got expected exception: ", e
+        except IOError as e:
+            print("Got expected exception: ", e)
 
         try:
             validate_path(base_dir, "/tmp/test/foo/../forbidden")
             self.assertTrue(False)
-        except IOError, e:
-            print "Got expected exception: ", e
-
-        try:
-            validate_path(base_dir,
-                          u"/tmp/test/foo/f\xc3\xb6rbjuden.txt")
-            self.assertTrue(False)
-        except IOError, e:
-            print "Got expected exception: ", e
+        except IOError as e:
+            print("Got expected exception: ", e)
 
         try:
             validate_path(base_dir,
                           "/tmp/test/foo/f\xc3\xb6rbjuden.txt")
             self.assertTrue(False)
-        except IOError, e:
-            print "Got expected exception: ", e
+        except IOError as e:
+            print("Got expected exception: ", e)
+
+        try:
+            validate_path(base_dir,
+                          "/tmp/test/foo/f\xc3\xb6rbjuden.txt")
+            self.assertTrue(False)
+        except IOError as e:
+            print("Got expected exception: ", e)
 
     def test_is_contiguous(self):
         self.assertTrue(is_contiguous( () ))
@@ -615,7 +615,7 @@ class SmokeTests(ArchiveTestCase):
 
             if not ((is_ordered(blocks) or
                 (is_ordered(blocks[1:]) and blocks[0][2] < 32 * 1024))):
-                print blocks
+                print(blocks)
 
             self.assertTrue(is_ordered(blocks) or
                             (is_ordered(blocks[1:]) and
@@ -639,12 +639,12 @@ class SmokeTests(ArchiveTestCase):
         for percent in (50, 75, 80, 85, 90, 95, 99, 100):
             point = changes[min(int((percent/100.0) * len(changes)),
                                 len(changes) - 1)]
-            print "%i %i %i" % (percent, point, point/(32*1024 + 1))
+            print("%i %i %i" % (percent, point, point/(32*1024 + 1)))
 
 
     def test_hg_repo_torture_test(self):
         if HG_REPO_DIR == '':
-            print "Set HG_REPO_DIR!"
+            print("Set HG_REPO_DIR!")
             self.assertTrue(False)
 
         writer = self.make_empty_archive('hgtst')
@@ -659,7 +659,7 @@ class SmokeTests(ArchiveTestCase):
 
             # export the repo
             # FIX: Wacky way to set max_rev.
-            print "Exporting rev: ", rev
+            print("Exporting rev: ", rev)
             max_rev = export_hg_repo(HG_REPO_DIR, target_dir, rev)
             if rev >= max_rev:
                 break
@@ -712,7 +712,7 @@ class SmokeTests(ArchiveTestCase):
 
             assert len(insert_map) > 0
             assert insert_map == unarchived_map
-            print "%i files compared equal." % len(insert_map)
+            print("%i files compared equal." % len(insert_map))
 
             rev += 1
 

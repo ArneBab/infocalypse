@@ -23,7 +23,7 @@
 
 import time
 
-from fcpconnection import MinimalClient
+from .fcpconnection import MinimalClient
 
 class QueueableRequest(MinimalClient):
     """ A request which can be queued in a RequestQueue and run
@@ -83,7 +83,7 @@ class RequestRunner:
 
         # Cancel running requests which have timed out.
         now = time.time()
-        for client in self.running.values():
+        for client in list(self.running.values()):
             assert client.cancel_time_secs
             if client.cancel_time_secs < now:
                 self.connection.remove_request(client.request_id())
@@ -109,7 +109,7 @@ class RequestRunner:
                 #if 'URI' in client.in_params.fcp_params:
                 #    print "   ", client.in_params.fcp_params['URI']
                 assert client.queue == self.request_queues[self.index]
-                client.in_params.async = True
+                client.in_params.__async = True
                 client.message_callback = self.msg_callback
                 self.running[self.connection.start_request(
                     client, client.custom_data_source)] = client

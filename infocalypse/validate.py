@@ -39,9 +39,9 @@ def is_hex_string(value, length=12):
 # http://wiki.freenetproject.org/Base64
 FREENET_BASE64_CHARS = frozenset(
     [ chr(c) for c in
-      (range(ord('0'), ord('9') + 1)
-       + range(ord('a'), ord('z') + 1)
-       + range(ord('A'), ord('Z') + 1)
+      (list(range(ord('0'), ord('9') + 1))
+       + list(range(ord('a'), ord('z') + 1))
+       + list(range(ord('A'), ord('Z') + 1))
        + [ord('~'), ord('-')])
       ])
 

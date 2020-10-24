@@ -1,15 +1,15 @@
 import fcp
 from mercurial import util
-from config import Config
+from .config import Config
 import xml.etree.ElementTree as ET
 from defusedxml.ElementTree import fromstring
 import smtplib
 import atexit
-from keys import USK
+from .keys import USK
 import yaml
 from email.mime.text import MIMEText
 import imaplib
-from wot_id import Local_WoT_ID, WoT_ID
+from .wot_id import Local_WoT_ID, WoT_ID
 
 # TODO: Instead of fcpport and fcphost, functions should accept a node
 
@@ -133,7 +133,7 @@ def check_notifications(ui, local_identity, mailhost=None, imapport=None):
     # ')',
 
     # Exclude closing parens, which are of length one.
-    subjects = filter(lambda x: len(x) == 2, subjects)
+    subjects = [x for x in subjects if len(x) == 2]
 
     subjects = [x[1] for x in subjects]
 
@@ -141,7 +141,7 @@ def check_notifications(ui, local_identity, mailhost=None, imapport=None):
     subjects = dict((message_number, subject[len('Subject: '):].rstrip()) for
                     message_number, subject in zip(message_numbers, subjects))
 
-    for message_number, subject in subjects.iteritems():
+    for message_number, subject in subjects.items():
         status, fetched = imap.fetch(str(message_number),
                                      r'(body[text] '
                                      r'body[header.fields From)')
@@ -189,7 +189,7 @@ def read_message_yaml(ui, from_address, subject, body):
 
         if not require('vcs', request) or not require('request', request):
             return
-    except yaml.YAMLError, e:
+    except yaml.YAMLError as e:
         ui.status("Notification '%s' has a request but it is not properly"
                   " formatted. Details:\n%s\n" % (subject, e))
         return
@@ -294,7 +294,7 @@ def build_repo_list(ui, for_identity):
     repos = []
 
     # Add request URIs associated with the given identity.
-    for request_uri in config.request_usks.itervalues():
+    for request_uri in config.request_usks.values():
         if config.get_wot_identity(request_uri) == for_identity.identity_id:
             repos.append(request_uri)
 
@@ -375,11 +375,11 @@ def read_repo_listing(ui, identity, fcphost=None, fcpport=None):
     # and these problems should be pointed out (or prevented) for local repo
     # lists.
 
-    for name in repositories.iterkeys():
+    for name in repositories.keys():
         ui.status("Found repository \"{0}\".\n".format(name))
 
     # Convert values from USKs to strings - USKs are not expected elsewhere.
-    for key in repositories.keys():
+    for key in list(repositories.keys()):
         repositories[key] = str(repositories[key])
 
     return repositories
@@ -399,7 +399,7 @@ def fetch_edition(uri, fcphost=None, fcpport=None):
     # TODO: Is there ever legitimately more than one redirect?
     try:
         return node.get(str(uri), priority=1)
-    except fcp.FCPGetFailed, e:
+    except fcp.FCPGetFailed as e:
         # Error code 27 is permanent redirect: there's a newer edition of
         # the USK.
         # https://wiki.freenetproject.org/FCPv2/GetFailed#Fetch_Error_Codes
@@ -548,10 +548,10 @@ def execute_setup_freemail(ui, local_id, mailhost=None, smtpport=None):
         # TODO: Is this the correct way to get the configured host?
         smtp = smtplib.SMTP(host, port)
         smtp.login(address, password)
-    except smtplib.SMTPAuthenticationError, e:
+    except smtplib.SMTPAuthenticationError as e:
         raise util.Abort("Could not log in with the given password.\nGot '{0}'\n"
                          .format(e.smtp_error))
-    except smtplib.SMTPConnectError, e:
+    except smtplib.SMTPConnectError as e:
         raise util.Abort("Could not connect to server.\nGot '{0}'\n"
                          .format(e.smtp_error))
 

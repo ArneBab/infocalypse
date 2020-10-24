@@ -21,16 +21,16 @@
 
 from mercurial import util
 
-from fcpclient import get_version, get_usk_for_usk_version, is_usk_file, is_usk
+from .fcpclient import get_version, get_usk_for_usk_version, is_usk_file, is_usk
 
-from config import Config
-from infcmds import setup, do_key_setup, is_redundant, run_until_quiescent
-from updatesm import QUIESCENT, FINISHING
-from archivesm import create_dirs, ArchiveUpdateContext, \
+from .config import Config
+from .infcmds import setup, do_key_setup, is_redundant, run_until_quiescent
+from .updatesm import QUIESCENT, FINISHING
+from .archivesm import create_dirs, ArchiveUpdateContext, \
      start_inserting_blocks, start_requesting_blocks, cleanup_dirs, \
      ARC_INSERTING_URI, ARC_REQUESTING_URI, ARC_CACHING_TOPKEY
 
-from arclocal import local_create, local_synch, local_update, local_reinsert
+from .arclocal import local_create, local_synch, local_update, local_reinsert
 
 
 def arc_cleanup(update_sm, top_key_state=None):

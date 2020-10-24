@@ -24,31 +24,31 @@ import os
 import random
 import time
 
-from fcpclient import get_ssk_for_usk_version, get_usk_for_usk_version, \
+from .fcpclient import get_ssk_for_usk_version, get_usk_for_usk_version, \
      is_usk, is_ssk, is_usk_file, get_version, get_negative_usk, \
      make_search_uris, make_frozen_uris, ssk_to_usk
 
-from fcpconnection import SUCCESS_MSGS
-from fcpmessage import GET_DEF, PUT_FILE_DEF, GET_REQUEST_URI_DEF
+from .fcpconnection import SUCCESS_MSGS
+from .fcpmessage import GET_DEF, PUT_FILE_DEF, GET_REQUEST_URI_DEF
 
-from requestqueue import RequestQueue
+from .requestqueue import RequestQueue
 
-from chk import clear_control_bytes
-from bundlecache import make_temp_file, BundleException
-from graph import INSERT_NORMAL, INSERT_PADDED, INSERT_SALTED_METADATA, \
+from .chk import clear_control_bytes
+from .bundlecache import make_temp_file, BundleException
+from .graph import INSERT_NORMAL, INSERT_PADDED, INSERT_SALTED_METADATA, \
      INSERT_HUGE, FREENET_BLOCK_LEN, has_version, \
      pull_bundle, hex_version
-from graphutil import minimal_graph, graph_to_string, parse_graph
-from choose import get_top_key_updates
+from .graphutil import minimal_graph, graph_to_string, parse_graph
+from .choose import get_top_key_updates
 
-from statemachine import StatefulRequest, RequestQueueState, StateMachine, \
+from .statemachine import StatefulRequest, RequestQueueState, StateMachine, \
      Quiescent, Canceling, RetryingRequestList, CandidateRequest, \
      DecisionState, RunningSingleRequest, require_state, delete_client_file
 
-from insertingbundles import InsertingBundles
-from requestingbundles import RequestingBundles
+from .insertingbundles import InsertingBundles
+from .requestingbundles import RequestingBundles
 
-import topkey
+from . import topkey
 
 HG_MIME_TYPE = 'application/mercurial-bundle'
 HG_MIME_TYPE_FMT = HG_MIME_TYPE + '_%i'
@@ -256,7 +256,7 @@ class CleaningUp(Canceling):
         self.pending.update(self.parent.ctx.orphaned)
         self.parent.ctx.orphaned.clear()
         # Hmmm... should be ok to recancel already canceled requests.
-        for request in self.pending.values():
+        for request in list(self.pending.values()):
             self.parent.runner.cancel_request(request)
         if len(self.pending) == 0:
             self.parent.transition(self.finished_state)
@@ -947,7 +947,7 @@ class UpdateStateMachine(RequestQueue, StateMachine):
         ctx.ui_ = self.ctx.ui_
         ctx.bundle_cache = self.ctx.bundle_cache
         if len(self.ctx.orphaned) > 0:
-            print "BUG?: Abandoning orphaned requests."
+            print("BUG?: Abandoning orphaned requests.")
             self.ctx.orphaned.clear()
 
         self.ctx = ctx

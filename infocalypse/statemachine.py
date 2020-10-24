@@ -25,8 +25,8 @@
 
 import os
 
-from fcpconnection import SUCCESS_MSGS
-from requestqueue import QueueableRequest
+from .fcpconnection import SUCCESS_MSGS
+from .requestqueue import QueueableRequest
 
 # Move this to fcpconnection?
 def delete_client_file(client):
@@ -76,7 +76,7 @@ class StateMachine:
 
     def reset(self):
         """ Reset all State instances owned by the StateMachine. """
-        for state in self.states.values():
+        for state in list(self.states.values()):
             state.reset()
 
 class State:
@@ -98,7 +98,7 @@ class State:
 
     def reset(self):
         """ Pure virtual to reset the state. """
-        print self.name
+        print(self.name)
         raise NotImplementedError()
 
 class StatefulRequest(QueueableRequest):
@@ -120,8 +120,8 @@ class RequestQueueState(State):
     def reset(self):
         """ Implementation of State virtual. """
         if len(self.pending) > 0:
-            print ("BUG?: Reseting state: %s with %i pending requests!" %
-                   (self.name, len(self.pending)))
+            print(("BUG?: Reseting state: %s with %i pending requests!" %
+                   (self.name, len(self.pending))))
 
     def next_runnable(self):
         """ Return a MinimalClient instance for the next request to
@@ -155,7 +155,7 @@ class DecisionState(RequestQueueState):
         """ Pure virtual.
 
             Return the state to transition into. """
-        print "ENOTIMPL:" + self.name
+        print("ENOTIMPL:" + self.name)
         return ""
 
     # Doesn't handle FCP requests.
@@ -256,7 +256,7 @@ class Canceling(RequestQueueState):
             return
 
         self.pending = from_state.pending.copy()
-        for request in self.pending.values():
+        for request in list(self.pending.values()):
             self.parent.runner.cancel_request(request)
 
     def request_done(self, client, dummy):
@@ -325,7 +325,7 @@ class RetryingRequestList(RequestQueueState):
     def pending_candidates(self):
         """ Returns the candiates that are currently being run
             by the RequestQueue. """
-        return [request.candidate for request in self.pending.values()]
+        return [request.candidate for request in list(self.pending.values())]
 
     # ORDER:
     # 0) Candidates are popped of the lists.

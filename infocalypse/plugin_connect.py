@@ -5,9 +5,9 @@ import threading
 import atexit
 from mercurial import util
 import sys
-from config import Config
-from wot_id import WoT_ID, Local_WoT_ID
-import wot
+from .config import Config
+from .wot_id import WoT_ID, Local_WoT_ID
+from . import wot
 
 PLUGIN_NAME = "org.freenetproject.plugin.dvcs_webui.main.Plugin"
 
@@ -34,7 +34,7 @@ def connect(ui, repo):
 
     if hi_there['Replies.Message'] == 'Error':
         # TODO: Debugging
-        print hi_there
+        print(hi_there)
         raise util.Abort("Another VCS instance is already connected.")
 
     session_token = hi_there['Replies.SessionToken']
@@ -138,7 +138,7 @@ def LocalRepoQuery(_, cfg, **opts):
     params = {}
     # Request USKs are keyed by repo path.
     repo_index = 0
-    for path in cfg.request_usks.iterkeys():
+    for path in cfg.request_usks.keys():
         params['Path.{0}'.format(repo_index)] = path
         repo_index += 1
 
@@ -155,7 +155,7 @@ def RepoListQuery(command, ui, **opts):
 
     repo_list = wot.read_repo_listing(ui, identity)
 
-    for name, key in repo_list.iteritems():
+    for name, key in repo_list.items():
         params['Repo.' + name] = key
 
     return "RepoListResult", params

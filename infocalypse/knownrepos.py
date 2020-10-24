@@ -22,7 +22,7 @@
     let me know and I'll add it.
 """
 
-from fcpclient import get_usk_hash
+from .fcpclient import get_usk_hash
 
 # LATER: remove this file
 # djk20110918:  Bad out of date info is worse than none at all.
@@ -46,7 +46,7 @@ def build_trust_list(id_usk_list):
         if not usk_hash in hashes:
             hashes.append(usk_hash)
         table[fms_id] = hashes
-    for fms_id in table.keys()[:]:
+    for fms_id in list(table.keys())[:]:
         table[fms_id] = tuple(table[fms_id])
     return table
 

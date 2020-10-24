@@ -23,22 +23,22 @@ import os
 import random
 import shutil
 
-import archivetop
+from . import archivetop
 
-from fcpconnection import make_id, SUCCESS_MSGS, sha1_hexdigest
-from fcpclient import get_version, get_usk_hash, get_usk_for_usk_version, \
+from .fcpconnection import make_id, SUCCESS_MSGS, sha1_hexdigest
+from .fcpclient import get_version, get_usk_hash, get_usk_for_usk_version, \
      is_usk
-from fcpmessage import GET_DEF, PUT_FILE_DEF
+from .fcpmessage import GET_DEF, PUT_FILE_DEF
 
-from statemachine import StateMachine, State, DecisionState, \
+from .statemachine import StateMachine, State, DecisionState, \
      RetryingRequestList, CandidateRequest
-from updatesm import UpdateStateMachine, QUIESCENT, FAILING, FINISHING, \
+from .updatesm import UpdateStateMachine, QUIESCENT, FAILING, FINISHING, \
      RequestingUri, InsertingUri, UpdateContextBase, PAD_BYTE
 
-from archivetop import top_key_tuple_to_bytes, default_out
+from .archivetop import top_key_tuple_to_bytes, default_out
 
-from chk import clear_control_bytes
-from graph import FREENET_BLOCK_LEN, MAX_METADATA_HACK_LEN
+from .chk import clear_control_bytes
+from .graph import FREENET_BLOCK_LEN, MAX_METADATA_HACK_LEN
 
 TMP_DIR = "__TMP__"
 BLOCK_DIR = "__TMP_BLOCKS__"
@@ -96,7 +96,7 @@ class ArchiveUpdateContext(UpdateContextBase):
             return
 
         if not os.path.exists(file_name):
-            print "DOESN'T EXIST: ", file_name
+            print("DOESN'T EXIST: ", file_name)
             return
 
         if not length is None:
@@ -470,7 +470,7 @@ class FixingUpTopKey(State):
                 if chk == 'CHK@':
                     # Use the CHK's inserted by the previous state
                     # to fixup the CHK values in the provisional top key tuple.
-                    new_block[1][index] = chks.next()
+                    new_block[1][index] = next(chks)
             new_block[1] = tuple(new_block[1])
             new_block = tuple(new_block)
             updated_blocks.append(new_block)
@@ -500,7 +500,7 @@ class RequestHistory:
 
     def dump(self, out_func=default_out):
         """ Debugging dump function. """
-        keys = self.history.keys()
+        keys = list(self.history.keys())
         keys.sort()
         out_func("--- dumping request history ---\n")
         for key in keys:
@@ -623,7 +623,7 @@ class RequestingRedundantBlocks(RetryingRequestList):
             if len(block[1]) == 0:
                 continue
 
-            chk_ordinals = range(0, len(block[1]))
+            chk_ordinals = list(range(0, len(block[1])))
             # DESIGN INTENT: Don't favor primary over redundant.
             random.shuffle(chk_ordinals)
             ordinal = chk_ordinals.pop()
@@ -809,7 +809,7 @@ class ArchiveStateMachine(UpdateStateMachine):
         """
         StateMachine.reset(self)
         if len(self.ctx.orphaned) > 0:
-            print "BUG?: Abandoning orphaned requests."
+            print("BUG?: Abandoning orphaned requests.")
             self.ctx.orphaned.clear()
         self.ctx = ArchiveUpdateContext(self, self.ctx.ui_)
 
@@ -926,7 +926,7 @@ def check_keys(ctx, required_keys):
     # Grrr... hacking to avoid pylint W0104
     for key in required_keys:
         if not key in ctx and ctx[key]: # Let it raise KeyError
-            print "You just executed unreachable code???"
+            print("You just executed unreachable code???")
 
 def start(update_sm, ctx):
     """ Start running a context on a state machine. """

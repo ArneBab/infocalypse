@@ -49,25 +49,25 @@ def merge_params(params, allowed, defaults = None):
 def format_params(params, allowed, required):
     """ INTERNAL: Format params into an FCP message body string. """
 
-    ret = ''
+    ret = b''
     for field in params:
         if not field in allowed:
             raise ValueError("Illegal field [%s]." % field)
 
     for field in allowed:
         if field in params:
-            if field == 'Files':
+            if field == b'Files':
                 # Special case Files dictionary.
-                assert params['Files']
-                for subfield in params['Files']:
-                    ret += "%s=%s\n" % (subfield, params['Files'][subfield])
+                assert params[b'Files']
+                for subfield in params[b'Files']:
+                    ret += b"%s=%s\n" % (subfield, params[b'Files'][subfield])
                 continue
-            value = str(params[field])
+            value = params[field]
             if not value:
                 raise ValueError("Illegal value for field [%s]." % field)
-            if value.lower() == 'true' or value.lower() == 'false':
+            if value.lower() == b'true' or value.lower() == b'false':
                 value = value.lower()
-            ret += "%s=%s\n" % (field, value)
+            ret += b"%s=%s\n" % (field, value)
         elif field in required:
             #print "FIELD:", field, required
             raise ValueError("A required field [%s] was not set." % field)
@@ -114,8 +114,8 @@ def make_request(definition, params, defaults = None, trailing_data = None):
     if required is None:
         required = allowed
 
-    ret = name + '\n' + format_params(real_params, allowed, required) \
-          + 'EndMessage\n'
+    ret = name + b'\n' + format_params(real_params, allowed, required) \
+          + b'EndMessage\n'
 
     # Run extra checks on parameter values
     # Order is important.  Format_params can raise on missing fields.
@@ -136,8 +136,8 @@ def make_request(definition, params, defaults = None, trailing_data = None):
 
 def get_constraint(dummy, params):
     """ INTERNAL: Check get params. """
-    if 'ReturnType' in params and params['ReturnType'] != 'disk':
-        if 'Filename' in params or 'TempFilename' in params:
+    if b'ReturnType' in params and params[b'ReturnType'] != b'disk':
+        if b'Filename' in params or b'TempFilename' in params:
             raise ValueError("'Filename' and 'TempFileName' only allowed" \
                              + " when 'ReturnType' is disk.")
 
@@ -145,71 +145,71 @@ def put_file_constraint(dummy, params):
     """ INTERNAL: Check put_file params. """
     # Hmmmm... this only checks for required arguments, it
     # doesn't report values that have no effect.
-    upload_from = 'direct'
-    if 'UploadFrom' in params:
-        upload_from = params['UploadFrom']
-    if upload_from == 'direct':
-        if not 'DataLength' in params:
+    upload_from = b'direct'
+    if b'UploadFrom' in params:
+        upload_from = params[b'UploadFrom']
+    if upload_from == b'direct':
+        if not b'DataLength' in params:
             raise ValueError("'DataLength' MUST be set, 'UploadFrom =="
                                  + " 'direct'.")
-    elif upload_from == 'disk':
-        if not 'Filename' in params:
+    elif upload_from == b'disk':
+        if not b'Filename' in params:
             raise ValueError("'Filename' MUST be set, 'UploadFrom =="
                              + " 'disk'.")
-        elif upload_from == 'redirect':
-            if not 'TargetURI' in params:
+        elif upload_from == b'redirect':
+            if not b'TargetURI' in params:
                 raise ValueError("'TargetURI' MUST be set, 'UploadFrom =="
                                  + " 'redirect'.")
     else:
-        raise ValueError("Unknown value, 'UploadFrom' == %s" % upload_from)
+        raise ValueError("Unknown value, b'UploadFrom' == %s" % upload_from)
 
 
-HELLO_DEF = ('ClientHello', ('Name', 'ExpectedVersion'), None, None)
+HELLO_DEF = (b'ClientHello', (b'Name', b'ExpectedVersion'), None, None)
 
 # Identifier not included in doc?
-GETNODE_DEF = ('GetNode', ('Identifier', 'GiveOpennetRef', 'WithPrivate',
-                           'WithVolatile'),
+GETNODE_DEF = (b'GetNode', (b'Identifier', b'GiveOpennetRef', b'WithPrivate',
+                           b'WithVolatile'),
                None, None)
 
 #IMPORTANT: One entry tuple MUST have trailing comma or it will evaluate
 #           to a string instead of a tuple.
-GENERATE_SSK_DEF = ('GenerateSSK', ('Identifier',), None, None)
-GET_REQUEST_URI_DEF = ('ClientPut',
-                       ('URI', 'Identifier', 'MaxRetries', 'PriorityClass',
-                        'UploadFrom', 'DataLength', 'GetCHKOnly'),
+GENERATE_SSK_DEF = (b'GenerateSSK', (b'Identifier',), None, None)
+GET_REQUEST_URI_DEF = (b'ClientPut',
+                       (b'URI', b'Identifier', b'MaxRetries', b'PriorityClass',
+                        b'UploadFrom', b'DataLength', b'GetCHKOnly'),
                        None, None)
-GET_DEF = ('ClientGet',
-           ('IgnoreDS', 'DSOnly', 'URI', 'Identifier', 'Verbosity',
-            'MaxSize', 'MaxTempSize', 'MaxRetries', 'PriorityClass',
-            'Persistence', 'ClientToken', 'Global', 'ReturnType',
-            'BinaryBlob', 'AllowedMimeTypes', 'FileName', 'TmpFileName'),
-           ('URI', 'Identifier'),
+GET_DEF = (b'ClientGet',
+           (b'IgnoreDS', b'DSOnly', b'URI', b'Identifier', b'Verbosity',
+            b'MaxSize', b'MaxTempSize', b'MaxRetries', b'PriorityClass',
+            b'Persistence', b'ClientToken', b'Global', b'ReturnType',
+            b'BinaryBlob', b'AllowedMimeTypes', b'FileName', b'TmpFileName'),
+           (b'URI', b'Identifier'),
            get_constraint)
-PUT_FILE_DEF = ('ClientPut',
-                ('URI', 'Metadata.ContentType', 'Identifier', 'Verbosity',
-                 'MaxRetries', 'PriorityClass', 'GetCHKOnly', 'Global',
-                 'DontCompress','ClientToken', 'Persistence',
-                 'TargetFilename', 'EarlyEncode', 'UploadFrom', 'DataLength',
-                 'Filename', 'TargetURI', 'FileHash', 'BinaryBlob'),
-                ('URI', 'Identifier'),
+PUT_FILE_DEF = (b'ClientPut',
+                (b'URI', b'Metadata.ContentType', b'Identifier', b'Verbosity',
+                 b'MaxRetries', b'PriorityClass', b'GetCHKOnly', b'Global',
+                 b'DontCompress','ClientToken', b'Persistence',
+                 b'TargetFilename', b'EarlyEncode', b'UploadFrom', b'DataLength',
+                 b'Filename', b'TargetURI', b'FileHash', b'BinaryBlob'),
+                (b'URI', b'Identifier'),
                 put_file_constraint)
-PUT_REDIRECT_DEF = ('ClientPut',
-                    ('URI', 'Metadata.ContentType', 'Identifier', 'Verbosity',
-                     'MaxRetries', 'PriorityClass', 'GetCHKOnly', 'Global',
-                     'ClientToken', 'Persistence', 'UploadFrom',
-                     'TargetURI'),
-                    ('URI', 'Identifier', 'TargetURI'),
+PUT_REDIRECT_DEF = (b'ClientPut',
+                    (b'URI', b'Metadata.ContentType', b'Identifier', b'Verbosity',
+                     b'MaxRetries', b'PriorityClass', b'GetCHKOnly', b'Global',
+                     b'ClientToken', b'Persistence', b'UploadFrom',
+                     b'TargetURI'),
+                    (b'URI', b'Identifier', b'TargetURI'),
                     None)
-PUT_COMPLEX_DIR_DEF = ('ClientPutComplexDir',
-                       ('URI', 'Identifier', 'Verbosity',
-                        'MaxRetries', 'PriorityClass', 'GetCHKOnly', 'Global',
-                        'DontCompress', 'ClientToken', 'Persistence',
-                        'TargetFileName', 'EarlyEncode', 'DefaultName',
-                        'Files'), #<- one off code in format_params() for this
-                       ('URI', 'Identifier'),
+PUT_COMPLEX_DIR_DEF = (b'ClientPutComplexDir',
+                       (b'URI', b'Identifier', b'Verbosity',
+                        b'MaxRetries', b'PriorityClass', b'GetCHKOnly', b'Global',
+                        b'DontCompress', b'ClientToken', b'Persistence',
+                        b'TargetFileName', b'EarlyEncode', b'DefaultName',
+                        b'Files'), #<- one off code in format_params() for this
+                       (b'URI', b'Identifier'),
                        None)
 
-REMOVE_REQUEST_DEF = ('RemoveRequest', ('Identifier', 'Global'), None, None)
+REMOVE_REQUEST_DEF = (b'RemoveRequest', (b'Identifier', b'Global'), None, None)
 
 # REDFLAG: Shouldn't assert on bad data! raise instead.
 # Hmmmm... I hacked this together by unwinding a "pull" parser
@@ -228,7 +228,7 @@ class FCPParser:
     """
     def __init__(self):
         self.msg = None
-        self.prev_chunk = ""
+        self.prev_chunk = b""
         self.data_context = None
 
         # lambda's prevent pylint E1102 warning
@@ -249,7 +249,7 @@ class FCPParser:
             self.msg = [line, {}]
             return False
 
-        pos = line.find('=')
+        pos = line.find(b'=')
         if pos != -1:
             # name=value pair
             fields = (line[:pos], line[pos + 1:])
@@ -261,21 +261,21 @@ class FCPParser:
             self.msg[1][fields[0].strip()] = fields[1].strip()
         else:
             # end of message line
-            if line == 'Data':
+            if line == b'Data':
                 # Handle trailing data
                 assert self.msg
                 # REDFLAG: runtime protocol error (should never happen)
-                assert 'Identifier' in self.msg[1]
+                assert b'Identifier' in self.msg[1]
                 assert not self.data_context
                 self.data_context = self.context_callback(self.msg[1]
-                                                          ['Identifier'])
+                                                          [b'Identifier'])
                 self.data_context.data_sink.initialize(int(self.msg[1]
-                                                           ['DataLength']),
+                                                           [b'DataLength']),
                                                        self.data_context.
                                                        file_name)
                 return True
 
-            assert line == 'End' or line == 'EndMessage'
+            assert line == b'End' or line == b'EndMessage'
             msg = self.msg
             self.msg = None
             assert not self.data_context or self.data_context.writable() == 0
@@ -312,9 +312,9 @@ class FCPParser:
         else:
             # Expecting a \n terminated line.
             bytes = self.prev_chunk + bytes
-            self.prev_chunk = ""
+            self.prev_chunk = b""
             last_eol = -1
-            pos = bytes.find('\n')
+            pos = bytes.find(b'\n')
             while pos != -1:
                 if last_eol <= 0:
                     last_eol = 0
@@ -326,7 +326,7 @@ class FCPParser:
                     # Hmmm... recursion depth
                     self.parse_bytes(bytes[last_eol + 1:])
                     return
-                pos = bytes.find('\n', last_eol + 1)
+                pos = bytes.find(b'\n', last_eol + 1)
 
             assert not self.data_context or not self.data_context.writable()
             self.prev_chunk = bytes[last_eol + 1:]

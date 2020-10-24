@@ -25,16 +25,16 @@ import socket
 
 from mercurial import util
 
-from fcpclient import get_usk_hash
+from .fcpclient import get_usk_hash
 
-from knownrepos import KNOWN_REPOS
+from .knownrepos import KNOWN_REPOS
 
-from fms import recv_msgs, to_msg_string, MSG_TEMPLATE, send_msgs, \
+from .fms import recv_msgs, to_msg_string, MSG_TEMPLATE, send_msgs, \
      USKNotificationParser, show_table, get_connection
 
-from config import Config, trust_id_for_repo, untrust_id_for_repo, known_hashes
-from infcmds import do_key_setup, setup, cleanup, execute_insert_patch
-from wikicmds import execute_wiki_submit
+from .config import Config, trust_id_for_repo, untrust_id_for_repo, known_hashes
+from .infcmds import do_key_setup, setup, cleanup, execute_insert_patch
+from .wikicmds import execute_wiki_submit
 
 def handled_list(ui_, params, stored_cfg):
     """ INTERNAL: HACKED"""
@@ -44,7 +44,7 @@ def handled_list(ui_, params, stored_cfg):
     trust_map = None
     if params['FMSREAD'] == 'list':
         trust_map = stored_cfg.fmsread_trust_map.copy() # paranoid copy
-        fms_ids = trust_map.keys()
+        fms_ids = list(trust_map.keys())
         fms_ids.sort()
         ui_.status(("Only listing repo USKs from trusted "
                     + "FMS IDs:\n   %s\n\n") % '\n   '.join(fms_ids))
@@ -68,7 +68,7 @@ def dump_trust_map(ui_, params, trust_map, force=False):
     if not force and not params['REQUEST_URI'] is None:
         ui_.status("USK hash for local repository: %s\n" %
                    get_usk_hash(params['REQUEST_URI']))
-    fms_ids = trust_map.keys()
+    fms_ids = list(trust_map.keys())
     fms_ids.sort()
     ui_.status("Update Trust Map:\n")
     for fms_id in fms_ids:
@@ -277,7 +277,7 @@ def execute_fmsnotify(ui_, repo, params, stored_cfg):
         if 'MSG_SPOOL_DIR' in params:
             ui_.warn("DEBUG HACK!!! Writing fms msg to local spool:\n%s\n" %
                       params['MSG_SPOOL_DIR'])
-            import fmsstub
+            from . import fmsstub
 
             # LATER: fix config file to store full fmsid?
             # grrrr... hacks piled upon hacks.
@@ -307,7 +307,7 @@ def check_trust_map(ui_, stored_cfg, repo_hash, notifiers, trusted_notifiers):
              + "provide update notifications.\n\n")
 
     added = False
-    fms_ids = notifiers.keys()
+    fms_ids = list(notifiers.keys())
     fms_ids.sort()
 
     done = False
@@ -345,7 +345,7 @@ def get_trust_map(ui_, params, stored_cfg):
     if params['FMSREAD_ONLYTRUSTED']:
         # HACK to deal with spam of the announcement group.'
         trust_map = stored_cfg.fmsread_trust_map.copy() # paranoid copy
-        fms_ids = trust_map.keys()
+        fms_ids = list(trust_map.keys())
         fms_ids.sort()
         ui_.status(("Only using announcements from trusted "
                     + "FMS IDs:\n   %s\n\n") % '\n   '.join(fms_ids))
@@ -394,7 +394,7 @@ def get_uri_from_hash(ui_, dummy, params, stored_cfg):
         notifiers[fms_id_map[clean_id]] = (parser.table[clean_id][1]
                                            [params['FMSREAD_HASH']])
 
-    fms_ids = notifiers.keys()
+    fms_ids = list(notifiers.keys())
     fms_ids.sort()
 
     ui_.status("Found Updates:\n")

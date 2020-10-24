@@ -351,7 +351,7 @@ class WORMBlockArchive:
         # Compute the "real" size of each block without unreferenced links
         real_lens = [0 for dummy in range(0, len(self.blocks.tags))]
 
-        for links in self.blocks.link_map.values():
+        for links in list(self.blocks.link_map.values()):
             for link in links:
                 if not link[0] in referenced_shas:
                     continue

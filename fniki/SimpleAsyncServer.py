@@ -15,7 +15,7 @@ An example of protocol class is provided, LengthSepBody : the client sends
 the message length, the line feed character and the message body
 """
 
-import cStringIO
+import io
 import socket
 import select
 
@@ -151,7 +151,7 @@ class LengthSepBody(ClientHandler):
 # ============================================================================
 def loop(server,handler,timeout=30):
     while True:
-        k = client_handlers.keys()
+        k = list(client_handlers.keys())
         # w = sockets to which there is something to send
         # we must test if we can send data
         w = [ cl for cl in client_handlers if client_handlers[cl].writable ]

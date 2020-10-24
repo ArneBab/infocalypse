@@ -24,7 +24,7 @@
 import os
 from mercurial import cmdutil
 
-from pathhacks import add_parallel_sys_path
+from .pathhacks import add_parallel_sys_path
 add_parallel_sys_path('fniki')
 from fileoverlay import OverlayedFiles, DirectFiles, WIKITEXT_ENCODING
 
@@ -103,8 +103,8 @@ class HgFileOverlay(OverlayedFiles):
         wikitext_dir = self.repo_path(path)
         # Hmmmm... won't work for files in root. use -1?
         return tuple([os.path.split(name)[1] for name in
-                      self.repo.changectx(self.version).
-                      manifest().keys() if name.startswith(wikitext_dir)])
+                      list(self.repo.changectx(self.version).
+                      manifest().keys()) if name.startswith(wikitext_dir)])
 
     def exists_in_repo(self, path):
         """ INTERNAL: Return True if the file exists in the repo,
@@ -115,7 +115,7 @@ class HgFileOverlay(OverlayedFiles):
     def read(self, path, mode='rb', non_overlayed=False):
         """ Read a file. """
         if non_overlayed:
-            return unicode(
+            return str(
                 get_hg_file(self.repo, self.repo_path(path),
                             self.version, self.tmp_file),
                 WIKITEXT_ENCODING)
@@ -123,7 +123,7 @@ class HgFileOverlay(OverlayedFiles):
         if os.path.exists(overlayed):
             return DirectFiles.read(self, overlayed, mode)
 
-        return unicode(get_hg_file(self.repo, self.repo_path(path),
+        return str(get_hg_file(self.repo, self.repo_path(path),
                                    self.version, self.tmp_file),
                        WIKITEXT_ENCODING)
 

@@ -1,25 +1,25 @@
 from binascii import hexlify
 from mercurial import util
 
-from infcmds import get_config_info, execute_create, execute_pull, \
+from .infcmds import get_config_info, execute_create, execute_pull, \
     execute_push, execute_setup, execute_copy, execute_reinsert, \
     execute_info
 
-from fmscmds import execute_fmsread, execute_fmsnotify, get_uri_from_hash, \
+from .fmscmds import execute_fmsread, execute_fmsnotify, get_uri_from_hash, \
     execute_setupfms
 
-from sitecmds import execute_putsite, execute_genkey
-from wikicmds import execute_wiki, execute_wiki_apply
-from arccmds import execute_arc_create, execute_arc_pull, execute_arc_push, \
+from .sitecmds import execute_putsite, execute_genkey
+from .wikicmds import execute_wiki, execute_wiki_apply
+from .arccmds import execute_arc_create, execute_arc_pull, execute_arc_push, \
     execute_arc_reinsert
 
-from config import read_freesite_cfg, Config, normalize
-from validate import is_hex_string, is_fms_id
+from .config import read_freesite_cfg, Config, normalize
+from .validate import is_hex_string, is_fms_id
 
 import os
 import atexit
 
-from keys import parse_repo_path, USK
+from .keys import parse_repo_path, USK
 
 
 def set_target_version(ui_, repo, opts, params, msg_fmt):
@@ -43,8 +43,8 @@ def infocalypse_update_repo_list(ui, **opts):
     if not opts['wot']:
         raise util.Abort("Update which repository list? Use --wot")
 
-    import wot
-    from wot_id import Local_WoT_ID
+    from . import wot
+    from .wot_id import Local_WoT_ID
     wot.update_repo_listing(ui, Local_WoT_ID(opts['wot'], fcpopts=wot.get_fcpopts(
         fcphost=opts["fcphost"],
         fcpport=opts["fcpport"])), 
@@ -73,7 +73,7 @@ def infocalypse_create(ui_, repo, local_identity=None, **opts):
             ui_.warn("Warning: Creating repository without redundancy. (R0 or"
                      " R1)\n")
 
-        from wot_id import Local_WoT_ID
+        from .wot_id import Local_WoT_ID
 
         local_identity = Local_WoT_ID(nick_prefix)
 
@@ -90,10 +90,10 @@ def infocalypse_create(ui_, repo, local_identity=None, **opts):
     # This is a WoT repository.
     if local_identity:
         # Prompt whether to replace in the case of conflicting names.
-        from wot import build_repo_list
+        from .wot import build_repo_list
 
         request_usks = build_repo_list(ui_, local_identity)
-        names = map(lambda x: USK(x).get_repo_name(), request_usks)
+        names = [USK(x).get_repo_name() for x in request_usks]
         new_name = USK(insert_uri).get_repo_name()
 
         if new_name in names:
@@ -109,7 +109,7 @@ def infocalypse_create(ui_, repo, local_identity=None, **opts):
             existing_usk = request_usks[names.index(new_name)]
 
             existing_dir = None
-            for directory, request_usk in stored_cfg.request_usks.iteritems():
+            for directory, request_usk in stored_cfg.request_usks.items():
                 if request_usk == existing_usk:
                     if existing_dir:
                         raise util.Abort("Configuration lists the same "
@@ -133,7 +133,7 @@ def infocalypse_create(ui_, repo, local_identity=None, **opts):
                       'Context': 'vcs'}
 
         import fcp
-        import wot
+        from . import wot
         node = fcp.FCPNode(**wot.get_fcpopts(fcphost=opts["fcphost"],
                                              fcpport=opts["fcpport"]))
         atexit.register(node.shutdown)
@@ -157,7 +157,7 @@ def infocalypse_create(ui_, repo, local_identity=None, **opts):
         stored_cfg.set_wot_identity(inserted_to[0], local_identity)
         Config.to_file(stored_cfg)
 
-        import wot
+        from . import wot
         wot.update_repo_listing(ui_, local_identity, 
                                 fcphost=opts["fcphost"],
                                 fcpport=opts["fcpport"])
@@ -239,7 +239,7 @@ def infocalypse_pull(ui_, repo, **opts):
         params['FMSREAD_ONLYTRUSTED'] = bool(opts['onlytrusted'])
         request_uri = get_uri_from_hash(ui_, repo, params, stored_cfg)
     elif opts['wot']:
-        import wot
+        from . import wot
         truster = get_truster(ui_, repo, opts['truster'],
                               fcpport=opts["fcpport"], fcphost=opts["fcphost"])
         request_uri = wot.resolve_pull_uri(ui_, opts['wot'], truster, repo,
@@ -260,8 +260,8 @@ def infocalypse_pull(ui_, repo, **opts):
 
 
 def infocalypse_pull_request(ui, repo, **opts):
-    import wot
-    from wot_id import WoT_ID
+    from . import wot
+    from .wot_id import WoT_ID
     if not opts['wot']:
         raise util.Abort("Who do you want to send the pull request to? Set "
                          "--wot.\n")
@@ -275,8 +275,8 @@ def infocalypse_pull_request(ui, repo, **opts):
 
 
 def infocalypse_check_notifications(ui, repo, **opts):
-    import wot
-    from wot_id import Local_WoT_ID
+    from . import wot
+    from .wot_id import Local_WoT_ID
     if not opts['wot']:
         raise util.Abort("What ID do you want to check for notifications? Set"
                          " --wot.\n")
@@ -286,7 +286,7 @@ def infocalypse_check_notifications(ui, repo, **opts):
 
 
 def infocalypse_connect(ui, repo, **opts):
-    import plugin_connect
+    from . import plugin_connect
     plugin_connect.connect(ui, repo)
 
 
@@ -319,8 +319,8 @@ def infocalypse_push(ui_, repo, **opts):
     request_uri = stored_cfg.get_request_uri(repo.root)
     associated_wot_id = stored_cfg.get_wot_identity(request_uri)
     if inserted_to and associated_wot_id:
-        import wot
-        from wot_id import Local_WoT_ID
+        from . import wot
+        from .wot_id import Local_WoT_ID
         local_id = Local_WoT_ID('@' + associated_wot_id)
         wot.update_repo_listing(ui_, local_id, 
                                 fcphost=opts["fcphost"],
@@ -333,7 +333,7 @@ def infocalypse_info(ui_, repo, **opts):
     # FCP not required. Hmmm... Hack
     opts['fcphost'] = ''
     opts['fcpport'] = 0
-    print get_config_info(ui_, opts)
+    print(get_config_info(ui_, opts))
     params, stored_cfg = get_config_info(ui_, opts)
     request_uri = opts['uri']
     if not request_uri:
@@ -549,8 +549,8 @@ def infocalypse_setupwot(ui_, **opts):
     if not opts['truster']:
         raise util.Abort("Specify default truster with --truster")
 
-    import wot
-    from wot_id import Local_WoT_ID
+    from . import wot
+    from .wot_id import Local_WoT_ID
     fcpopts = wot.get_fcpopts(fcphost=opts["fcphost"], fcpport=opts["fcpport"])
     wot.execute_setup_wot(ui_, Local_WoT_ID(opts['truster'], fcpopts=fcpopts))
 
@@ -560,7 +560,7 @@ def infocalypse_setupfreemail(ui, repo, **opts):
     Set a Freemail password. If --truster is not given uses the default
     truster.
     """
-    import wot
+    from . import wot
     # TODO: Here --truster doesn't make sense. There is no trust involved.
     # TODO: Should this be part of the normal fn-setup?
     wot.execute_setup_freemail(ui, get_truster(ui, repo, opts['truster'],
@@ -582,8 +582,8 @@ def get_truster(ui, repo=None, truster_identifier=None, fcpport=None, fcphost=No
 
     :rtype : Local_WoT_ID
     """
-    import wot
-    import wot_id
+    from . import wot
+    from . import wot_id
     fcpopts = wot.get_fcpopts(fcphost=fcphost, fcpport=fcpport)
     if truster_identifier:
         return wot_id.Local_WoT_ID(truster_identifier, fcpopts=fcpopts)

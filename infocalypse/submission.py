@@ -23,18 +23,18 @@
 
 import os
 import time
-import StringIO
+import io
 
 from mercurial import mdiff
 from mercurial import commands
 from zipfile import ZipFile
 from binascii import hexlify
 
-from graph import hex_version, has_version
-from validate import is_hex_string
-from hgoverlay import HgFileOverlay
+from .graph import hex_version, has_version
+from .validate import is_hex_string
+from .hgoverlay import HgFileOverlay
 
-from pathhacks import add_parallel_sys_path
+from .pathhacks import add_parallel_sys_path
 
 add_parallel_sys_path('wormarc')
 from shafunc import new_sha
@@ -60,8 +60,8 @@ MAX_INFO_LEN = 1024 # Arbitrary, reasonable bound.
 
 #----------------------------------------------------------#
 CRLF = '\x0d\x0a'
-EMPTY_FILE_SHA_HEX = new_sha('').hexdigest()
-EMPTY_FILE_SHA = new_sha('').digest()
+EMPTY_FILE_SHA_HEX = new_sha(b'').hexdigest()
+EMPTY_FILE_SHA = new_sha(b'').digest()
 #----------------------------------------------------------#
 # diff / patch helper funcs
 #
@@ -118,10 +118,10 @@ def unicode_make_patch(old_text, new_text):
 
     return values[1]
 
-def utf8_sha(unicode_text):
+def utf8_sha(unicode_bytes):
     """ Return a SHA1 hash instance for the utf8 8-bit string rep
         of unicode_text."""
-    return new_sha(unicode_text.encode('utf8'))
+    return new_sha(unicode_bytes.encode('utf8'))
 
 class SubmitError(Exception):
     """ Exception used to indicate failure by bundle_wikitext and
@@ -224,7 +224,7 @@ def bundle_wikitext(overlay, version, submitter):
 
     illegal_writes = get_read_only_list(overlay)
 
-    buf = StringIO.StringIO()
+    buf = io.StringIO()
     arch = ZipFile(buf, 'w')
     assert version
     arch.writestr('__INFO__', pack_info(version, submitter))
@@ -764,18 +764,18 @@ class ForkingSubmissionHandler:
                                                self.repo,
                                                self.base_dir,
                                                tmp_file,
-                                               StringIO.StringIO(
+                                               io.StringIO(
                                                    raw_zip_bytes)))
             return True
 
-        except NoChangesError, err:
+        except NoChangesError as err:
             self.logger.debug("apply_submission -- no changes, illegal: %s" %
                               str(err.illegal))
             if not err.illegal:
                 # i.e. zip contained legal changes that were already applied.
                 code = REJECT_APPLIED
 
-        except SubmitError, err:
+        except SubmitError as err:
             self.logger.debug("apply_submission --  err: %s" % str(err))
 
             if err.illegal:
@@ -783,7 +783,7 @@ class ForkingSubmissionHandler:
                                  str(submission_tuple))
                 code = REJECT_ILLEGAL
 
-        except Exception, err:
+        except Exception as err:
             self.logger.warn("apply_submission -- ILLEGAL .zip(1): %s" %
                               str(submission_tuple))
             raise # DCI
@@ -886,7 +886,7 @@ class ForkingSubmissionHandler:
     def commit_results(self, msg_id, submission_tuple, results):
         """ INTERNAL: Commit the results of a submission to the local repo. """
 
-        print "RESULTS: ", results
+        print("RESULTS: ", results)
         if len(results[3]) > 0 and sum([len(results[index]) for index in
                                         (0, 1, 2, 4)]) == 0: #HACK, fix order!
             raise NoChangesError()

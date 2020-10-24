@@ -1,10 +1,9 @@
-from string import split
 from mercurial import util
 
 
 class USK:
     def __init__(self, path):
-        components = split(path, '/')
+        components = path.split('/')
         # Expecting USK@key/name/edition
         assert len(components) == 3
 

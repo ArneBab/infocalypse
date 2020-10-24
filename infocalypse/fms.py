@@ -21,21 +21,21 @@
 
 import os
 import sys
-import StringIO
+import io
 import time
 
-from fcpclient import get_usk_hash, get_version, is_usk_file, \
+from .fcpclient import get_usk_hash, get_version, is_usk_file, \
      get_usk_for_usk_version
 
-from validate import is_hex_string
+from .validate import is_hex_string
 
 # Similar HACK is used in config.py
-import knownrepos # Just need a module to read __file__ from
+from . import knownrepos # Just need a module to read __file__ from
 
 try:
     #raise ImportError('fake error to test code path')
     __import__('nntplib')
-except ImportError, err:
+except ImportError as err:
     # djk20090506 tested this code path.
     # nntplib doesn't ship with the Windoze binary hg distro.
     # so we do some hacks to use a local copy.
@@ -43,7 +43,7 @@ except ImportError, err:
     #print "No nntplib? This doesn't look good."
     PARTS = os.path.split(os.path.dirname(knownrepos.__file__))
     if PARTS[-1] != 'infocalypse':
-        print "nntplib is missing and couldn't hack path. Giving up. :-("
+        print("nntplib is missing and couldn't hack path. Giving up. :-(")
     else:
         PATH = os.path.join(PARTS[0], 'python2_5_files')
         sys.path.append(PATH)
@@ -82,7 +82,7 @@ def send_msgs(server, msg_tuples, send_quit=False):
                                   msg_tuple[1],
                                   msg_tuple[2],
                                   msg_tuple[3])
-        in_file = StringIO.StringIO(raw_msg)
+        in_file = io.StringIO(raw_msg)
         try:
             server.post(in_file)
 
@@ -142,8 +142,8 @@ class TrustCache:
         for fms_id in fms_ids:
             if (not self.table.get(fms_id, None) is None and
                 self.table[fms_id][0] > time.time()):
-                print "%s cached for %i more secs. (prefetch)" % (
-                    fms_id, (self.table[fms_id][0] - time.time()))
+                print("%s cached for %i more secs. (prefetch)" % (
+                    fms_id, (self.table[fms_id][0] - time.time())))
                 continue
             self.table[fms_id] = (time.time() + self.timeout_secs,
                                   get_trust(self.server, fms_id))
@@ -157,8 +157,8 @@ class TrustCache:
         if cached is None or cached[0] < time.time():
             self.prefetch_trust((fms_id, ))
         assert fms_id in self.table
-        print "%s cached for %i more secs. (get)" % (
-            fms_id, (self.table[fms_id][0] - time.time()))
+        print("%s cached for %i more secs. (get)" % (
+            fms_id, (self.table[fms_id][0] - time.time())))
 
         return self.table[fms_id][1]
 
@@ -231,10 +231,10 @@ def recv_group_msgs(server, group, msg_sink, max_articles):
 
     try:
         result = server.group(group)
-    except nntplib.NNTPTemporaryError, err1:
+    except nntplib.NNTPTemporaryError as err1:
         # Ignore 411 errors which happen before the local FMS
         # instance has learned about the group.
-        print "Skipped: %s because of error: %s" % (group, str(err1))
+        print("Skipped: %s because of error: %s" % (group, str(err1)))
         return
 
     if result[1] == '0':
@@ -265,7 +265,7 @@ def recv_group_msgs(server, group, msg_sink, max_articles):
             continue # Hmmmm... were does this continue?
         try:
             result = server.article(item[0])
-        except nntplib.NNTPProtocolError, nntp_err:
+        except nntplib.NNTPProtocolError as nntp_err:
             # REDFLAG:
             # djk20091224 I haven't seen this trip in a month or so.
             # Research:
@@ -275,13 +275,13 @@ def recv_group_msgs(server, group, msg_sink, max_articles):
             #
             # djk20091023 If I use execquery.htm to on the message ID
             # that causes this I get nothing back. == db corruption?
-            print "SAW NNTPProtocolError: ", items[4]
+            print("SAW NNTPProtocolError: ", items[4])
             if str(nntp_err) !=  '.':
-                print "CAN'T HACK AROUND IT. Sorry :-("
+                print("CAN'T HACK AROUND IT. Sorry :-(")
                 raise
-            print "TRYING TO HACK AROUND IT..."
+            print("TRYING TO HACK AROUND IT...")
             msg_sink.recv_fms_msg(group, item, [])
-            print "continue(2)"
+            print("continue(2)")
             continue
 
         if result[0].split(' ')[0] != '220':
@@ -403,8 +403,8 @@ def strip_names(trust_map):
     for nym in trust_map:
         cleaned = clean_nym(nym)
         if nym in clean:
-            print "strip_name -- nym appears multiple times w/ different " \
-                  + "name part: " + nym
+            print("strip_name -- nym appears multiple times w/ different " \
+                  + "name part: " + nym)
         clean[cleaned] = list(set(list(trust_map[nym])
                                   + clean.get(cleaned, [])))
     return clean
@@ -491,7 +491,7 @@ class USKNotificationParser(IFmsMessageSink):
     def handle_update(self, clean_id, fms_id, usk_hash, index):
         """ INTERNAL: process a single update. """
         if index < 0:
-            print "handle_update -- skipped negative index!"
+            print("handle_update -- skipped negative index!")
             return
 
         entry = self.table.get(clean_id, (set([]), {}, set([])))
@@ -547,8 +547,8 @@ class USKNotificationParser(IFmsMessageSink):
                 break # break inner loop.
         if ret is None:
             # REDFLAG: Nail down when this can happen.
-            print "??? saw an fms id with no human readable part ???"
-            print list(table_entry[2])[0]
+            print("??? saw an fms id with no human readable part ???")
+            print(list(table_entry[2])[0])
             ret = list(table_entry[2])[0]
         return ret
 
@@ -595,7 +595,7 @@ def show_table(parser, out_func):
     """ Dump the announcements and updates in a human readable format. """
     fms_id_map, announce_map, update_map = parser.invert_table()
 
-    usks = announce_map.keys()
+    usks = list(announce_map.keys())
     usks.sort()
 
     for usk in usks:
@@ -616,8 +616,8 @@ DEFAULT_SUBJECT = 'Ignore'
 def make_update_msg(fms_id, group, updates, announcements=None,
                     subject=DEFAULT_SUBJECT):
     """ Test function to make message tuples. """
-    print "updates: ",  updates
-    print "announcements: ", announcements
+    print("updates: ",  updates)
+    print("announcements: ", announcements)
 
     # fms doesn't want to see the full id?
     fms_id = fms_id.split('@')[0]
@@ -652,22 +652,22 @@ def smoke_test():
                 + 'infocalypse.hgext.R1/12',))
 
     # From tuple to string
-    print "---"
-    print values0
+    print("---")
+    print(values0)
 
     text = to_msg_string(values0[0], values0[1])
-    print "---"
+    print("---")
     # And back
-    print text
+    print(text)
     values1 = parse(text)
-    print "---"
-    print values1
+    print("---")
+    print(values1)
     # Not values0 because of implicit update.
     assert values1 == values2
 
     # Test sig style update strings.
     text = to_msg_string(values0[0], None, ':')
-    print text
+    print(text)
     values3 = parse(text)
     assert values3 == (values0[0], ())
 

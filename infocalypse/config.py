@@ -23,22 +23,22 @@
 import os
 import sys
 
-from fcpclient import get_usk_hash, is_usk_file, get_version, \
+from .fcpclient import get_usk_hash, is_usk_file, get_version, \
      get_usk_for_usk_version
-from knownrepos import DEFAULT_TRUST, DEFAULT_GROUPS, \
+from .knownrepos import DEFAULT_TRUST, DEFAULT_GROUPS, \
      DEFAULT_NOTIFICATION_GROUP
 
-from validate import is_hex_string, is_fms_id
+from .validate import is_hex_string, is_fms_id
 
-from mercurial import util
+from mercurial import util, error
 
 # Similar hack is used in fms.py.
-import knownrepos # Just need a module to read __file__ from
+from . import knownrepos # Just need a module to read __file__ from
 
 try:
     #raise ImportError('fake error to test code path')
     __import__('ConfigParser')
-except ImportError, err:
+except ImportError as err:
     # ConfigParser doesn't ship with, the 1.3 Windows binary distro
     # http://mercurial.berkwood.com/binaries/Mercurial-1.3.exe
     # so we do some hacks to use a local copy.
@@ -46,22 +46,22 @@ except ImportError, err:
     #print "No ConfigParser? This doesn't look good."
     PARTS = os.path.split(os.path.dirname(knownrepos.__file__))
     if PARTS[-1] != 'infocalypse':
-        print "ConfigParser is missing and couldn't hack path. Giving up. :-("
+        print(b"ConfigParser is missing and couldn't hack path. Giving up. :-(b", knownrepos.__file__, PARTS)
     else:
         PATH = os.path.join(PARTS[0], 'python2_5_files')
         sys.path.append(PATH)
-    #print ("Put local copies of python2.5 ConfigParser.py, "
+    #print (b"Put local copies of python2.5 ConfigParser.py, "
     #       + "nntplib.py and netrc.py in path...")
-    print
+    print()
 
-from ConfigParser import ConfigParser
+from configparser import ConfigParser
 
 if sys.platform == 'win32':
-    CFG_NAME = 'infocalypse.ini'
+    CFG_NAME = b'infocalypse.ini'
 else:
-    CFG_NAME = '.infocalypse'
+    CFG_NAME = b'.infocalypse'
 
-DEFAULT_CFG_PATH = '~/%s' % CFG_NAME
+DEFAULT_CFG_PATH = b'~/%s' % CFG_NAME
 
 # hg version that the format last changed in.
 FORMAT_VERSION = '348500df1ac6'
@@ -78,7 +78,7 @@ def norm_path(dir_name):
     # chokes on ':' in option values.
     # Required for Windows. Should be a harmless NOP on *nix.
     split = os.path.splitdrive(dir_name)
-    fixed = split[0].replace(':', '') + split[1]
+    fixed = split[0].replace(b':', b'') + split[1]
     return fixed
 
 # REDFLAG: THis is an ancient hack.  Safe to back it out?
@@ -91,17 +91,17 @@ def norm_path(dir_name):
 def detect_and_fix_default_bug(ui_, file_path):
     """ INTERNAL: Fix old (pre: 466307bc98bc) config files. """
     raw = open(file_path, 'rb').read()
-    if raw.find('[default]') == -1:
+    if raw.find(b'[default]') == -1:
         return
 
     justin_case = os.path.join(os.path.dirname(file_path), 'INFOCALYPSE.BAK')
-    ui_.warn("Hit '[default'] bug in your config file.\n"
-             "Saving existing config as:\n%s\n" % justin_case)
+    ui_.warn(b"Hit '[default'] bug in your config file.\n"
+             b"Saving existing config as:\n%s\n" % justin_case)
     if os.path.exists(justin_case):
-        ui_.warn("Refused to overwrite backup!\n"
-                 +"Move:\n%s\n" % justin_case
-                 +"out of the way and try again.\n")
-        raise util.Abort("Refused to overwrite backup config file.")
+        ui_.warn(b"Refused to overwrite backup!\n"
+                 +b"Move:\n%s\n" % justin_case
+                 +b"out of the way and try again.\n")
+        raise error.Abort(b"Refused to overwrite backup config file.")
     out_file = open(justin_case, 'wb')
     try:
         out_file.write(raw)
@@ -112,7 +112,7 @@ def detect_and_fix_default_bug(ui_, file_path):
         fixed_file.write(raw.replace('[default]', '[primary]'))
     finally:
         fixed_file.close()
-    ui_.warn("Applied fix.\n")
+    ui_.warn(b"Applied fix.\n")
 
 
 # Why didn't I subclass dict?
@@ -174,8 +174,8 @@ class Config:
         prev = self.get_index(usk_or_id)
         index = abs(index)
         if not prev is None and index < prev:
-            print "update_index -- exiting, new value is lower %i %i %s" % \
-                  (prev, index, usk_or_id)
+            print(b"update_index -- exiting, new value is lower %i %i %s" % \
+                  (prev, index, usk_or_id))
             return
         self.version_table[usk_or_id] = index
 
@@ -193,16 +193,16 @@ class Config:
         normalized = normalize(request_uri)
         match = None
 
-        for repo_dir, uri in self.request_usks.iteritems():
+        for repo_dir, uri in self.request_usks.items():
             if normalized == normalize(uri):
                 if match:
-                    raise util.Abort("Multiple directories match {0}."
+                    raise error.Abort(b"Multiple directories match {0}."
                                      .format(request_uri))
                 else:
                     match = repo_dir
 
         if not match:
-            raise util.Abort("No repository matches {0}.".format(request_uri))
+            raise error.Abort(b"No repository matches {0}.".format(request_uri))
 
         # Assuming path has not become un-normalized since being set with
         # update_dir().
@@ -264,15 +264,15 @@ class Config:
     def get_freemail_password(self, wot_identity):
         """
         Return the password associated with the given WoT identity.
-        Raise util.Abort if one is not set.
+        Raise error.Abort if one is not set.
         :type wot_identity: WoT_ID
         """
         identity_id = wot_identity.identity_id
         if identity_id in self.freemail_passwords:
             return self.freemail_passwords[identity_id]
         else:
-            raise util.Abort("{0} does not have a Freemail password set.\n"
-                             "Run hg fn-setupfreemail --truster {0}\n"
+            raise error.Abort(b"{0} does not have a Freemail password set.\n"
+                             b"Run hg fn-setupfreemail --truster {0}\n"
                              .format(wot_identity))
 
     def set_repo_list_edition(self, wot_identity, edition):
@@ -319,19 +319,19 @@ class Config:
     def validate_trust_map_entry(cls, cfg, fields):
         """ INTERNAL: Raise a ValueError for invalid trust map entries. """
         if not is_fms_id(fields[0]):
-            raise ValueError("%s doesn't look like an fms id." %
+            raise ValueError(b"%s doesn't look like an fms id." %
                                      fields[0])
         if len(fields) < 2:
-            raise ValueError("No USK hashes for fms id: %s?" %
+            raise ValueError(b"No USK hashes for fms id: %s?" %
                                      fields[0])
         for value in fields[1:]:
             if not is_hex_string(value):
-                raise ValueError("%s doesn't look like a repo hash." %
+                raise ValueError(b"%s doesn't look like a repo hash." %
                                          value)
 
         if fields[0] in cfg.fmsread_trust_map:
-            raise ValueError(("%s appears more than once in the "
-                              + "[fmsread_trust_map] section.") %
+            raise ValueError((b"%s appears more than once in the "
+                              + b"[fmsread_trust_map] section.") %
                              fields[0])
 
     @classmethod
@@ -436,12 +436,12 @@ class Config:
             If there's no [infocalypse] section, a Config is
             created from the default file."""
 
-        file_name = ui_.config('infocalypse', 'cfg_file', None)
+        file_name = ui_.config(b'infocalypse', b'cfg_file', None)
         if file_name is None:
             file_name = os.path.expanduser(DEFAULT_CFG_PATH)
         if not os.path.exists(file_name):
-            ui_.warn("Couldn't read config file: %s\n" % file_name)
-            raise util.Abort("Run fn-setup.\n")
+            ui_.warn(b"Couldn't read config file: %s\n" % file_name.encode("utf8"))
+            raise error.Abort(b"Run fn-setup.\n")
 
         detect_and_fix_default_bug(ui_, file_name)
 
@@ -464,15 +464,15 @@ class Config:
 
         parser.add_section('primary')
         parser.set('primary', 'format_version', FORMAT_VERSION)
-        parser.set('primary', 'host', cfg.defaults['HOST'])
-        parser.set('primary', 'port', cfg.defaults['PORT'])
-        parser.set('primary', 'tmp_dir', cfg.defaults['TMP_DIR'])
+        parser.set('primary', 'host', cfg.defaults['HOST'].decode("utf-8"))
+        parser.set('primary', 'port', str(cfg.defaults['PORT']))
+        parser.set('primary', 'tmp_dir', cfg.defaults['TMP_DIR'].decode("utf-8"))
         parser.set('primary', 'default_private_key',
-                   cfg.defaults['DEFAULT_PRIVATE_KEY'])
+                   cfg.defaults['DEFAULT_PRIVATE_KEY'].decode("utf-8"))
 
         parser.set('primary', 'fms_host', cfg.defaults['FMS_HOST'])
-        parser.set('primary', 'fms_port', cfg.defaults['FMS_PORT'])
-        parser.set('primary', 'fms_id', cfg.defaults['FMS_ID'])
+        parser.set('primary', 'fms_port', str(cfg.defaults['FMS_PORT']))
+        parser.set('primary', 'fms_id', str(cfg.defaults['FMS_ID']))
         parser.set('primary', 'fmsnotify_group',
                    cfg.defaults['FMSNOTIFY_GROUP'])
         parser.set('primary', 'fmsread_groups', '|'.join(cfg.fmsread_groups))
@@ -504,9 +504,9 @@ class Config:
             entry = cfg.fmsread_trust_map[fms_id]
             assert len(entry) > 0
             parser.set('fmsread_trust_map', str(index),
-                       fms_id + '|' + '|'.join(entry))
+                       fms_id + '|' + '|'.join(i.decode("utf-8") for i in entry))
 
-        out_file = open(file_name, 'wb')
+        out_file = open(file_name, 'w')
         try:
             parser.write(out_file)
         finally:
@@ -544,13 +544,13 @@ def read_freesite_cfg(ui_, repo, params, stored_cfg):
 
     ui_.status('Using config file:\n%s\n' % cfg_file)
     if not os.path.exists(cfg_file):
-        ui_.warn("Can't read: %s\n" % cfg_file)
-        raise util.Abort(no_cfg_err)
+        ui_.warn(b"Can't read: %s\n" % cfg_file)
+        raise error.Abort(no_cfg_err)
 
     parser = ConfigParser()
     parser.read(cfg_file)
     if not parser.has_section('default'):
-        raise util.Abort("Can't read default section of config file?")
+        raise error.Abort(b"Can't read default section of config file?")
 
     params['SITE_NAME'] = parser.get('default', 'site_name')
 
@@ -585,10 +585,10 @@ def read_freesite_cfg(ui_, repo, params, stored_cfg):
         ui_.status('Reading site key from:\n%s\n' % key_file)
         params['SITE_KEY'] = open(key_file, 'rb').read().strip()
     except IOError:
-        raise util.Abort("Couldn't read site key from: %s" % key_file)
+        raise error.Abort(b"Couldn't read site key from: %s" % key_file)
 
     if not params['SITE_KEY'].startswith('SSK@'):
-        raise util.Abort("Stored site key not an SSK?")
+        raise error.Abort(b"Stored site key not an SSK?")
 
 
 
@@ -662,7 +662,7 @@ overlayedits = False
 #wiki_repo_usk = <request uri of your wikitext infocalypse repo>
 """
     if os.path.exists(file_name):
-        raise util.Abort("Already exists: %s" % file_name)
+        raise error.Abort(b"Already exists: %s" % file_name)
 
 
     out_file = open(file_name, 'w')

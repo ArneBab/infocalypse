@@ -2,7 +2,7 @@ import fcp
 from mercurial import util
 import string
 import atexit
-from keys import USK
+from .keys import USK
 from base64 import b32encode
 from fcp.node import base64decode
 
@@ -52,7 +52,7 @@ class WoT_ID(object):
         self.properties = {}
         context_prefix = "Replies.Contexts{0}.Context".format(id_num)
         property_prefix = "Replies.Properties{0}.Property".format(id_num)
-        for key in message.iterkeys():
+        for key in message.keys():
             if key.startswith(context_prefix):
                 self.contexts.append(message[key])
             elif key.startswith(property_prefix) and key.endswith(".Name"):
@@ -70,8 +70,8 @@ class WoT_ID(object):
                 # value conflict restricts the message to cases where it
                 # actually has an effect.
                 if name in self.properties and value != self.properties[name]:
-                    print("WARNING: '{0}' has conflicting value as a property."
-                          .format(name))
+                    print(("WARNING: '{0}' has conflicting value as a property."
+                          .format(name)))
 
                 self.properties[name] = value
 
@@ -94,9 +94,9 @@ class WoT_ID(object):
 
         # TODO: Would it be preferable to use ui to obey quieting switches?
         if is_local_identity:
-            print("Using local identity {0}".format(self))
+            print(("Using local identity {0}".format(self)))
         else:
-            print("Using identity {0}".format(self))
+            print(("Using identity {0}".format(self)))
 
     def __str__(self):
         return self.nickname + '@' + self.identity_id
@@ -293,7 +293,7 @@ def _get_local_identity(wot_identifier, fcpopts={}):
     prefix = 'Replies.Nickname'
     # Key: nickname, value (id_num, public key hash).
     matches = {}
-    for key in response.iterkeys():
+    for key in response.keys():
         if key.startswith(prefix) and \
                 response[key].startswith(nickname_prefix):
 
@@ -308,7 +308,7 @@ def _get_local_identity(wot_identifier, fcpopts={}):
 
     # Remove matching nicknames not also matching the (possibly partial)
     # public key hash.
-    for key in matches.keys():
+    for key in list(matches.keys()):
         # public key hash is second member of value tuple.
         if not matches[key][1].startswith(key_prefix):
             del matches[key]
@@ -324,7 +324,7 @@ def _get_local_identity(wot_identifier, fcpopts={}):
     assert len(matches) == 1
 
     # id_num is first member of value tuple.
-    only_key = matches.keys()[0]
+    only_key = list(matches.keys())[0]
     id_num = matches[only_key][0]
 
     return id_num, response

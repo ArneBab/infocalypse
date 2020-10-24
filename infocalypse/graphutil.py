@@ -22,7 +22,7 @@
 
 from binascii import hexlify
 
-from graph import FIRST_INDEX, MAX_PATH_LEN, UpdateGraph, \
+from .graph import FIRST_INDEX, MAX_PATH_LEN, UpdateGraph, \
      UpdateGraphException, canonical_path_itr, edges_containing, INSERT_HUGE, \
      INSERT_NORMAL, MAX_METADATA_HACK_LEN
 
@@ -32,7 +32,7 @@ def graph_to_string(graph):
     """ Returns a human readable representation of the graph. """
     lines = []
     # Indices
-    indices = graph.index_table.keys()
+    indices = list(graph.index_table.keys())
     indices.sort()
     for index in indices:
         if index == FIRST_INDEX:
@@ -46,7 +46,7 @@ def graph_to_string(graph):
                                ':'.join(entry[1]))))
 
     # Edges
-    index_pairs = graph.edge_table.keys()
+    index_pairs = list(graph.edge_table.keys())
     # MUST sort so you get the same CHK for the same graph instance.
     index_pairs.sort()
     for index_pair in index_pairs:
@@ -86,7 +86,7 @@ def parse_graph(text):
             heads = fields[divider + 1:]
 
             if index in graph.index_table:
-                print "OVERWRITING INDEX: " , index
+                print("OVERWRITING INDEX: " , index)
             if len(parents) < 1:
                 raise ValueError("index %i has no parent revs" % index)
             if len(heads) < 1:
@@ -106,7 +106,7 @@ def parse_graph(text):
         #else:
         #    print "SKIPPED LINE:"
         #    print line
-    indices = graph.index_table.keys()
+    indices = list(graph.index_table.keys())
     if len(indices) == 0:
         raise ValueError("No indices?")
     indices.sort()
@@ -132,7 +132,7 @@ def parse_v100_graph(text):
                 raise ValueError("Exception parsing index values.")
             index = int(fields[1])
             if index in graph.index_table:
-                print "OVERWRITING INDEX: " , index
+                print("OVERWRITING INDEX: " , index)
             if len(tuple(fields[2:])) != 2:
                 raise ValueError("Error parsing index value: %i" % index)
             versions = tuple(fields[2:])
@@ -150,7 +150,7 @@ def parse_v100_graph(text):
         #else:
         #    print "SKIPPED LINE:"
         #    print line
-    indices = graph.index_table.keys()
+    indices = list(graph.index_table.keys())
     if len(indices) == 0:
         raise ValueError("No indices?")
     indices.sort()
@@ -260,7 +260,7 @@ def coalesce_indices(original_graph, graph, repo, version_table):
     assert lacuna == False
 
     # Make indices contiguous.
-    indices = graph.index_table.keys()
+    indices = list(graph.index_table.keys())
     indices.sort()
 
     assert indices[0] == FIRST_INDEX

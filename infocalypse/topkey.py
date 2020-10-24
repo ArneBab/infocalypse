@@ -42,9 +42,9 @@ import struct
 
 from binascii import hexlify, unhexlify
 
-from fcpconnection import sha1_hexdigest
+from .fcpconnection import sha1_hexdigest
 
-from chk import CHK_SIZE, bytes_to_chk, chk_to_bytes
+from .chk import CHK_SIZE, bytes_to_chk, chk_to_bytes
 
 # Known versions:
 # 1.00 -- Initial release.
@@ -178,23 +178,23 @@ def bytes_to_top_key_tuple(bytes):
     bytes = bytes[BASE_LEN:]
     if hdr != HDR_BYTES:
         if hdr == HDR_V1:
-            print
-            print
-            print "NOTE:"
-            print "hg update -r f67283c92051"
-            print "Will get you back to a version of the"
-            print "infocalypse source that can read this format."
-            print
-            print
+            print()
+            print()
+            print("NOTE:")
+            print("hg update -r f67283c92051")
+            print("Will get you back to a version of the")
+            print("infocalypse source that can read this format.")
+            print()
+            print()
             raise ValueError("Format version mismatch. "
                              + "That repo is in an obsolete format!")
         if hdr[5] != MAJOR_VERSION:
             # DOH! should have done this in initial release.
             raise ValueError("Format version mismatch. "
                              + "Maybe you're running old code?")
-        print "bytes_to_top_key_data -- minor version mismatch: ", hdr
+        print("bytes_to_top_key_data -- minor version mismatch: ", hdr)
     if len(bytes) == 0:
-        print "bytes_to_top_key_data -- No updates?"
+        print("bytes_to_top_key_data -- No updates?")
 
     graph_chks = []
     for dummy in range(0, graph_chk_count):
@@ -213,7 +213,7 @@ def default_out(text):
     """ Default output function for dump_top_key_tuple(). """
     if text.endswith('\n'):
         text = text[:-1]
-    print text
+    print(text)
 
 def dump_top_key_tuple(top_key_tuple, out_func=default_out):
     """ Debugging function to print a top_key_tuple. """

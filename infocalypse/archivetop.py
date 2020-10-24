@@ -12,9 +12,9 @@ This allows us to do top key redundancy like in Infocalypse.
 
 import struct
 
-from fcpconnection import sha1_hexdigest
-from chk import CHK_SIZE, bytes_to_chk, chk_to_bytes
-from topkey import default_out
+from .fcpconnection import sha1_hexdigest
+from .chk import CHK_SIZE, bytes_to_chk, chk_to_bytes
+from .topkey import default_out
 
 MAJOR_VERSION = '01'
 MINOR_VERSION = '02'

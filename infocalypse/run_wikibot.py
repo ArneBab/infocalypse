@@ -26,17 +26,17 @@ import os
 import signal
 import sys
 
-from ConfigParser import ConfigParser
+from configparser import ConfigParser
 
-from fcpclient import FCPClient, get_usk_hash
-from fcpconnection import FCPConnection, PolledSocket
-from requestqueue import RequestRunner
-from bundlecache import is_writable
+from .fcpclient import FCPClient, get_usk_hash
+from .fcpconnection import FCPConnection, PolledSocket
+from .requestqueue import RequestRunner
+from .bundlecache import is_writable
 
-from fmsstub import FMSStub
+from .fmsstub import FMSStub
 
-from fmsbot import FMSBotRunner, run_event_loops, make_bot_path
-from wikibot import WikiBot
+from .fmsbot import FMSBotRunner, run_event_loops, make_bot_path
+from .wikibot import WikiBot
 
 ############################################################
 # FCP info
@@ -109,16 +109,16 @@ def get_dirs(base_dir, create=False):
         for value in ret:
             if os.path.exists(value):
                 raise IOError("Directory already exists: %s" % value)
-        print
+        print()
         for value in ret:
             os.makedirs(value)
             if not is_writable(value):
                 raise IOError("Couldn't write to: %s" % value)
-            print "Created: %s" % value
+            print("Created: %s" % value)
 
-        print
-        print "You need to MANUALLY fn-pull the wikitext repo into:"
-        print ret[1]
+        print()
+        print("You need to MANUALLY fn-pull the wikitext repo into:")
+        print(ret[1])
 
     else:
         for value in ret:
@@ -141,7 +141,7 @@ def get_params(base_dir):
 
     # MUST contain SSK private key
     key_file = KEY_FILE_FMT % get_usk_hash(params['WIKI_REPO_USK'])
-    print "Read insert key from: %s" % key_file
+    print("Read insert key from: %s" % key_file)
 
     # Load private key for the repo from a file..
     insert_ssk = open(os.path.expanduser(key_file), 'rb').read().strip()
@@ -154,12 +154,12 @@ def get_params(base_dir):
     insert_uri = 'U' + insert_ssk[1:] + '/' + human
 
     # Then invert the request_uri from it.
-    print "Inverting public key from private one..."
+    print("Inverting public key from private one...")
     request_uri = FCPClient.connect(FCP_HOST, FCP_PORT). \
                   get_request_uri(insert_uri)
-    print request_uri
+    print(request_uri)
     if get_usk_hash(request_uri) != get_usk_hash(params['WIKI_REPO_USK']):
-        print "The insert SSK doesn't match WIKI_REPO_USK in fnwiki.cfg!"
+        print("The insert SSK doesn't match WIKI_REPO_USK in fnwiki.cfg!")
         assert False
 
     # LATER: Name convention.
@@ -232,7 +232,7 @@ def run_wikibot(params):
     # Setup FMSBotRunner to house the WikiBot.
     bot_runner = FMSBotRunner(params)
     if 'MSG_SPOOL_DIR' in params:
-        print "READING MESSAGES FROM SPOOL DIR INSTEAD OF FMS!"
+        print("READING MESSAGES FROM SPOOL DIR INSTEAD OF FMS!")
 
         # This table MUST map all short names to full fms_ids for
         # all message senders. MUST contain the bot fms_id.
@@ -277,24 +277,24 @@ def cmd_stop(params):
                                  'wikibot_' + params['USK_HASH'],
                                  'pid'), 'rb').read().strip())
 
-        print "Stopping, pid: %i..." % pid
+        print("Stopping, pid: %i..." % pid)
         os.kill(pid, signal.SIGINT)
         os.waitpid(pid, 0)
-        print "Stopped."
+        print("Stopped.")
     except IOError: # no pid file
-        print "Not running."
-    except OSError, err:
+        print("Not running.")
+    except OSError as err:
         if err.errno ==  errno.ECHILD:
             # Process died before waitpid.
-            print "Stopped."
+            print("Stopped.")
         else:
-            print "Failed: ", err
+            print("Failed: ", err)
 
 def cmd_status(params):
     """ Check if the bot is running."""
 
-    print "wikibot_%s:" % params['USK_HASH']
-    print "storage: %s" % params['BOT_STORAGE_DIR']
+    print("wikibot_%s:" % params['USK_HASH'])
+    print("storage: %s" % params['BOT_STORAGE_DIR'])
 
     # Attribution:
     # http://stackoverflow.com/questions/38056/how-do-you-check-in-linux-with- \
@@ -304,18 +304,18 @@ def cmd_status(params):
                                  'wikibot_' + params['USK_HASH'],
                                  'pid'), 'rb').read().strip())
 
-        print "pid: %i" % pid
+        print("pid: %i" % pid)
         os.kill(pid, 0)
-        print "STATUS: Running"
+        print("STATUS: Running")
     except IOError: # no pid file
-        print "STATUS: Stopped"
-    except OSError, err:
+        print("STATUS: Stopped")
+    except OSError as err:
         if err.errno == errno.ESRCH:
-            print "STATUS: Crashed!"
+            print("STATUS: Crashed!")
         elif err.errno == errno.EPERM:
-            print "No permission to signal this process! Maybe run whoami?"
+            print("No permission to signal this process! Maybe run whoami?")
         else:
-            print "Unknown error checking pid!"
+            print("Unknown error checking pid!")
 
 def cmd_catchup(params):
     """ Rebuild local working files rebuilding IGNORING all
@@ -334,10 +334,10 @@ def cmd_catchup(params):
 def cmd_help(dummy):
     """ Print a help message."""
 
-    print """USAGE:
+    print("""USAGE:
 run_wikibot.py <cmd>
 
-where <cmd> is %s""" % (', '.join(DISPATCH_TABLE.keys()))
+where <cmd> is %s""" % (', '.join(list(DISPATCH_TABLE.keys()))))
 
 DISPATCH_TABLE = {"setup":cmd_setup,
                   "start":cmd_start,
@@ -354,8 +354,8 @@ def main():
     try:
         parameters = (None if cmd == 'setup' or cmd == 'help'
                       else get_params(BASE_DIR))
-    except IOError, err:
-        print "FAILED: %s" % str(err)
+    except IOError as err:
+        print("FAILED: %s" % str(err))
         return
 
     DISPATCH_TABLE[cmd](parameters)

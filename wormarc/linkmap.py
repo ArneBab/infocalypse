@@ -73,7 +73,7 @@ class LinkMap(dict):
     # Omit from fixups == delete
     def _update_block_ordinals(self, fixups):
         """ INTERNAL: Implementation helper for update_blocks(). """
-        for sha_hash in self.keys():
+        for sha_hash in list(self.keys()):
             prev = self.get(sha_hash)
             updated = []
             for link in prev:
@@ -171,7 +171,7 @@ def links_by_block(link_map):
     """ INTERNAL: Implementation helper function for
         verify_link_map(). """
     tables = [{} for dummy in range(0, len(link_map.files))]
-    for links in link_map.values():
+    for links in list(link_map.values()):
         assert len(links) > 0
         for link in links:
             ordinal = link[5]
@@ -192,7 +192,7 @@ def verify_link_map(link_map):
         raw_shas = raw_block_read(link_map, ordinal)
         # Hashes read from the raw file are the same as
         # the ones that the LinkMap thinks should be in the file.
-        assert frozenset(raw_shas.keys()) == frozenset(by_block[ordinal].keys())
+        assert frozenset(list(raw_shas.keys())) == frozenset(list(by_block[ordinal].keys()))
 
         # Now check values.
         for link_sha in raw_shas:

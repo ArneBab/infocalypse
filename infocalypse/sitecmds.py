@@ -25,15 +25,15 @@ import shutil
 
 from mercurial import util
 
-from fcpconnection import FCPError
-from fcpclient import FCPClient, get_file_infos, set_index_file
+from .fcpconnection import FCPError
+from .fcpclient import FCPClient, get_file_infos, set_index_file
 
 # HACK
-from pathhacks import add_parallel_sys_path
+from .pathhacks import add_parallel_sys_path
 add_parallel_sys_path('fniki')
 import piki
 
-from config import write_default_config
+from .config import write_default_config
 
 def get_insert_uri(params):
     """ Helper function builds the insert URI. """
@@ -123,7 +123,7 @@ def do_freenet_insert(ui_, repo, params, insert_uri, progress_func):
             request_uri = client.put_complex_dir(insert_uri, infos,
                                                  default_mime_type)[1]['URI']
             show_request_uri(ui_, params, request_uri)
-        except FCPError, err:
+        except FCPError as err:
             if err.is_code(9): # magick number for collision
                 ui_.warn('An update was already inserted on that index.\n'
                          + 'Set a later index with --index and try again.\n')

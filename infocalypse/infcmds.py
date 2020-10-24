@@ -27,33 +27,33 @@ import socket
 import time
 from binascii import hexlify
 
-from mercurial import util
+from mercurial import util, error
 from mercurial import commands
 
-from fcpclient import parse_progress, is_usk, is_ssk, get_version, \
+from .fcpclient import parse_progress, is_usk, is_ssk, get_version, \
      get_usk_for_usk_version, FCPClient, is_usk_file, is_negative_usk
-from fcpconnection import FCPConnection, PolledSocket, CONNECTION_STATES, \
+from .fcpconnection import FCPConnection, PolledSocket, CONNECTION_STATES, \
      get_code, FCPError
-from fcpmessage import PUT_FILE_DEF
+from .fcpmessage import PUT_FILE_DEF
 
-from requestqueue import RequestRunner
+from .requestqueue import RequestRunner
 
-from graph import UpdateGraph, get_heads, has_version
-from bundlecache import BundleCache, is_writable, make_temp_file
-from updatesm import UpdateStateMachine, QUIESCENT, FINISHING, REQUESTING_URI, \
+from .graph import UpdateGraph, get_heads, has_version
+from .bundlecache import BundleCache, is_writable, make_temp_file
+from .updatesm import UpdateStateMachine, QUIESCENT, FINISHING, REQUESTING_URI, \
      REQUESTING_GRAPH, REQUESTING_BUNDLES, INVERTING_URI, \
      REQUESTING_URI_4_INSERT, INSERTING_BUNDLES, INSERTING_GRAPH, \
      INSERTING_URI, FAILING, REQUESTING_URI_4_COPY, \
      REQUIRES_GRAPH_4_HEADS, REQUESTING_GRAPH_4_HEADS, \
      RUNNING_SINGLE_REQUEST, UpdateContext
 
-from archivesm import ArchiveStateMachine, ArchiveUpdateContext
+from .archivesm import ArchiveStateMachine, ArchiveUpdateContext
 
-from statemachine import StatefulRequest
+from .statemachine import StatefulRequest
 
-from config import Config, DEFAULT_CFG_PATH, FORMAT_VERSION, normalize
+from .config import Config, DEFAULT_CFG_PATH, FORMAT_VERSION, normalize
 
-from knownrepos import DEFAULT_TRUST, DEFAULT_GROUPS
+from .knownrepos import DEFAULT_TRUST, DEFAULT_GROUPS
 
 DEFAULT_PARAMS = {
     # FCP params
@@ -110,24 +110,24 @@ class UICallbacks:
         if not value:
             value = "UNKNOWN"
 
-        self.ui_.status("FCP connection [%s]\n" % value)
+        self.ui_.status(b"FCP connection [%s]\n" % value)
 
     def transition_callback(self, from_state, to_state):
         """ StateMachine transition callback that writes to a ui."""
         if self.verbosity < 1:
             return
         if self.verbosity > 2:
-            self.ui_.status("[%s]->[%s]\n" % (from_state.name, to_state.name))
+            self.ui_.status(b"[%s]->[%s]\n" % (from_state.name, to_state.name))
             return
         if to_state.name == FAILING:
-            self.ui_.status("Cleaning up after failure...\n")
+            self.ui_.status(b"Cleaning up after failure...\n")
             return
         if to_state.name == FINISHING:
-            self.ui_.status("Cleaning up...\n")
+            self.ui_.status(b"Cleaning up...\n")
             return
         msg = MSG_TABLE.get((from_state.name, to_state.name))
         if not msg is None:
-            self.ui_.status("%s\n" % msg)
+            self.ui_.status(b"%s\n" % msg)
 
     def monitor_callback(self, update_sm, client, msg):
         """ FCP message status callback which writes to a ui. """
@@ -165,7 +165,7 @@ class UICallbacks:
         else:
             text = msg[0]
 
-        self.ui_.status("%s%s:%s\n" % (prefix, str(client.tag), text))
+        self.ui_.status(b"%s%s:%s\n" % (prefix, str(client.tag), text))
         # REDFLAG: re-add full dumping of FCP errors at debug level?
         #if msg[0].find('Failed') != -1 or msg[0].find('Error') != -1:
             #print  client.in_params.pretty()
@@ -195,9 +195,9 @@ def get_config_info(ui_, opts):
 
     cfg = Config.from_ui(ui_)
     if cfg.defaults['FORMAT_VERSION'] != FORMAT_VERSION:
-        ui_.warn(('Updating config file: %s\n'
-                  + 'From format version: %s\nTo format version: %s\n') %
-                 (str(cfg.file_name),
+        ui_.warn((b'Updating config file: %s\n'
+                  + b'From format version: %s\nTo format version: %s\n') %
+                 (cfg.file_name,
                   cfg.defaults['FORMAT_VERSION'],
                   FORMAT_VERSION))
 
@@ -249,15 +249,15 @@ def check_uri(ui_, uri):
 
     if is_usk(uri):
         if not is_usk_file(uri):
-            ui_.status("Only file USKs are allowed."
+            ui_.status(b"Only file USKs are allowed."
                        + "\nMake sure the URI ends with '/<number>' "
                        + "with no trailing '/'.\n")
-            raise util.Abort("Non-file USK %s\n" % uri)
+            raise error.Abort(b"Non-file USK %s\n" % uri)
         # Just fix it instead of doing B&H?
         if is_negative_usk(uri):
-            ui_.status("Negative USK index values are not allowed."
+            ui_.status(b"Negative USK index values are not allowed."
                        + "\nUse --aggressive instead. \n")
-            raise util.Abort("Negative USK %s\n" % uri)
+            raise error.Abort(b"Negative USK %s\n" % uri)
 
 def set_debug_vars(verbosity, params):
     """ Set debug dumping switch variables based on verbosity. """
@@ -283,7 +283,7 @@ def setup(ui_, repo, params, stored_cfg):
     check_uri(ui_, params.get('REQUEST_URI'))
 
     if not is_writable(os.path.expanduser(stored_cfg.defaults['TMP_DIR'])):
-        raise util.Abort("Can't write to temp dir: %s\n"
+        raise error.Abort(b"Can't write to temp dir: %s\n"
                          % stored_cfg.defaults['TMP_DIR'])
 
     verbosity = params.get('VERBOSITY', 1)
@@ -300,11 +300,11 @@ def setup(ui_, repo, params, stored_cfg):
         async_socket = PolledSocket(params['FCP_HOST'], params['FCP_PORT'])
         connection = FCPConnection(async_socket, True,
                                    callbacks.connection_state)
-    except socket.error, err: # Not an IOError until 2.6.
+    except socket.error as err: # Not an IOError until 2.6.
         ui_.warn("Connection to FCP server [%s:%i] failed.\n"
                 % (params['FCP_HOST'], params['FCP_PORT']))
         raise err
-    except IOError, err:
+    except IOError as err:
         ui_.warn("Connection to FCP server [%s:%i] failed.\n"
                 % (params['FCP_HOST'], params['FCP_PORT']))
         raise err
@@ -345,7 +345,7 @@ def run_until_quiescent(update_sm, poll_secs, close_socket=True):
             # Poll the FCP Connection.
             try:
                 if not connection.socket.poll():
-                    print "run_until_quiescent -- poll returned False" 
+                    print("run_until_quiescent -- poll returned False") 
                     # REDFLAG: jam into quiesent state?,
                     # CONNECTION_DROPPED state?
                     break
@@ -387,7 +387,7 @@ def do_key_setup(ui_, update_sm, params, stored_cfg):
         insert_uri = ('USK'
                       + stored_cfg.defaults['DEFAULT_PRIVATE_KEY'][3:]
                       + insert_uri[5:])
-        ui_.status("Filled in the insert URI using the default private key.\n")
+        ui_.status(b"Filled in the insert URI using the default private key.\n")
 
     if insert_uri is None or not (is_usk(insert_uri) or is_ssk(insert_uri)):
         return (params.get('REQUEST_URI'), False)
@@ -395,7 +395,7 @@ def do_key_setup(ui_, update_sm, params, stored_cfg):
     update_sm.start_inverting(insert_uri)
     run_until_quiescent(update_sm, params['POLL_SECS'], False)
     if update_sm.get_state(QUIESCENT).prev_state != INVERTING_URI:
-        raise util.Abort("Couldn't invert private key:\n%s" % insert_uri)
+        raise error.Abort(b"Couldn't invert private key:\n%s" % insert_uri)
 
     inverted_uri = update_sm.get_state(INVERTING_URI).get_request_uri()
     params['INVERTED_INSERT_URI'] = inverted_uri
@@ -513,7 +513,7 @@ def execute_create(ui_, repo, params, stored_cfg):
 
         ui_.debug("%sInsert URI:\n%s\n" % (is_redundant(params['INSERT_URI']),
                                             params['INSERT_URI']))
-        #ui_.status("Current tip: %s\n" % hex_version(repo)[:12])
+        #ui_.status(b"Current tip: %s\n" % hex_version(repo)[:12])
 
         update_sm.start_inserting(UpdateGraph(),
                                   params.get('TO_VERSIONS', ('tip',)),
@@ -523,9 +523,9 @@ def execute_create(ui_, repo, params, stored_cfg):
 
         if update_sm.get_state(QUIESCENT).arrived_from(((FINISHING,))):
             inserted_to = update_sm.get_state(INSERTING_URI).get_request_uris()
-            ui_.status("Inserted to:\n%s\n" % '\n'.join(inserted_to))
+            ui_.status(b"Inserted to:\n%s\n" % '\n'.join(inserted_to))
         else:
-            ui_.status("Create failed.\n")
+            ui_.status(b"Create failed.\n")
 
         handle_updating_config(repo, update_sm, params, stored_cfg)
     finally:
@@ -549,11 +549,11 @@ def execute_copy(ui_, repo, params, stored_cfg):
         run_until_quiescent(update_sm, params['POLL_SECS'])
 
         if update_sm.get_state(QUIESCENT).arrived_from(((FINISHING,))):
-            ui_.status("Copied to:\n%s\n" %
+            ui_.status(b"Copied to:\n%s\n" %
                        '\n'.join(update_sm.get_state(INSERTING_URI).
                                  get_request_uris()))
         else:
-            ui_.status("Copy failed.\n")
+            ui_.status(b"Copy failed.\n")
 
         handle_updating_config(repo, update_sm, params, stored_cfg)
     finally:
@@ -586,12 +586,12 @@ def execute_reinsert(ui_, repo, params, stored_cfg):
                 (not is_usk(params['REQUEST_URI'])) or
                 (not usks_equal(params['REQUEST_URI'],
                                 params['INVERTED_INSERT_URI']))):
-                raise util.Abort("Request URI doesn't match insert URI.")
+                raise error.Abort(b"Request URI doesn't match insert URI.")
 
             ui_.debug("%sInsert URI:\n%s\n" % (is_redundant(params[
                 'INSERT_URI']),
                                                 params['INSERT_URI']))
-        ui_.status("%sRequest URI:\n%s\n" % (is_redundant(params[
+        ui_.status(b"%sRequest URI:\n%s\n" % (is_redundant(params[
             'REQUEST_URI']),
                                              params['REQUEST_URI']))
 
@@ -604,9 +604,9 @@ def execute_reinsert(ui_, repo, params, stored_cfg):
         run_until_quiescent(update_sm, params['POLL_SECS'])
 
         if update_sm.get_state(QUIESCENT).arrived_from(((FINISHING,))):
-            ui_.status("Reinsert finished.\n")
+            ui_.status(b"Reinsert finished.\n")
         else:
-            ui_.status("Reinsert failed.\n")
+            ui_.status(b"Reinsert failed.\n")
 
         # Don't need to update the config.
     finally:
@@ -629,7 +629,7 @@ def execute_push(ui_, repo, params, stored_cfg):
 
         ui_.debug("%sInsert URI:\n%s\n" % (is_redundant(params['INSERT_URI']),
                                             params['INSERT_URI']))
-        #ui_.status("Current tip: %s\n" % hex_version(repo)[:12])
+        #ui_.status(b"Current tip: %s\n" % hex_version(repo)[:12])
 
         update_sm.start_pushing(params['INSERT_URI'],
                                 params.get('TO_VERSIONS', ('tip',)),
@@ -639,13 +639,13 @@ def execute_push(ui_, repo, params, stored_cfg):
 
         if update_sm.get_state(QUIESCENT).arrived_from(((FINISHING,))):
             inserted_to = update_sm.get_state(INSERTING_URI).get_request_uris()
-            ui_.status("Inserted to:\n%s\n" %
+            ui_.status(b"Inserted to:\n%s\n" %
                        '\n'.join(inserted_to))
         else:
             extra = ''
             if update_sm.ctx.get('UP_TO_DATE', False):
                 extra = '. Local changes already in Freenet'
-            ui_.status("Push failed%s.\n" % extra)
+            ui_.status(b"Push failed%s.\n" % extra)
 
         handle_updating_config(repo, update_sm, params, stored_cfg)
     finally:
@@ -673,20 +673,20 @@ def execute_pull(ui_, repo, params, stored_cfg):
                                (index, get_version(params['REQUEST_URI'])))
 
         update_sm = setup(ui_, repo, params, stored_cfg)
-        ui_.status("%sRequest URI:\n%s\n" % (is_redundant(params[
+        ui_.status(b"%sRequest URI:\n%s\n" % (is_redundant(params[
             'REQUEST_URI']),
                                              params['REQUEST_URI']))
-        #ui_.status("Current tip: %s\n" % hex_version(repo)[:12])
+        #ui_.status(b"Current tip: %s\n" % hex_version(repo)[:12])
         update_sm.start_pulling(params['REQUEST_URI'])
         run_until_quiescent(update_sm, params['POLL_SECS'])
 
         if update_sm.get_state(QUIESCENT).arrived_from(((FINISHING,))):
-            ui_.status("Pulled from:\n%s\n" %
+            ui_.status(b"Pulled from:\n%s\n" %
                        update_sm.get_state('REQUESTING_URI').
                        get_latest_uri())
-            #ui_.status("New tip: %s\n" % hex_version(repo)[:12])
+            #ui_.status(b"New tip: %s\n" % hex_version(repo)[:12])
         else:
-            ui_.status("Pull failed.\n")
+            ui_.status(b"Pull failed.\n")
 
         handle_updating_config(repo, update_sm, params, stored_cfg, True)
     finally:
@@ -711,7 +711,7 @@ def read_freenet_heads(params, update_sm, request_uri):
             assert not update_sm.ctx.graph is None
             return get_heads(update_sm.ctx.graph)
 
-    raise util.Abort("Couldn't read heads from Freenet.")
+    raise error.Abort(b"Couldn't read heads from Freenet.")
 
 
 NO_INFO_FMT = """There's no stored information about this USK.
@@ -736,7 +736,7 @@ def execute_info(ui_, repo, params, stored_cfg):
     """ Run the info command. """
     request_uri = params['REQUEST_URI']
     if request_uri is None or not is_usk_file(request_uri):
-        ui_.status("Only works with USK file URIs.\n")
+        ui_.status(b"Only works with USK file URIs.\n")
         return
 
     usk_hash = normalize(request_uri)
@@ -777,7 +777,7 @@ def setup_tmp_dir(ui_, tmp):
     if not os.path.exists(tmp):
         try:
             os.makedirs(tmp)
-        except os.error, err:
+        except os.error as err:
             # Will exit below.
             ui_.warn(err)
     return tmp
@@ -796,7 +796,7 @@ cfg_file: %s
 """
 
 MSG_CFG_EXISTS = \
-"""%s already exists!
+b"""%s already exists!
 Move it out of the way if you really
 want to re-run setup.
 
@@ -817,9 +817,9 @@ def execute_setup(ui_, host, port, tmp, cfg_file = None):
     def connection_failure(msg):
         """ INTERNAL: Display a warning string. """
         ui_.warn(msg)
-        ui_.warn("It looks like your FCP host or port might be wrong.\n")
-        ui_.warn("Set them with --fcphost and/or --fcpport and try again.\n")
-        raise util.Abort("Connection to FCP server failed.")
+        ui_.warn(b"It looks like your FCP host or port might be wrong.\n")
+        ui_.warn(b"Set them with --fcphost and/or --fcpport and try again.\n")
+        raise error.Abort(b"Connection to FCP server failed.")
 
     # Fix defaults.
     if host == '':
@@ -830,7 +830,7 @@ def execute_setup(ui_, host, port, tmp, cfg_file = None):
     if cfg_file is None:
         cfg_file = os.path.expanduser(DEFAULT_CFG_PATH)
 
-    existing_name = ui_.config('infocalypse', 'cfg_file', None)
+    existing_name = ui_.config(b'infocalypse', b'cfg_file', None)
     if not existing_name is None:
         existing_name = os.path.expanduser(existing_name)
         ui_.status(MSG_HGRC_SET % existing_name)
@@ -838,19 +838,19 @@ def execute_setup(ui_, host, port, tmp, cfg_file = None):
 
     if os.path.exists(cfg_file):
         ui_.status(MSG_CFG_EXISTS % cfg_file)
-        raise util.Abort("Refusing to modify existing configuration.")
+        raise error.Abort(b"Refusing to modify existing configuration.")
 
     tmp = setup_tmp_dir(ui_, tmp)
 
     if not is_writable(tmp):
-        raise util.Abort("Can't write to temp dir: %s\n" % tmp)
+        raise error.Abort(b"Can't write to temp dir: %s\n" % tmp)
 
     # Test FCP connection.
     timeout_secs = 20
     connection = None
     default_private_key = None
     try:
-        ui_.status("Testing FCP connection [%s:%i]...\n" % (host, port))
+        ui_.status(b"Testing FCP connection [%s:%i]...\n" % (host, port))
 
         connection = FCPConnection(PolledSocket(host, port))
 
@@ -864,13 +864,13 @@ def execute_setup(ui_, host, port, tmp, cfg_file = None):
             connection_failure(("\nGave up after waiting %i secs for an "
                                + "FCP NodeHello.\n") % timeout_secs)
 
-        ui_.status("Looks good.\nGenerating a default private key...\n")
+        ui_.status(b"Looks good.\nGenerating a default private key...\n")
 
         # Hmmm... this waits on a socket. Will an ioerror cause an abort?
         # Lazy, but I've never seen this call fail except for IO reasons.
         client = FCPClient(connection)
         client.message_callback = lambda x, y:None # Disable chatty default.
-        default_private_key = client.generate_ssk()[1]['InsertURI']
+        default_private_key = client.generate_ssk()[1][b'InsertURI']
 
     except FCPError:
         # Protocol error.
@@ -891,7 +891,7 @@ def execute_setup(ui_, host, port, tmp, cfg_file = None):
     cfg.defaults['DEFAULT_PRIVATE_KEY'] = default_private_key
     Config.to_file(cfg, cfg_file)
 
-    ui_.status("""\nFinished setting configuration.
+    ui_.status(b"""\nFinished setting configuration.
 FCP host: %s
 FCP port: %i
 Temp dir: %s
@@ -914,14 +914,14 @@ def create_patch_bundle(ui_, repo, freenet_heads, out_file):
     # Make sure you have them all locally
     for head in freenet_heads:
         if not has_version(repo, head):
-            raise util.Abort("The local repository isn't up to date. " +
+            raise error.Abort(b"The local repository isn't up to date. " +
                              "Run hg fn-pull.")
 
     heads = [hexlify(head) for head in repo.heads()]
     heads.sort()
 
     if freenet_heads == heads:
-        raise util.Abort("All local changesets already in the repository " +
+        raise error.Abort(b"All local changesets already in the repository " +
                          "in Freenet.")
 
     # Create a bundle using the freenet_heads as bases.
@@ -945,7 +945,7 @@ def execute_insert_patch(ui_, repo, params, stored_cfg):
         update_sm = setup(ui_, repo, params, stored_cfg)
         out_file = make_temp_file(update_sm.ctx.bundle_cache.base_dir)
 
-        ui_.status("Reading repo state from Freenet...\n")
+        ui_.status(b"Reading repo state from Freenet...\n")
         freenet_heads = read_freenet_heads(params, update_sm,
                                            params['REQUEST_URI'])
 
@@ -965,7 +965,7 @@ def execute_insert_patch(ui_, repo, params, stored_cfg):
         # Must do this here because file gets deleted.
         chk_len = os.path.getsize(out_file)
 
-        ui_.status("Inserting %i byte patch bundle...\n" %
+        ui_.status(b"Inserting %i byte patch bundle...\n" %
                    os.path.getsize(out_file))
         update_sm.start_single_request(request)
         run_until_quiescent(update_sm, params['POLL_SECS'])
@@ -977,18 +977,18 @@ def execute_insert_patch(ui_, repo, params, stored_cfg):
         if update_sm.get_state(QUIESCENT).arrived_from(((FINISHING,))):
             chk = update_sm.get_state(RUNNING_SINGLE_REQUEST).\
                   final_msg[1]['URI']
-            ui_.status("Patch CHK:\n%s\n" %
+            ui_.status(b"Patch CHK:\n%s\n" %
                        chk)
             # ':', '|' not in freenet base64
-            ret = ':'.join(('B', normalize(params['REQUEST_URI']), str(chk_len),
+            ret = b':'.join((b'B', normalize(params['REQUEST_URI']), str(chk_len).encode("utf8"),
                             ':'.join([base[:12] for base in freenet_heads]),
-                            '|', ':'.join([head[:12] for head in heads]), chk))
+                            b'|', ':'.join([head[:12] for head in heads]), chk))
 
-            ui_.status("\nNotification:\n%s\n" % ret
-                        + '\n')
+            ui_.status(b"\nNotification:\n%s\n" % ret
+                        + b'\n')
             return ret
 
-        raise util.Abort("Patch CHK insert failed.")
+        raise error.Abort(b"Patch CHK insert failed.")
 
     finally:
         # Cleans up out file.

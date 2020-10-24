@@ -26,23 +26,23 @@ import random
 
 from mercurial import commands
 
-from fcpconnection import sha1_hexdigest
+from .fcpconnection import sha1_hexdigest
 
-from graph import FIRST_INDEX, FREENET_BLOCK_LEN, MAX_REDUNDANT_LENGTH
-from graphutil import get_rollup_bounds
+from .graph import FIRST_INDEX, FREENET_BLOCK_LEN, MAX_REDUNDANT_LENGTH
+from .graphutil import get_rollup_bounds
 
 def make_temp_file(temp_dir):
     """ Make a temporary file name. """
-    return os.path.join(temp_dir, '_tmp_' + ('%0.16f' % random.random())[2:14])
+    return os.path.join(temp_dir, b'_tmp_' + (b'%0.16f' % random.random())[2:14])
 
 def is_writable(dir_name):
     """ Check whether the directory exists and is writable.  """
-    tmp_file = os.path.join(dir_name, '_tmp_test_write')
+    tmp_file = os.path.join(dir_name, b'_tmp_test_write')
     out_file = None
     try:
         try:
             out_file = open(tmp_file, 'wb')
-            out_file.write('Can I write here?\n')
+            out_file.write(b'Can I write here?\n')
             return True
         except IOError:
             return False
@@ -230,6 +230,6 @@ class BundleCache:
         for name in os.listdir(self.base_dir):
             # Only remove files that we created in case cache_dir
             # is set to something like ~/.
-            if name.startswith("_tmp_"):
+            if name.startswith(b"_tmp_"):
                 os.remove(os.path.join(self.base_dir, name))
 

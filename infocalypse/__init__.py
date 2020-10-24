@@ -338,14 +338,14 @@ d kar bott at com cast dot net
 
 import os
 
-from commands import *
+from .commands import *
 
 from mercurial import commands, extensions, util, hg, dispatch, discovery
 from mercurial.i18n import _
 
-import freenetrepo
+from . import freenetrepo
 
-from keys import strip_protocol
+from .keys import strip_protocol
 
 _freenetschemes = ('freenet', ) # TODO: add fn
 for _scheme in _freenetschemes:
@@ -353,202 +353,202 @@ for _scheme in _freenetschemes:
 
 #----------------------------------------------------------"
 
-DEFAULT_FCP_HOST = "127.0.0.1"
+DEFAULT_FCP_HOST = b"127.0.0.1"
 DEFAULT_FCP_PORT = 9481
 # synchronize with wot.py (copied here to a void importing wot)
 FREEMAIL_SMTP_PORT = 4025
 FREEMAIL_IMAP_PORT = 4143
 
 # Can't use None as a default? Means "takes no argument'?
-FCP_OPTS = [('', 'fcphost', '', 'fcp host, defaults to setup or ' + DEFAULT_FCP_HOST),
-            ('', 'fcpport', 0, 'fcp port, defaults to setup or ' + str(DEFAULT_FCP_PORT)),
+FCP_OPTS = [(b'', b'fcphost', b'', b'fcp host, defaults to setup or ' + DEFAULT_FCP_HOST),
+            (b'', b'fcpport', 0, b'fcp port, defaults to setup or ' + str(DEFAULT_FCP_PORT).encode('utf8')),
 ]
 
-FREEMAIL_OPTS = [('', 'mailhost', '', 'freemail host, defaults to setup or ' + DEFAULT_FCP_HOST),
-                 ('', 'smtpport', 0, 'freemail smtp port, defaults to setup or ' + str(FREEMAIL_SMTP_PORT)),
-                 ('', 'imapport', 0, 'freemail imap port, defaults to setup or ' + str(FREEMAIL_IMAP_PORT)),
+FREEMAIL_OPTS = [(b'', b'mailhost', b'', b'freemail host, defaults to setup or ' + DEFAULT_FCP_HOST),
+                 (b'', b'smtpport', 0, b'freemail smtp port, defaults to setup or ' + str(FREEMAIL_SMTP_PORT).encode('utf8')),
+                 (b'', b'imapport', 0, b'freemail imap port, defaults to setup or ' + str(FREEMAIL_IMAP_PORT).encode('utf8')),
 ]
 
-FMS_OPTS = [('', 'fmshost', '', 'fms host'),
-            ('', 'fmsport', 0, 'fms port'),
+FMS_OPTS = [(b'', b'fmshost', b'', b'fms host'),
+            (b'', b'fmsport', 0, b'fms port'),
 ]
 
-WOT_OPTS = [('', 'truster', '', 'WoT nick@key to use when looking up others'),
+WOT_OPTS = [(b'', b'truster', b'', b'WoT nick@key to use when looking up others'),
 ]
-WOT_CREATE_OPTS = [('', 'wot', '', 'WoT nickname to create on'),
+WOT_CREATE_OPTS = [(b'', b'wot', b'', b'WoT nickname to create on'),
 ]
-WOT_PULL_OPTS = [('', 'wot', '', 'WoT nick@key/repo to pull from'),
+WOT_PULL_OPTS = [(b'', b'wot', b'', b'WoT nick@key/repo to pull from'),
 ]
 
 
-AGGRESSIVE_OPT = [('', 'aggressive', None, 'aggressively search for the '
-                   + 'latest USK index'),]
-NOSEARCH_OPT = [('', 'nosearch', None, 'use USK version in URI'), ]
+AGGRESSIVE_OPT = [(b'', b'aggressive', None, b'aggressively search for the '
+                   + b'latest USK index'),]
+NOSEARCH_OPT = [(b'', b'nosearch', None, b'use USK version in URI'), ]
 # Allow mercurial naming convention for command table.
 # pylint: disable-msg=C0103
 
-PULL_OPTS = [('', 'hash', [], 'repo hash of repository to pull from'),
-             ('', 'onlytrusted', None, 'only use repo announcements from '
-              + 'known users')]
+PULL_OPTS = [(b'', b'hash', [], b'repo hash of repository to pull from'),
+             (b'', b'onlytrusted', None, b'only use repo announcements from '
+              + b'known users')]
 
 cmdtable = {
-    "fn-connect": (infocalypse_connect, FCP_OPTS),
+    b"fn-connect": (infocalypse_connect, FCP_OPTS),
 
-    "fn-pull": (infocalypse_pull,
-                [('', 'uri', '', 'request URI to pull from')]
+    b"fn-pull": (infocalypse_pull,
+                [(b'', b'uri', b'', b'request URI to pull from')]
                 + PULL_OPTS
                 + WOT_PULL_OPTS
                 + WOT_OPTS
                 + FCP_OPTS
                 + NOSEARCH_OPT
                 + AGGRESSIVE_OPT,
-                "[options]"),
+                b"[options]"),
 
-    "fn-updaterepolist": (infocalypse_update_repo_list,
+    b"fn-updaterepolist": (infocalypse_update_repo_list,
                           WOT_CREATE_OPTS),
 
-    "fn-pull-request": (infocalypse_pull_request,
-                        [('', 'wot', '', 'WoT nick@key/repo to send request '
-                                         'to')]
+    b"fn-pull-request": (infocalypse_pull_request,
+                        [(b'', b'wot', b'', b'WoT nick@key/repo to send request '
+                                         b'to')]
                         + WOT_OPTS
                         + FCP_OPTS
                         + FREEMAIL_OPTS,
-                        "[--truster nick@key] --wot nick@key/repo"),
+                        b"[--truster nick@key] --wot nick@key/repo"),
 
-    "fn-check-notifications": (infocalypse_check_notifications,
-                               [('', 'wot', '', 'WoT nick@key to check '
-                                                'notifications for')]
+    b"fn-check-notifications": (infocalypse_check_notifications,
+                               [(b'', b'wot', b'', b'WoT nick@key to check '
+                                                b'notifications for')]
                                + WOT_OPTS
                                + FCP_OPTS
                                + FREEMAIL_OPTS,
-                               "--wot nick@key"),
+                               b"--wot nick@key"),
 
-    "fn-push": (infocalypse_push,
-                [('', 'uri', '', 'insert URI to push to'),
+    b"fn-push": (infocalypse_push,
+                [(b'', b'uri', b'', b'insert URI to push to'),
                  # Buggy. Not well thought out.
-                 #('', 'requesturi', '', 'optional request URI to copy'),
-                 ('r', 'rev', [],'maximum rev to push'),]
+                 #(b'', b'requesturi', b'', b'optional request URI to copy'),
+                 (b'r', b'rev', [],b'maximum rev to push'),]
                 + FCP_OPTS
                 + AGGRESSIVE_OPT,
-                "[options]"),
+                b"[options]"),
 
-    "fn-create": (infocalypse_create,
-                  [('', 'uri', '', 'insert URI to create on'),
-                   ('r', 'rev', [],'maximum rev to push')]
+    b"fn-create": (infocalypse_create,
+                  [(b'', b'uri', b'', b'insert URI to create on'),
+                   (b'r', b'rev', [],b'maximum rev to push')]
                   + FCP_OPTS
                   + WOT_CREATE_OPTS,
-                "[options]"),
-    "fn-copy": (infocalypse_copy,
-                [('', 'requesturi', '', 'request URI to copy from'),
-                 ('', 'inserturi', '', 'insert URI to copy to'), ]
+                b"[options]"),
+    b"fn-copy": (infocalypse_copy,
+                [(b'', b'requesturi', b'', b'request URI to copy from'),
+                 (b'', b'inserturi', b'', b'insert URI to copy to'), ]
                 + FCP_OPTS
                 + NOSEARCH_OPT,
-                "[options]"),
+                b"[options]"),
 
-    "fn-reinsert": (infocalypse_reinsert,
-                    [('', 'uri', '', 'request URI'),
-                     ('', 'level', 3, 'how much to re-insert')]
+    b"fn-reinsert": (infocalypse_reinsert,
+                    [(b'', b'uri', b'', b'request URI'),
+                     (b'', b'level', 3, b'how much to re-insert')]
                     + FCP_OPTS
                     + NOSEARCH_OPT,
-                    "[options]"),
+                    b"[options]"),
 
-    "fn-info": (infocalypse_info,
-                 [('', 'uri', '', 'request URI'),],
-                "[options]"),
+    b"fn-info": (infocalypse_info,
+                 [(b'', b'uri', b'', b'request URI'),],
+                b"[options]"),
 
 
-    "fn-fmsread": (infocalypse_fmsread,
-                   [('', 'uri', '', 'request URI'),
-                    ('', 'hash', [], 'repo hash to modify trust for'),
-                    ('', 'fmsid', [], 'FMS id to modify trust for'),
-                    ('', 'list', None, 'show repo USKs from trusted '
-                     + 'fms identities'),
-                    ('', 'listall', None, 'show all repo USKs'),
-                    ('', 'showtrust', None, 'show the trust map'),
-                    ('', 'trust', None, 'add an entry to the trust map'),
-                    ('', 'untrust', None, 'remove an entry from the trust map'),
-                    ('', 'dryrun', None, "don't update the index cache"),],
-                   "[options]"),
+    b"fn-fmsread": (infocalypse_fmsread,
+                   [(b'', b'uri', b'', b'request URI'),
+                    (b'', b'hash', [], b'repo hash to modify trust for'),
+                    (b'', b'fmsid', [], b'FMS id to modify trust for'),
+                    (b'', b'list', None, b'show repo USKs from trusted '
+                     + b'fms identities'),
+                    (b'', b'listall', None, b'show all repo USKs'),
+                    (b'', b'showtrust', None, b'show the trust map'),
+                    (b'', b'trust', None, b'add an entry to the trust map'),
+                    (b'', b'untrust', None, b'remove an entry from the trust map'),
+                    (b'', b'dryrun', None, b"don't update the index cache"),],
+                   b"[options]"),
 
-    "fn-fmsnotify": (infocalypse_fmsnotify,
-                     [('', 'dryrun', None, "don't send fms message"),
-                     ('', 'announce', None, "include full URI update"),
-                     ('', 'submitbundle', None, "insert patch bundle and " +
-                      "send an fms notification"),
-                      ('', 'submitwiki', None, "insert overlayed wiki " +
-                       "changes and send an fms notification"),]
+    b"fn-fmsnotify": (infocalypse_fmsnotify,
+                     [(b'', b'dryrun', None, b"don't send fms message"),
+                     (b'', b'announce', None, b"include full URI update"),
+                     (b'', b'submitbundle', None, b"insert patch bundle and b" +
+                      b"send an fms notification"),
+                      (b'', b'submitwiki', None, b"insert overlayed wiki b" +
+                       b"changes and send an fms notification"),]
                      + FCP_OPTS, # Needs to invert the insert uri
-                     "[options]"),
+                     b"[options]"),
 
-    "fn-putsite": (infocalypse_putsite,
-                     [('', 'dryrun', None, "don't insert site"),
-                     ('', 'index', -1, "edition to insert"),
-                     ('', 'createconfig', None, "create default freesite.cfg"),
-                      ('', 'wiki', None, "insert a wiki, requires fnwiki.cfg"),
-                     ('', 'key', '', "private SSK to insert under"),]
+    b"fn-putsite": (infocalypse_putsite,
+                     [(b'', b'dryrun', None, b"don't insert site"),
+                     (b'', b'index', -1, b"edition to insert"),
+                     (b'', b'createconfig', None, b"create default freesite.cfg"),
+                      (b'', b'wiki', None, b"insert a wiki, requires fnwiki.cfg"),
+                     (b'', b'key', b'', b"private SSK to insert under"),]
                      + FCP_OPTS,
-                     "[options]"),
+                     b"[options]"),
 
-    "fn-wiki": (infocalypse_wiki,
-                [('', 'run', None, "start a local http server " +
-                  "displaying a wiki"),
-                 ('', 'createconfig', None, "create default fnwiki.cfg " +
-                  "and skeleton wiki_root dir"),
-                 ('', 'http_port', 8081, "port for http server"),
-                 ('', 'http_bind', 'localhost', "interface x1http " +
-                  "listens on, '' to listen on all"),
-                 ('', 'apply', '', "apply changes to the wiki from the " +
-                  "supplied Request URI ")] +
+    b"fn-wiki": (infocalypse_wiki,
+                [(b'', b'run', None, b"start a local http server b" +
+                  b"displaying a wiki"),
+                 (b'', b'createconfig', None, b"create default fnwiki.cfg b" +
+                  b"and skeleton wiki_root dir"),
+                 (b'', b'http_port', 8081, b"port for http server"),
+                 (b'', b'http_bind', b'localhost', b"interface x1http b" +
+                  b"listens on, '' to listen on all"),
+                 (b'', b'apply', b'', b"apply changes to the wiki from the b" +
+                  b"supplied Request URI ")] +
                 FCP_OPTS,
-                "[options]"),
+                b"[options]"),
 
-    "fn-genkey": (infocalypse_genkey,
+    b"fn-genkey": (infocalypse_genkey,
                   FCP_OPTS,
-                  "[options]"),
+                  b"[options]"),
 
-    "fn-setup": (infocalypse_setup,
-                 [('', 'tmpdir', '~/infocalypse_tmp', 'temp directory'),
-                  ('', 'nofms', None, 'skip FMS configuration'),
-                  ('', 'nowot', None, 'skip WoT configuration'),
-                  ('', 'fmsid', '', "fmsid (only part before '@'!)"),
-                  ('', 'timeout', 30, "fms socket timeout in seconds")]
+    b"fn-setup": (infocalypse_setup,
+                 [(b'', b'tmpdir', b'~/infocalypse_tmp', b'temp directory'),
+                  (b'', b'nofms', None, b'skip FMS configuration'),
+                  (b'', b'nowot', None, b'skip WoT configuration'),
+                  (b'', b'fmsid', b'', b"fmsid (only part before '@'!)"),
+                  (b'', b'timeout', 30, b"fms socket timeout in seconds")]
                  + WOT_OPTS
                  + FCP_OPTS
                  + FMS_OPTS,
-                "[options]"),
+                b"[options]"),
 
-    "fn-setupfms": (infocalypse_setupfms,
-                    [('', 'fmsid', '', "fmsid (only part before '@'!)"),
-                     ('', 'timeout', 30, "fms socket timeout in seconds"),]
+    b"fn-setupfms": (infocalypse_setupfms,
+                    [(b'', b'fmsid', b'', b"fmsid (only part before '@'!)"),
+                     (b'', b'timeout', 30, b"fms socket timeout in seconds"),]
                     + FMS_OPTS,
-                    "[options]"),
+                    b"[options]"),
 
-    "fn-setupwot": (infocalypse_setupwot,
+    b"fn-setupwot": (infocalypse_setupwot,
                     FCP_OPTS +
                     WOT_OPTS,
-                    "[options]"),
+                    b"[options]"),
 
-    "fn-setupfreemail": (infocalypse_setupfreemail,
+    b"fn-setupfreemail": (infocalypse_setupfreemail,
                          WOT_OPTS
                          + FCP_OPTS
                          + FREEMAIL_OPTS,
-                         "[--truster nick@key]"),
+                         b"[--truster nick@key]"),
 
-    "fn-archive": (infocalypse_archive,
-                   [('', 'uri', '', 'Request URI for --pull, Insert URI ' +
-                     'for --create, --push'),
-                    ('', 'create', None, 'Create a new archive using the ' +
-                     'Insert URI --uri'),
-                    ('', 'push', None, 'Push incremental updates into the ' +
-                     'archive in Freenet'),
-                    ('', 'pull', None, 'Pull incremental updates from the ' +
-                     'archive in Freenet'),
-                    ('', 'reinsert', None, 'Re-insert the entire archive. '),
+    b"fn-archive": (infocalypse_archive,
+                   [(b'', b'uri', b'', b'Request URI for --pull, Insert URI ' +
+                     b'for --create, --push'),
+                    (b'', b'create', None, b'Create a new archive using the ' +
+                     b'Insert URI --uri'),
+                    (b'', b'push', None, b'Push incremental updates into the ' +
+                     b'archive in Freenet'),
+                    (b'', b'pull', None, b'Pull incremental updates from the ' +
+                     b'archive in Freenet'),
+                    (b'', b'reinsert', None, b'Re-insert the entire archive. '),
                 ]
                    + FCP_OPTS
                    + NOSEARCH_OPT
                    + AGGRESSIVE_OPT,
-                   "[options]"),
+                   b"[options]"),
 }
 
 
@@ -561,6 +561,11 @@ try:
     commands.norepo += ' fn-setupfreemail'
     commands.norepo += ' fn-updaterepolist'
 except AttributeError as e: # Mercurial 3.8 API change
+    for i in cmdtable:
+        cmdtable[i][0].norepo = False
+        cmdtable[i][0].optionalrepo = False
+        cmdtable[i][0].inferrepo = False
+        cmdtable[i][0].intents = set()
     infocalypse_setup.norepo = True
     infocalypse_setupfms.norepo = True
     infocalypse_setupwot.norepo = True
@@ -577,7 +582,7 @@ except AttributeError as e: # Mercurial 3.8 API change
 def findcommonoutgoing(orig, *args, **opts):
     repo = args[0]
     remoterepo = args[1]
-    capable = getattr(remoterepo, 'capable', lambda x: False)
+    capable = getattr(remoterepo, b'capable', lambda x: False)
     if capable('infocalypse'):
         class fakeoutgoing(object):
             def __init__(self):
@@ -589,7 +594,7 @@ def findcommonoutgoing(orig, *args, **opts):
     else:
         return orig(*args, **opts)
 # really wrap the functions
-extensions.wrapfunction(discovery, 'findcommonoutgoing', findcommonoutgoing)
+extensions.wrapfunction(discovery, b'findcommonoutgoing', findcommonoutgoing)
 
 # wrap the commands
 
@@ -623,7 +628,7 @@ def freenetpathtouri(ui, path, operation, repo=None, truster_identifier=None, fc
     # Guess whether it's WoT. This won't work if someone has chosen their WoT
     # nick to be "USK", but this is a corner case. Using --wot will still work.
     if not path.startswith("USK"):
-        import wot
+        from . import wot
         if operation == "pull":
             truster = get_truster(ui, repo, truster_identifier)
             return wot.resolve_pull_uri(ui, path, truster, repo, fcphost=fcphost, fcpport=fcpport)
@@ -649,7 +654,7 @@ def freenetpull(orig, *args, **opts):
         return False
     ui, repo, path = parsepushargs(*args)
     if not path:
-        path = ui.expandpath('default', 'default-push')
+        path = ui.expandpath('default', b'default-push')
     else:
         path = ui.expandpath(path)
     # only act differently, if the target is an infocalypse repo.
@@ -681,12 +686,12 @@ def freenetpush(orig, *args, **opts):
     def parsepushargs(ui, repo, path=None):
         return ui, repo, path
     def isfreenetpath(path):
-        if path and path.startswith("freenet:") or path.startswith("USK@"):
+        if path and path.startswith(b"freenet:") or path.startswith("USK@"):
             return True
         return False
     ui, repo, path = parsepushargs(*args)
     if not path:
-        path = ui.expandpath('default-push', 'default')
+        path = ui.expandpath(b'default-push', b'default')
     else:
         path = ui.expandpath(path)
     # only act differently, if the target is an infocalypse repo.
@@ -698,7 +703,7 @@ def freenetpush(orig, *args, **opts):
     # if the uri is the short form (USK@/name/#), generate the key and preprocess the uri.
     if uri.startswith("USK@/"):
         ui.status("creating a new key for the repo. For a new repo with an existing key, use clone.\n")
-        from sitecmds import genkeypair
+        from .sitecmds import genkeypair
         fcphost, fcpport = opts["fcphost"], opts["fcpport"]
         if not fcphost:
             fcphost = DEFAULT_FCP_HOST
@@ -778,7 +783,7 @@ def freenetclone(orig, *args, **opts):
         # if the pushuri is the short form (USK@/name/#), generate the key.
         if pushuri.startswith("USK@/"):
             ui.status("creating a new key for the repo. To use your default key, call fn-create.\n")
-            from sitecmds import genkeypair
+            from .sitecmds import genkeypair
             fcphost, fcpport = opts["fcphost"], opts["fcpport"]
             if not fcphost:
                 fcphost = DEFAULT_FCP_HOST
@@ -812,8 +817,8 @@ def freenetclone(orig, *args, **opts):
         # Expecting dest to be something like freenet://name@key/reponame
         local_identifier = strip_protocol(dest).split('/')[0]
 
-        from wot_id import Local_WoT_ID
-        from wot import get_fcpopts
+        from .wot_id import Local_WoT_ID
+        from .wot import get_fcpopts
         local_identity = Local_WoT_ID(local_identifier,
                                       get_fcpopts(fcphost=opts["fcphost"],
                                                   fcpport=opts["fcpport"]))
@@ -871,14 +876,14 @@ commit = !$HG clt --date "$(date -u "+%Y-%m-%d %H:%M:%S +0000")" "$@"
 
 
 # really wrap the command
-entry = extensions.wrapcommand(commands.table, "push", freenetpush)
+entry = extensions.wrapcommand(commands.table, b"push", freenetpush)
 entry[1].extend(FCP_OPTS)
-entry = extensions.wrapcommand(commands.table, "pull", freenetpull)
+entry = extensions.wrapcommand(commands.table, b"pull", freenetpull)
 entry[1].extend(PULL_OPTS)
 entry[1].extend(FCP_OPTS)
 entry[1].extend(WOT_OPTS)
 entry[1].extend(WOT_PULL_OPTS)
-entry = extensions.wrapcommand(commands.table, "clone", freenetclone)
+entry = extensions.wrapcommand(commands.table, b"clone", freenetclone)
 entry[1].extend(FCP_OPTS)
 entry[1].extend(WOT_OPTS)
 entry[1].extend(WOT_CREATE_OPTS)
@@ -888,6 +893,8 @@ entry[1].extend(WOT_CREATE_OPTS)
 
 from mercurial import util
 try:
+    from mercurial.interfaces.repository import peer as peerrepository
+except ImportError:
     from mercurial.peer import peerrepository
 except ImportError:
     from mercurial.repo import repository as peerrepository

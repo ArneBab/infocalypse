@@ -25,8 +25,8 @@ import os
 import socket
 import time
 
-import fms
-from fms import IFmsMessageSink
+from . import fms
+from .fms import IFmsMessageSink
 
 def make_bot_path(storage_dir, bot_name, file_name):
     """ Helper function makes to make a bot instance specific file name. """
@@ -56,7 +56,7 @@ class FMSBotRunner(IFmsMessageSink):
 
     def log(self, msg):
         """ Print a log message. """
-        print msg
+        print(msg)
 
     def nntp_reconnect(self, suppress_events=False):
         """ Connect to fms. """
@@ -68,7 +68,7 @@ class FMSBotRunner(IFmsMessageSink):
             self.nntp_server = self.nntp.get_connection(self.params['FMS_HOST'],
                                                         self.params['FMS_PORT'],
                                                         fms_id)
-        except Exception, err: # DCI: what else do I need to catch?
+        except Exception as err: # DCI: what else do I need to catch?
             self.log("FMSBotRunner.nntp_reconnect -- failed: %s" % str(err))
             return None
 
@@ -85,9 +85,9 @@ class FMSBotRunner(IFmsMessageSink):
         try:
             try:
                 self.nntp_server.quit()
-            except IOError, err:
+            except IOError as err:
                 self.log("FMSBotRunner.nntp_close -- failed: %s" % str(err))
-            except EOFError, err:
+            except EOFError as err:
                 self.log("FMSBotRunner.nntp_close -- failed: %s" % str(err))
         finally:
             self.nntp_server = None
@@ -113,7 +113,7 @@ class FMSBotRunner(IFmsMessageSink):
             finally:
                 if raised:
                     self.nntp_close()
-        except Exception, err: # DCI: what else do I need to catch?
+        except Exception as err: # DCI: what else do I need to catch?
             # ??? fail silently???
             self.log("FMSBotRunner.nntp_send -- send_msgs failed: %s" %
                      str(err))
@@ -199,7 +199,7 @@ class FMSBotRunner(IFmsMessageSink):
             finally:
                 if raised:
                     self.nntp_close()
-        except Exception, err: # DCI: what else do I need to catch?
+        except Exception as err: # DCI: what else do I need to catch?
             self.log("FMSBotRunner.recv_msgs -- failed: %s" % str(err))
             raise # DCI: NEED TO FIX THIS
             return False
@@ -237,7 +237,7 @@ class FMSBot(IFmsMessageSink):
 
     def log(self, text):
         """ Display log messages. """
-        print "%s:%s" % (self.name, text)
+        print("%s:%s" % (self.name, text))
 
     def on_startup(self):
         """ Event handler which is run once when the bot is started. """

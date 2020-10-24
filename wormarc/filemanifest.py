@@ -168,8 +168,8 @@ class FileManifest:
                 info.release()
 
         if not updated:
-            if (frozenset(new_name_map.keys()) ==
-                frozenset(self.name_map.keys())):
+            if (frozenset(list(new_name_map.keys())) ==
+                frozenset(list(self.name_map.keys()))):
                 raise UpToDateException("The file manifest is up to date.")
 
         # Add updated manifest
@@ -218,7 +218,7 @@ class FileManifest:
 
             new_shas = archive.uncommited_shas()
 
-            for value in new_names.values():
+            for value in list(new_names.values()):
                 if value[1] in new_shas:
                     # Adding history for new values is handled by
                     # commit_update().
@@ -248,28 +248,28 @@ def verify_manifest(archive, manifest, brief=False):
         tmp = archive.blocks.tmps.make_temp_file()
         file_sha, link_sha = manifest.name_map[name]
         if not brief:
-            print "Verifying: %s  %s => %s)" % (name,
+            print("Verifying: %s  %s => %s)" % (name,
                                               str_sha(file_sha),
-                                              str_sha(link_sha))
+                                              str_sha(link_sha)))
         archive.get_file(link_sha, tmp)
         history = archive.blocks.get_history(link_sha)
         if not brief:
-            print "History: " + " ".join([str_sha(link[0])
-                                          for link in history])
+            print("History: " + " ".join([str_sha(link[0])
+                                          for link in history]))
 
         retrieved_sha = get_file_sha(tmp)
         if retrieved_sha != file_sha:
-            print "Expected: %s, but got %s." % (str_sha(file_sha),
-                                                 str_sha(retrieved_sha))
+            print("Expected: %s, but got %s." % (str_sha(file_sha),
+                                                 str_sha(retrieved_sha)))
             failures += 1
         else:
             if not brief:
-                print "Ok. Read %i bytes." % os.path.getsize(tmp)
+                print("Ok. Read %i bytes." % os.path.getsize(tmp))
 
         archive.blocks.tmps.remove_temp_file(tmp)
 
     if failures > 0:
-        print "%i entries failed to verify!" % failures
+        print("%i entries failed to verify!" % failures)
         assert False
 
 def fix_backwards_slashes(name):
@@ -381,7 +381,7 @@ def validate_path(base_dir, full_path):
     """ Catch references to direcories above base_dir. """
     base_dir = os.path.abspath(base_dir)
 
-    if type(full_path) is unicode:
+    if type(full_path) is str:
         raise IOError("Unicode path name: %s" % repr(full_path))
     if not is_printable_ascii(full_path):
         raise IOError("Non-ASCII path name: %s" % repr(full_path))
@@ -413,7 +413,7 @@ def manifest_to_dir(archive, manifest, target_dir, ignore_regex=None,
         return (create, overwrite, set(remove.keys()), remove_dirs)
 
     # Remove files
-    for victim in remove.values():
+    for victim in list(remove.values()):
         if os.path.exists(victim):
             validate_path(target_dir, victim)
             os.remove(victim)

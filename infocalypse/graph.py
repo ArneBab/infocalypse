@@ -346,14 +346,14 @@ class UpdateGraph:
             raise UpdateGraphException("Length mismatch: [%s]:%i"
                                        % (str(index_pair), ordinal))
         if not edge_list[ordinal + 1].startswith(PENDING_INSERT):
-            print "set_chk -- replacing a non pending chk (%i, %i, %i)?" % \
-                  (index_pair[0], index_pair[1], ordinal)
+            print("set_chk -- replacing a non pending chk (%i, %i, %i)?" % \
+                  (index_pair[0], index_pair[1], ordinal))
             if edge_list[ordinal + 1] == chk:
-                print "Values are same."
+                print("Values are same.")
             else:
-                print "Values are different:"
-                print "old:", edge_list[ordinal + 1]
-                print "new:", chk
+                print("Values are different:")
+                print("old:", edge_list[ordinal + 1])
+                print("new:", chk)
         edge_list[ordinal + 1] = chk
         self.edge_table[index_pair] = tuple(edge_list)
 
@@ -402,8 +402,8 @@ class UpdateGraph:
         if length <= MAX_METADATA_HACK_LEN:
             return INSERT_SALTED_METADATA
 
-        print "insert_type -- called for edge that's too big to salt???"
-        print edge_triple
+        print("insert_type -- called for edge that's too big to salt???")
+        print(edge_triple)
         return INSERT_HUGE
 
     def insert_length(self, step):
@@ -430,7 +430,7 @@ class UpdateGraph:
         base_revs.sort()
         new_heads.sort()
         if self.latest_index != FIRST_INDEX and NULL_REV in base_revs:
-            print "add_index -- base=null in base_revs. Really do that?"
+            print("add_index -- base=null in base_revs. Really do that?")
         self.latest_index += 1
         self.index_table[self.latest_index] = (tuple(base_revs),
                                                tuple(new_heads))
@@ -505,8 +505,8 @@ class UpdateGraph:
                 new_edges.append(self.add_edge(bundle[2], (bundle[0],
                                                            PENDING_INSERT1)))
             else:
-                print "update -- Bundle too big to salt! CHK: %i" \
-                      % first_bundle[0]
+                print("update -- Bundle too big to salt! CHK: %i" \
+                      % first_bundle[0])
 
         new_edges = new_edges + self._add_canonical_path_redundancy()
 
@@ -599,7 +599,7 @@ class UpdateGraph:
 
             This is what you would use to bootstrap from hg rev -1. """
         try:
-            return canonical_path_itr(self, 0, to_index, max_search_len).next()
+            return next(canonical_path_itr(self, 0, to_index, max_search_len))
         except StopIteration:
             raise UpdateGraphException("No such path: %s"
                                        % str((0, to_index)))
@@ -739,7 +739,7 @@ class UpdateGraph:
         """ Debugging function to check invariants. """
         max_index = -1
         min_index = -1
-        for index in self.index_table.keys():
+        for index in list(self.index_table.keys()):
             max_index = max(index, max_index)
             min_index = min(index, min_index)
         assert self.latest_index == max_index
@@ -757,7 +757,7 @@ class UpdateGraph:
             assert len(self.index_table[index][1]) > 0
 
         # All edges must be resolvable.
-        for edge in self.edge_table.keys():
+        for edge in list(self.edge_table.keys()):
             assert edge[0] in self.index_table
             assert edge[1] in self.index_table
             assert edge[0] < edge[1]
@@ -775,7 +775,7 @@ class UpdateGraph:
         assert values[-1] == max_index
         assert values[0] == FIRST_INDEX
         # Indices contiguous
-        assert values == range(FIRST_INDEX, max_index + 1)
+        assert values == list(range(FIRST_INDEX, max_index + 1))
 
         if full:
             # Verify that version map is complete.
@@ -855,7 +855,7 @@ def break_edges(graph, kill_probability, skip_chks):
         for index in range(0, len(chks)):
             if graph.get_chk((edge[0], edge[1], index)) in skip_chks:
                 # Hack to skip pending requests.
-                print "break_edges -- skipped: ", (edge[0], edge[1], index)
+                print("break_edges -- skipped: ", (edge[0], edge[1], index))
                 continue
             if random.random() < kill_probability:
                 graph.set_chk(edge, index, length, bad_chk)
@@ -870,33 +870,33 @@ def pretty_index(index):
 def dump_path(graph, path):
     """ Debugging function to print a path. """
     if len(path) == 0:
-        print "EMPTY PATH!"
+        print("EMPTY PATH!")
         return
 
-    print "(%s)-->[%s] cost=%0.2f" % (pretty_index(path[0][0]),
+    print("(%s)-->[%s] cost=%0.2f" % (pretty_index(path[0][0]),
                                       pretty_index(path[-1][1]),
-                                      graph.path_cost(path, True))
+                                      graph.path_cost(path, True)))
     for step in path:
         cost = graph.get_length(step)
-        print "   (%s) -- (%0.2f, %i) --> [%s]" % (pretty_index(step[0]),
+        print("   (%s) -- (%0.2f, %i) --> [%s]" % (pretty_index(step[0]),
                                                 cost,
                                                 step[2],
-                                                pretty_index(step[1]))
+                                                pretty_index(step[1])))
 def dump_paths(graph, paths, msg):
     """ Debugging function to dump a list of paths. """
-    print  "--- %s ---" % msg
+    print("--- %s ---" % msg)
     for path in paths:
         dump_path(graph, path)
-    print "---"
+    print("---")
 
 def print_list(msg, values):
     """ INTERNAL: Helper function. """
     if msg:
-        print msg
+        print(msg)
     for value in values:
-        print "   ", value
+        print("   ", value)
     if len(values) == 0:
-        print
+        print()
 # REDFLAG: is it a version_map or a version_table? decide an fix all names
 # REDFLAG: Scales to what? 10k nodes?
 # Returns version -> index mapping

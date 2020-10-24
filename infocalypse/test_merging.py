@@ -6,16 +6,16 @@ import unittest
 
 from mercurial import ui, hg, commands
 
-from pathhacks import add_parallel_sys_path
+from .pathhacks import add_parallel_sys_path
 add_parallel_sys_path('wormarc')
 from shafunc import new_sha
 
 add_parallel_sys_path('fniki')
 from fileoverlay import get_file_funcs
 
-from graph import hex_version
-from submission import bundle_wikitext, ForkingSubmissionHandler, SubmitError
-from hgoverlay import HgFileOverlay
+from .graph import hex_version
+from .submission import bundle_wikitext, ForkingSubmissionHandler, SubmitError
+from .hgoverlay import HgFileOverlay
 
 TEST_BASE = '/tmp'
 TEST_ROOT = '__merging_test_run__'
@@ -34,7 +34,7 @@ class RepoTests(unittest.TestCase):
         self.tmp_dir  = os.path.join(self.test_root, TMP_DIR)
 
         if LEAVE_TEST_DIR and os.path.exists(full_path):
-            print "Cleaning up directory from previous test run..."
+            print("Cleaning up directory from previous test run...")
             self.remove_test_dirs()
 
         if os.path.exists(full_path):
@@ -70,7 +70,7 @@ class RepoTests(unittest.TestCase):
             full_path = os.path.join(repo.root, fname)
             dname = os.path.dirname(full_path)
             if dname and not os.path.exists(dname):
-                print "CREATED: ", dname
+                print("CREATED: ", dname)
                 os.makedirs(dname)
 
             out_file = open(full_path, 'wb')
@@ -141,7 +141,7 @@ class Logging:
         pass
     @classmethod
     def out(cls, msg):
-        print msg
+        print(msg)
     def trace(self, msg):
         self.out("T:" + str(msg))
     def debug(self, msg):
@@ -150,10 +150,10 @@ class Logging:
         self.out("W:" + str(msg))
 
 def needs_commit():
-    print "NEEDS COMMIT"
+    print("NEEDS COMMIT")
 
 def committed(result):
-    print "COMMITTED: %s" % str(result)
+    print("COMMITTED: %s" % str(result))
 
 DEFAULT_WIKI_ROOT = 'wiki_root'
 DEFAULT_SUBMITTER = 'freenetizen@this_is_not_a_real_fms_id'
@@ -172,8 +172,8 @@ class NoConflictTests(RepoTests):
                                      'This is a page.\n'),),
                              'automagically generated test repo.')
         cloned = self.clone_repo(repo, 'snarfu')
-        print "REPO: ", repo.root
-        print "CLONED: ", cloned.root
+        print("REPO: ", repo.root)
+        print("CLONED: ", cloned.root)
 
 
     ############################################################
@@ -576,7 +576,7 @@ class ConflictTests(RepoTests):
             return False
 
         if new_sha(overlay.read(versioned_path)).hexdigest() != sha_value:
-            print "SHA FAILS: ", versioned_path
+            print("SHA FAILS: ", versioned_path)
             self.assertTrue(False)
 
         # quick and dirty test for has forks
@@ -789,13 +789,13 @@ class ConflictTests(RepoTests):
                  'This fork 1 of the front page.\n',
                  'This fork 2 of the front page.\n',)
 
-        print "---"
-        print "Main  : FrontPage"
-        print "fork 1: ", ("%s_%s" % (page_path, new_sha(texts[1]).
-                                          hexdigest()))
-        print "fork 2: ", ("%s_%s" % (page_path, new_sha(texts[2]).
-                                          hexdigest()))
-        print "---"
+        print("---")
+        print("Main  : FrontPage")
+        print("fork 1: ", ("%s_%s" % (page_path, new_sha(texts[1]).
+                                          hexdigest())))
+        print("fork 2: ", ("%s_%s" % (page_path, new_sha(texts[2]).
+                                          hexdigest())))
+        print("---")
         self.commit_revision(server_repo,
                              ((page_path,
                                texts[0]),
@@ -830,9 +830,9 @@ class ConflictTests(RepoTests):
         try:
             raw_zip_bytes = self.make_submission_zip(client_repo)
             self.assertTrue(False)
-        except SubmitError, err0:
-            print "Got expected error:"
-            print err0
+        except SubmitError as err0:
+            print("Got expected error:")
+            print(err0)
             self.assertTrue(err0.illegal)
 
         # Resolve one fork in client overlay.
@@ -845,9 +845,9 @@ class ConflictTests(RepoTests):
         try:
             raw_zip_bytes = self.make_submission_zip(client_repo)
             self.assertTrue(False)
-        except SubmitError, err1:
-            print "Got second expected error:"
-            print err1
+        except SubmitError as err1:
+            print("Got second expected error:")
+            print(err1)
             self.assertTrue(err1.illegal)
 
 

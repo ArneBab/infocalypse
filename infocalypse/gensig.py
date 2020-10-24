@@ -29,9 +29,9 @@
 """
 import os
 
-from fcpclient import get_usk_hash
-from config import Config, DEFAULT_CFG_PATH
-from fms import to_msg_string
+from .fcpclient import get_usk_hash
+from .config import Config, DEFAULT_CFG_PATH
+from .fms import to_msg_string
 
 # The maximum number of updates to include.
 MAX_UPDATES = 4 #  == 67 chars
@@ -88,8 +88,8 @@ def print_updates():
         # Hmmm... silently truncate
         updates = updates[:MAX_UPDATES]
         if len(updates) > 0:
-            print STATIC_TEXT
-            print to_msg_string(updates, None, ':')
+            print(STATIC_TEXT)
+            print(to_msg_string(updates, None, ':'))
     except:
         # Better to exit() with the correct exit code?
         # Fail silently, rather than spewing garbage into sig.

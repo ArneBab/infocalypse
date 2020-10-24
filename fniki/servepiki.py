@@ -24,9 +24,9 @@ import os
 import traceback
 import datetime
 import mimetypes
-import urlparse
-import urllib
-import cStringIO
+import urllib.parse
+import urllib.request, urllib.parse, urllib.error
+import io
 import re
 
 import piki
@@ -84,7 +84,7 @@ class HTTP(SimpleAsyncServer.ClientHandler):
             and close_conn.lower() == "keep-alive"):
             self.close_when_done = False
         # parse the url
-        scheme,netloc,path,params,query,fragment = urlparse.urlparse(self.url)
+        scheme,netloc,path,params,query,fragment = urllib.parse.urlparse(self.url)
         self.path,self.rest = path,(params,query,fragment)
 
         if self.method == 'POST':
@@ -95,7 +95,7 @@ class HTTP(SimpleAsyncServer.ClientHandler):
             # request is incomplete if not all message body received
             if len(body)<content_length:
                 return False
-            f_body = cStringIO.StringIO(body)
+            f_body = io.StringIO(body)
             f_body.seek(0)
             sys.stdin = f_body # compatibility with CGI
 
@@ -166,7 +166,7 @@ class HTTP(SimpleAsyncServer.ClientHandler):
         # redirect print statements to a cStringIO
 
         save_stdout = sys.stdout
-        sys.stdout = cStringIO.StringIO()
+        sys.stdout = io.StringIO()
         # run the script
         try:
             # djk20091109 There was a bug here. You need the {} in order to run
@@ -175,9 +175,9 @@ class HTTP(SimpleAsyncServer.ClientHandler):
             #execfile(self.file_name)
 
             # djk20091109 HACKED to run only piki script.
-            execfile(HTTP.script_path, {})
+            exec(compile(open(HTTP.script_path, "rb").read(), HTTP.script_path, 'exec'), {})
         except:
-            sys.stdout = cStringIO.StringIO()
+            sys.stdout = io.StringIO()
             sys.stdout.write("Content-type:text/plain\r\n\r\n")
             traceback.print_exc(file=sys.stdout)
 
@@ -251,7 +251,7 @@ class HTTP(SimpleAsyncServer.ClientHandler):
                 date_str,self.requestline,code))
 
 def default_out_func(text):
-    print text
+    print(text)
 
 def serve_wiki(port=8081, bind_to='localhost', out_func=default_out_func):
     #out_func("server_wiki running under: %s" % str(sys.version))

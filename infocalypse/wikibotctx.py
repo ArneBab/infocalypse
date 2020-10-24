@@ -22,7 +22,7 @@
 import shelve
 import time
 
-from fcpclient import get_version, get_usk_for_usk_version
+from .fcpclient import get_version, get_usk_for_usk_version
 
 def pretty_timeout(future_time):
     """ Return a human readable string for a timeout. """

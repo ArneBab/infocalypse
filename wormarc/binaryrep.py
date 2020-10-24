@@ -168,7 +168,7 @@ def write_file_manifest(name_map, out_stream):
     out_stream.write(struct.pack(COUNT_FMT, len(name_map)))
     # Sort to make it easier for diff algos to find contiguous
     # changes.
-    names = name_map.keys()
+    names = list(name_map.keys())
     names.sort()
     for name in names:
         length = MANIFEST_ENTRY_HDR_LEN + len(name)

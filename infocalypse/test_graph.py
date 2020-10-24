@@ -30,13 +30,13 @@ import shutil
 from binascii import unhexlify
 
 from mercurial import hg, ui
-from bundlecache import BundleCache
-from graph import UpdateGraph, \
+from .bundlecache import BundleCache
+from .graph import UpdateGraph, \
      build_version_table, UpdateGraphException, \
      pull_bundle, FIRST_INDEX, hex_version, UpToDate
-from graphutil import parse_graph, graph_to_string, get_rollup_bounds, \
+from .graphutil import parse_graph, graph_to_string, get_rollup_bounds, \
      minimal_graph
-from chk import bytes_to_chk, CHK_SIZE
+from .chk import bytes_to_chk, CHK_SIZE
 
 # Fix these paths as necessary
 CACHE_DIR = '/tmp/bundle_cache' # MUST exist
@@ -73,29 +73,29 @@ def set_chks(graph, edges, chks):
     """ Set the chks for edges to random values. """
     for edge in edges:
         length = graph.get_length(edge)
-        graph.set_chk(edge[:2], edge[2], length, chks.next())
+        graph.set_chk(edge[:2], edge[2], length, next(chks))
 
 def test_presentation():
     """ Smoke test graph_to_string and parse_graph. """
     graph = UpdateGraph()
-    print "EMPTY:"
-    print graph_to_string(graph)
-    print "Adding index: ", graph.add_index([VER_1, ], [VER_2, ])
-    print "Adding index: ", graph.add_index([VER_2, ], [VER_3, VER_4])
-    print "Adding index: ", graph.add_index([VER_3, VER_2], [VER_5, ])
+    print("EMPTY:")
+    print(graph_to_string(graph))
+    print("Adding index: ", graph.add_index([VER_1, ], [VER_2, ]))
+    print("Adding index: ", graph.add_index([VER_2, ], [VER_3, VER_4]))
+    print("Adding index: ", graph.add_index([VER_3, VER_2], [VER_5, ]))
     chks = fake_chks()
-    graph.add_edge((-1, 0), (100, chks.next()))
-    graph.add_edge((1, 2), (200, chks.next()))
-    graph.add_edge((-1, 2), (500, chks.next()))
+    graph.add_edge((-1, 0), (100, next(chks)))
+    graph.add_edge((1, 2), (200, next(chks)))
+    graph.add_edge((-1, 2), (500, next(chks)))
     text = graph_to_string(graph)
-    print
-    print text
-    print
+    print()
+    print(text)
+    print()
     graph1 = parse_graph(text)
-    print
+    print()
     text1 = graph_to_string(graph1)
-    print "Round trip:"
-    print text1
+    print("Round trip:")
+    print(text1)
     assert text == text1
 
 def test_update(repo_dir):
@@ -106,17 +106,17 @@ def test_update(repo_dir):
     cache.remove_files()
     graph = UpdateGraph()
     graph.update(repo, ui, [1, 2], cache)
-    print graph_to_string(graph)
-    print
-    print
+    print(graph_to_string(graph))
+    print()
+    print()
     graph.update(repo, ui, [3, 4], cache)
 
-    print graph_to_string(graph)
-    print
-    print
+    print(graph_to_string(graph))
+    print()
+    print()
     graph.update(repo, ui, [6, ], cache)
 
-    print graph_to_string(graph)
+    print(graph_to_string(graph))
 
 def test_update_real(repo_dir, version_list=None, full=False):
     """ Smoke test graph.update(). """
@@ -131,31 +131,31 @@ def test_update_real(repo_dir, version_list=None, full=False):
 
     chks = fake_chks()
     for vers in version_list:
-        print "UPDATING TO: ", vers
+        print("UPDATING TO: ", vers)
         new_edges = graph.update(repo, ui, vers, cache)
         for edge in new_edges:
             length = graph.get_length(edge)
-            graph.set_chk(edge[:2], edge[2], length, chks.next())
+            graph.set_chk(edge[:2], edge[2], length, next(chks))
 
         # REDFLAG: should call minimal_graph for "real" behavior
         text = graph_to_string(graph)
-        print "GRAPH_LEN: ", len(text)
-        print text
+        print("GRAPH_LEN: ", len(text))
+        print(text)
 
     if full:
-        print "UPDATING TO: latest heads"
+        print("UPDATING TO: latest heads")
         try:
             new_edges = graph.update(repo, ui, None, cache)
             for edge in new_edges:
                 length = graph.get_length(edge)
-                graph.set_chk(edge[:2], edge[2], length, chks.next())
+                graph.set_chk(edge[:2], edge[2], length, next(chks))
 
             # REDFLAG: should call minimal_graph for "real" behavior
             text = graph_to_string(graph)
-            print "GRAPH_LEN: ", len(text)
-            print text
+            print("GRAPH_LEN: ", len(text))
+            print(text)
         except UpToDate:
-            print "Already has the head revs."
+            print("Already has the head revs.")
 
     return (graph, repo, cache)
 
@@ -170,8 +170,8 @@ def test_minimal_graph(repo_dir, version_list, file_name=None):
         cache = BundleCache(repo, ui_, CACHE_DIR)
         cache.remove_files()
         graph = parse_graph(open(file_name, 'rb').read())
-        print "--- from file: %s ---" % file_name
-        print graph_to_string(graph)
+        print("--- from file: %s ---" % file_name)
+        print(graph_to_string(graph))
     version_map = build_version_table(graph, repo)
 
     # Incomplete, but better than nothing.
@@ -182,37 +182,37 @@ def test_minimal_graph(repo_dir, version_list, file_name=None):
         chk_bounds[graph.get_chk(edge)] = (
             get_rollup_bounds(graph, repo, edge[0] + 1, edge[1], version_map))
 
-    print "CHK BOUNDS:"
+    print("CHK BOUNDS:")
     for value in chk_bounds:
-        print value
-        print "  ", chk_bounds[value]
-    print
+        print(value)
+        print("  ", chk_bounds[value])
+    print()
     sizes = (512, 1024, 2048, 4096, 16 * 1024)
     for max_size in sizes:
         try:
-            print "MAX:", max(version_map.values())
+            print("MAX:", max(version_map.values()))
             small = minimal_graph(graph, repo, version_map, max_size)
-            print "--- size == %i" % max_size
-            print graph_to_string(small)
+            print("--- size == %i" % max_size)
+            print(graph_to_string(small))
 
             small.rep_invariant(repo, True) # Full check
-            chks = chk_bounds.keys()
+            chks = list(chk_bounds.keys())
             path = small.get_top_key_edges()
-            print "TOP KEY EDGES:"
-            print path
+            print("TOP KEY EDGES:")
+            print(path)
             for edge in path:
                 # MUST rebuild the version map because the indices changed.
                 new_map = build_version_table(small, repo)
                 bounds = get_rollup_bounds(small, repo, edge[0] + 1,
                                            edge[1], new_map)
-                print "CHK:", small.get_chk(edge)
-                print "BOUNDS: ", bounds
+                print("CHK:", small.get_chk(edge))
+                print("BOUNDS: ", bounds)
                 assert chk_bounds[small.get_chk(edge)] == bounds
-                print "DELETING: ", edge, small.get_chk(edge)
+                print("DELETING: ", edge, small.get_chk(edge))
                 chks.remove(small.get_chk(edge))
             assert len(chks) == 0
-        except UpdateGraphException, err:
-            print "IGNORED: ", err
+        except UpdateGraphException as err:
+            print("IGNORED: ", err)
 
 def versions_str(version_list):
     """ Format a list of 40 digit hex versions for humans. """
@@ -261,7 +261,7 @@ def hexlify_file(in_file):
     data = binascii.hexlify(open(in_file, 'rb').read())
     while len(data):
         chunk = data[:64]
-        print '+ "%s"' % chunk
+        print('+ "%s"' % chunk)
         data = data[len(chunk):]
 
 
@@ -442,13 +442,13 @@ def dump_version_map(version_map):
         entry.add(version)
         reverse_map[index] = entry
 
-    indices = reverse_map.keys()
+    indices = list(reverse_map.keys())
     indices.sort()
-    print "---Version map---"
+    print("---Version map---")
     for index in indices:
-        print "%i:" % index
+        print("%i:" % index)
         for version in reverse_map[index]:
-            print "   ", version
+            print("   ", version)
 
 # Only compares first 12 digits so full ids can be compared
 # against short ones.
@@ -461,18 +461,18 @@ def check_result(result_a, result_b):
     for outer in range(0, 2):
         for inner in range(0, len(result_a[outer])):
             if result_a[outer][inner][:12] != result_b[outer][inner][:12]:
-                print "MISMATCH:"
-                print result_a
-                print result_b
+                print("MISMATCH:")
+                print(result_a)
+                print(result_b)
                 assert False
 
 def dump_changesets(repo):
     """ Print all the changesets in a repo. """
-    print "---"
+    print("---")
     max_rev = repo['tip'].rev()
     for rev in range(-1, max_rev + 1):
-        print hex_version(repo, rev)
-    print "---"
+        print(hex_version(repo, rev))
+    print("---")
 # There are many, many ways to fail.
 # More testing would be good.
 
@@ -539,8 +539,8 @@ def test_rollup():
     edges = graph.update(repo, ui_, ['2f6c65f64ce5', ], cache)
     set_chks(graph, edges, chks)
 
-    print
-    print graph_to_string(graph)
+    print()
+    print(graph_to_string(graph))
     version_map = build_version_table(graph, repo)
 
     dump_version_map(version_map)
@@ -548,20 +548,20 @@ def test_rollup():
 
     graph.rep_invariant(repo, True) # Verify contiguousness.
 
-    print "From earliest..."
+    print("From earliest...")
     for index in range(0, graph.latest_index + 1):
         parents, heads = get_rollup_bounds(graph, repo, 0, index, version_map)
-        print "(%i->%i): %s" % (0, index, versions_str(heads))
-        print "       ", versions_str(parents)
+        print("(%i->%i): %s" % (0, index, versions_str(heads)))
+        print("       ", versions_str(parents))
 
 
-    print "To latest..."
+    print("To latest...")
     for index in range(0, graph.latest_index + 1):
         parents, heads = get_rollup_bounds(graph, repo, index,
                                            graph.latest_index,
                                            version_map)
-        print "(%i->%i): %s" % (index, graph.latest_index, versions_str(heads))
-        print "       ", versions_str(parents)
+        print("(%i->%i): %s" % (index, graph.latest_index, versions_str(heads)))
+        print("       ", versions_str(parents))
 
 
     # Empty
@@ -570,7 +570,7 @@ def test_rollup():
                           version_map)
     except AssertionError:
         # Asserted as expected for to_index == FIRST_INDEX
-        print "Got expected assertion."
+        print("Got expected assertion.")
 
     # Rollup of one changeset index.
     result = get_rollup_bounds(graph, repo, 0, 0, version_map)
@@ -591,13 +591,13 @@ def test_rollup():
 
     # Rollup with head pulled in from earlier base.
     result = get_rollup_bounds(graph, repo, 3, 8, version_map)
-    print result
+    print(result)
     check_result(result, (('4409936ef21f', '62a72a238ffc', ),
                           ('03c047d036ca', '7429bf7b11f5')))
 
     # Rollup after remerge to a single head.
     result = get_rollup_bounds(graph, repo, 0, 9, version_map)
-    print result
+    print(result)
     check_result(result, (('000000000000', ), ('2f6c65f64ce5', )))
 
 if __name__ == "__main__":

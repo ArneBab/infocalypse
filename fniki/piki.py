@@ -29,7 +29,7 @@ from os import path, environ
 from socket import gethostbyaddr
 from time import localtime, strftime
 # NOTE: cStringIO doesn't work for unicode.
-from StringIO import StringIO
+from io import StringIO
 import fileoverlay
 filefuncs = None
 
@@ -80,8 +80,8 @@ def scrub(link_text, ss_class=None, force=False):
     return link_text
 
 def emit_header():
-    print "Content-type: text/html; charset=utf-8"
-    print
+    print("Content-type: text/html; charset=utf-8")
+    print()
 
 # Regular expression defining a WikiWord (but this definition
 # is also assumed in other places.
@@ -98,24 +98,24 @@ def get_scriptname():
     return environ.get('SCRIPT_NAME', '')
 
 def send_title(text, link=None, msg=None, is_forked=False):
-    print "<head><title>%s</title>" % text
+    print("<head><title>%s</title>" % text)
     if css_url:
-        print '<link rel="stylesheet" type="text/css" href="%s">' % \
-              scrub(css_url)
-    print "</head>"
-    print '<body><h1>'
+        print('<link rel="stylesheet" type="text/css" href="%s">' % \
+              scrub(css_url))
+    print("</head>")
+    print('<body><h1>')
     if get_logo_string():
-        print link_tag('RemoteChanges', get_logo_string())
+        print(link_tag('RemoteChanges', get_logo_string()))
     if link:
         classattr = ''
         if is_forked:
             classattr = ' class="forkedtitle" '
-        print '<a%s href="%s">%s</a>' % (classattr, scrub(link), text)
+        print('<a%s href="%s">%s</a>' % (classattr, scrub(link), text))
     else:
-        print text
-    print '</h1>'
-    if msg: print msg
-    print '<hr>'
+        print(text)
+    print('</h1>')
+    if msg: print(msg)
+    print('<hr>')
 
 def link_tag(params, text=None, ss_class=None):
     if text is None:
@@ -149,12 +149,12 @@ def do_fullsearch(needle):
     hits.sort()
     hits.reverse()
 
-    print "<UL>"
+    print("<UL>")
     for (count, page_name) in hits:
-        print '<LI>' + Page(page_name).link_to()
-        print ' . . . . ' + `count`
-        print ['match', 'matches'][count <> 1]
-    print "</UL>"
+        print('<LI>' + Page(page_name).link_to())
+        print(' . . . . ' + repr(count))
+        print(['match', 'matches'][count != 1])
+    print("</UL>")
 
     print_search_stats(len(hits), len(all_pages))
 
@@ -167,19 +167,19 @@ def do_titlesearch(needle):
 
     needle_re = re.compile(needle, re.IGNORECASE)
     all_pages = page_list()
-    hits = filter(needle_re.search, all_pages)
+    hits = list(filter(needle_re.search, all_pages))
 
-    print "<UL>"
+    print("<UL>")
     for filename in hits:
-        print '<LI>' + Page(filename).link_to()
-    print "</UL>"
+        print('<LI>' + Page(filename).link_to())
+    print("</UL>")
 
     print_search_stats(len(hits), len(all_pages))
 
 
 def print_search_stats(hits, searched):
-    print "<p>%d hits " % hits
-    print " out of %d pages searched." % searched
+    print("<p>%d hits " % hits)
+    print(" out of %d pages searched." % searched)
 
 
 def do_edit(pagename):
@@ -246,14 +246,13 @@ def do_deletelocal(pagename):
     send_title("Removed Local Edits", None,
                "Removed local edits to %s page." %
                pagename)
-    print "Local changes to %s have been deleted. <p>" % Page(
-        pagename).link_to()
-    print "Here's a link to the %s." % Page('FrontPage').link_to()
+    print("Local changes to %s have been deleted. <p>" % Page(
+        pagename).link_to())
+    print("Here's a link to the %s." % Page('FrontPage').link_to())
 
 def make_index_key():
     s = '<p><center>'
-    links = map(lambda ch: '<a href="#%s">%s</a>' % (ch, ch),
-                string.lowercase)
+    links = ['<a href="#%s">%s</a>' % (ch, ch) for ch in string.lowercase]
     s = s + string.join(links, ' | ')
     s = s + '</center><p>'
     return s
@@ -261,10 +260,10 @@ def make_index_key():
 
 def page_list(include_versioned=False):
     if include_versioned:
-        return filter(versioned_page_re.match,
-                      filefuncs.list_pages(text_dir))
-    return filter(word_anchored_re.match,
-                  filefuncs.list_pages(text_dir))
+        return list(filter(versioned_page_re.match,
+                      filefuncs.list_pages(text_dir)))
+    return list(filter(word_anchored_re.match,
+                  filefuncs.list_pages(text_dir)))
 
 # ----------------------------------------------------------
 # Macros
@@ -275,7 +274,7 @@ def _macro_FullSearch():
     return _macro_search("fullsearch")
 
 def _macro_search(type):
-    if form.has_key('value'):
+    if 'value' in form:
         default = form["value"].value.encode('utf8')
     else:
         default = ''
@@ -302,12 +301,12 @@ def _macro_WordIndex():
             except KeyError:
                 map[word] = [name]
 
-    all_words = map.keys()
+    all_words = list(map.keys())
     all_words.sort()
     last_letter = None
     for word in all_words:
         letter = string.lower(word[0])
-        if letter <> last_letter:
+        if letter != last_letter:
             s = s + '<a name="%s"><h3>%s</h3></a>' % (letter, letter)
             last_letter = letter
 
@@ -332,7 +331,7 @@ def _macro_TitleIndex():
     current_letter = None
     for name in pages:
         letter = string.lower(name[0])
-        if letter <> current_letter:
+        if letter != current_letter:
             s = s + '<a name="%s"><h3>%s</h3></a>' % (letter, letter)
             current_letter = letter
         else:
@@ -363,7 +362,7 @@ def get_unmerged_versions(overlay, wikitext_dir, page_names):
         # hmmmm... validate?
         ret[fields[0].strip()].add(fields[1].strip())
 
-    for name in ret.keys()[:]: # hmmm copy required?
+    for name in list(ret.keys())[:]: # hmmm copy required?
         ret[name] = list(ret[name])
         ret[name].sort()
 
@@ -440,7 +439,7 @@ def _macro_RemoteChanges():
                 continue
             if index == len(words) - 1:
                 # Special case forked files.
-                wiki_names = change.keys()
+                wiki_names = list(change.keys())
                 wiki_names.sort()
 
                 tmps.append("%s:%s" % (words[index],
@@ -482,7 +481,7 @@ def _macro_RemoteChanges():
         # year, month, day, DoW
         time_tuple = time.gmtime(float(entry[1]))
         day = tuple(time_tuple[0:3])
-        if day <> ratchet_day:
+        if day != ratchet_day:
             #buf.write('<h3>%s</h3>' % strftime(date_fmt, time_tuple))
             buf.write('<h3>%s</h3>' % strftime(date_fmt, time_tuple))
             ratchet_day = day
@@ -495,7 +494,7 @@ def _macro_RemoteChanges():
 def _macro_BookMark():
     try:
         usk, desc, link_name = read_info()
-    except ValueError, err:
+    except ValueError as err:
         return "[BookMark macro failed: %s]" % str(err.args[0])
 
     if not scrub_links:
@@ -513,7 +512,7 @@ def _macro_FreesiteUri():
             fields[-2] = '-' + fields[-2]
             usk = '/'.join(fields)
 
-    except ValueError, err:
+    except ValueError as err:
         return "[FreesiteUri macro failed: %s]" % str(err.args[0])
 
     if not scrub_links:
@@ -657,7 +656,7 @@ class PageFormatter:
     def _macro_repl(self, word):
         macro_name = word[2:-2]
         # TODO: Somehow get the default value into the search field
-        return apply(globals()['_macro_' + macro_name], ())
+        return globals()['_macro_' + macro_name](*())
 
     def _tablerow_repl(self, word):
         if word[0:2] == '||':
@@ -714,7 +713,7 @@ class PageFormatter:
                     + r")")
 
                     for match in span_re.finditer(line):
-                        for type, hit in match.groupdict().items():
+                        for type, hit in list(match.groupdict().items()):
                             if hit:
                                 if type == 'colspan':
                                     colspan = colspan + int(match.group('csval')) - 1
@@ -774,7 +773,7 @@ class PageFormatter:
 
     def table_replace(self, match):
         replaced = ''
-        for type, hit in match.groupdict().items():
+        for type, hit in list(match.groupdict().items()):
             if hit:
                 if type == 'tableborder' or type == 'tdborder':
                     replaced = 'border-style:solid;border-width:'+match.group('borderval')+';'
@@ -821,14 +820,14 @@ class PageFormatter:
         return res
 
     def replace(self, match):
-        for type, hit in match.groupdict().items():
+        for type, hit in list(match.groupdict().items()):
             if hit:
                 replaced = ''
                 if self.in_table == 1 and type != 'tablerow':
                     replaced = self._tablerow_repl(hit)
-                return replaced + apply(getattr(self, '_' + type + '_repl'), (hit,))
+                return replaced + getattr(self, '_' + type + '_repl')(*(hit,))
         else:
-            raise "Can't handle match " + `match`
+            raise "Can't handle match " + repr(match)
 
     def return_html(self):
         returnval = ''
@@ -874,7 +873,7 @@ class PageFormatter:
         return returnval
 
     def print_html(self):
-        print self.return_html()
+        print(self.return_html())
 
 # ----------------------------------------------------------
 class Page:
@@ -922,7 +921,7 @@ class Page:
     def get_raw_body(self, unmodified=False):
         try:
             return filefuncs.read(self._text_filename(), 'rb', unmodified)
-        except IOError, er:
+        except IOError as er:
             if er.errno == errno.ENOENT:
                 # just doesn't exist, use default
                 return 'Describe %s here.' % self.page_name
@@ -944,9 +943,9 @@ class Page:
             PageFormatter(self.get_raw_body(unmodified), allow_images).print_html()
         else:
             if removed:
-                print "<b>Already resolved.</b>"
+                print("<b>Already resolved.</b>")
             elif resolved:
-                print "<b>Locally marked resolved.</b>"
+                print("<b>Locally marked resolved.</b>")
             else:
                 PageFormatter(self.get_raw_body(unmodified), allow_images).print_html()
 
@@ -960,18 +959,18 @@ class Page:
                     unmodified=False):
 
         base = get_scriptname()
-        print '<hr>'
+        print('<hr>')
         if is_read_only(data_dir, self.page_name):
-            print "<em>The bot owner has marked this page read only.</em>"
-            print (('<br><a href="%s?viewunmodifiedsource=%s">'  %
-                    (base, self.page_name)) + '[View page source]</a><br>')
+            print("<em>The bot owner has marked this page read only.</em>")
+            print((('<br><a href="%s?viewunmodifiedsource=%s">'  %
+                    (base, self.page_name)) + '[View page source]</a><br>'))
             return
 
         if unmodified:
-            print ("<em>Read only original version " +
-                   "of a locally modified page.</em>")
-            print (('<br><a href="%s?viewunmodifiedsource=%s">'  %
-                    (base, self.page_name)) + '[View page source]</a><br>')
+            print(("<em>Read only original version " +
+                   "of a locally modified page.</em>"))
+            print((('<br><a href="%s?viewunmodifiedsource=%s">'  %
+                    (base, self.page_name)) + '[View page source]</a><br>'))
             return
 
         if versioned:
@@ -980,59 +979,59 @@ class Page:
                 return
 
             if filefuncs.has_overlay(page_path):
-                print (('<br><a href="%s?unmodified=%s">' % (base,
+                print((('<br><a href="%s?unmodified=%s">' % (base,
                                                              self.page_name)) +
-                       '[Show original version]</a><br>')
-                print (('<a href="%s?deletelocal=%s">' % (base,
+                       '[Show original version]</a><br>'))
+                print((('<a href="%s?deletelocal=%s">' % (base,
                                                           self.page_name)) +
-                       '[Mark unresolved, without confirmation!]</a><br>')
+                       '[Mark unresolved, without confirmation!]</a><br>'))
 
             else:
                 if filefuncs.exists(page_path, True):
-                    print "<em>This is an unmerged fork of another page!</em>"
-                    print (('<br><a href="%s?viewsource=%s">' %
+                    print("<em>This is an unmerged fork of another page!</em>")
+                    print((('<br><a href="%s?viewsource=%s">' %
                             (base, self.page_name)) +
-                           '[View page source]</a><br>')
-                    print (('<br><a href="%s?removepage=%s">' %
+                           '[View page source]</a><br>'))
+                    print((('<br><a href="%s?removepage=%s">' %
                             (base, self.page_name)) +
                            '[Locally mark resolved, ' +
-                           'without confirmation!]</a><br>')
+                           'without confirmation!]</a><br>'))
 
-            print "<p><em>Wiki dir: %s </em>" % data_dir
+            print("<p><em>Wiki dir: %s </em>" % data_dir)
             return
 
         if not page_path is None and filefuncs.has_overlay(page_path):
-            print "<strong>This page has local edits!</strong><br>"
+            print("<strong>This page has local edits!</strong><br>")
 
         if not page_path is None:
             name = os.path.split(page_path)[1]
             fork_table = get_unmerged_versions(filefuncs, text_dir,
                                                (name,))
             if len(fork_table[name]) > 0:
-                print ("<strong>This page has forks: %s!</strong><br>"  %
-                       get_fork_html(filefuncs, text_dir, name, fork_table))
+                print(("<strong>This page has forks: %s!</strong><br>"  %
+                       get_fork_html(filefuncs, text_dir, name, fork_table)))
 
-        print link_tag('?edit=%s' %  name, 'EditText')
-        print "of this page"
+        print(link_tag('?edit=%s' %  name, 'EditText'))
+        print("of this page")
         if mod_string:
-            print "(last modified %s)" % mod_string
-        print '<br>'
-        print link_tag('FindPage?value=%s' %  name, 'FindPage')
-        print " by browsing, searching, or an index"
+            print("(last modified %s)" % mod_string)
+        print('<br>')
+        print(link_tag('FindPage?value=%s' %  name, 'FindPage'))
+        print(" by browsing, searching, or an index")
 
         if page_path is None:
-            print "<p><em>Wiki dir: %s </em>" % data_dir
+            print("<p><em>Wiki dir: %s </em>" % data_dir)
             return
 
         if filefuncs.has_overlay(page_path):
-            print (('<br><a href="%s?unmodified=%s">' % (base, name)) +
-                   '[Show original version]</a><br>')
-            print (('<a href="%s?removepage=%s">' % (base, name)) +
-                   '[Locally delete this page without confirmation!]</a><br>')
-            print (('<a href="%s?deletelocal=%s">' % (base, name)) +
-                   '[Undo local edits without confirmation!]</a><br>')
+            print((('<br><a href="%s?unmodified=%s">' % (base, name)) +
+                   '[Show original version]</a><br>'))
+            print((('<a href="%s?removepage=%s">' % (base, name)) +
+                   '[Locally delete this page without confirmation!]</a><br>'))
+            print((('<a href="%s?deletelocal=%s">' % (base, name)) +
+                   '[Undo local edits without confirmation!]</a><br>'))
 
-        print "<p><em>Wiki dir: %s </em>" % data_dir
+        print("<p><em>Wiki dir: %s </em>" % data_dir)
 
 
     def send_page(self, msg=None, unmodified=False):
@@ -1062,23 +1061,23 @@ class Page:
 
         send_title(title + self.split_title())
         # IMPORTANT: Ask browser to send us utf8
-        print '<form method="post" action="%s" accept-charset="UTF-8">' % (get_scriptname())
-        print '<input type=hidden name="savepage" value="%s">' % \
-              (self.page_name)
+        print('<form method="post" action="%s" accept-charset="UTF-8">' % (get_scriptname()))
+        print('<input type=hidden name="savepage" value="%s">' % \
+              (self.page_name))
         # Encode outgoing raw wikitext into utf8
         raw_body = string.replace(self.get_raw_body(unmodified),
                                   '\r\n', '\n')
-        print """<textarea wrap="virtual" name="savetext" rows="17"
+        print("""<textarea wrap="virtual" name="savetext" rows="17"
                  cols="120" %s >%s</textarea>""" % (
-                 read_only_value, raw_body)
+                 read_only_value, raw_body))
         if not read_only:
-            print """<br><input type=submit value="Save">
+            print("""<br><input type=submit value="Save">
                      <input type=reset value="Reset">
-                  """
-        print "<br>"
-        print "</form>"
+                  """)
+        print("<br>")
+        print("</form>")
         if not read_only:
-            print "<p>" + Page('EditingTips').link_to()
+            print("<p>" + Page('EditingTips').link_to())
 
     def _write_file(self, text):
         filefuncs.write(self._text_filename(), text, 'wb')
@@ -1123,14 +1122,14 @@ def serve_one_page():
                      'deletelocal': do_deletelocal,
                      'removepage':  do_removepage}
 
-        for cmd in handlers.keys():
-            if form.has_key(cmd):
-                apply(handlers[cmd], (form[cmd].value.decode('utf8'),))
+        for cmd in list(handlers.keys()):
+            if cmd in form:
+                handlers[cmd](*(form[cmd].value.decode('utf8'),))
                 break
         else:
             path_info = environ.get('PATH_INFO', '')
 
-            if form.has_key('goto'):
+            if 'goto' in form:
                 query = form['goto'].value.decode('utf8')
             elif len(path_info) and path_info[0] == '/':
                 query = path_info[1:] or 'FrontPage'
@@ -1147,7 +1146,7 @@ def serve_one_page():
                     word = "%s_%s" % (word, word_match.group('version'))
                 Page(word).send_page()
             else:
-                print "<p>Can't work out query \"<pre>" + query + "</pre>\""
+                print("<p>Can't work out query \"<pre>" + query + "</pre>\"")
 
     except:
         cgi.print_exception()
@@ -1183,7 +1182,7 @@ def make_fork_list(versioned_names):
         entry.append(version)
         table[wiki_name] = entry
 
-    for value in table.values():
+    for value in list(table.values()):
         value.sort()
 
     return table
@@ -1289,19 +1288,19 @@ class FreenetPage(Page):
     def send_footer(self, versioned, dummy_mod_string=None,
                     page_path=None,
                     dummy_unmodified=False):
-        print "<hr>"
-        print "%s %s %s" % (link_tag('FrontPage', 'FrontPage'),
+        print("<hr>")
+        print("%s %s %s" % (link_tag('FrontPage', 'FrontPage'),
                             link_tag('TitleIndex', 'TitleIndex'),
-                            link_tag('WordIndex', 'WordIndex'))
+                            link_tag('WordIndex', 'WordIndex')))
         if not page_path is None and not versioned:
             name = os.path.split(page_path)[1]
             fork_table = get_unmerged_versions(filefuncs, text_dir,
                                                (name,))
             if len(fork_table[name]) > 0:
-                print (("<hr><strong>This page has forks: %s! " %
+                print((("<hr><strong>This page has forks: %s! " %
                         get_fork_html(filefuncs, text_dir, name, fork_table))
                        +
-                       "Please consider merging them.</strong><br>")
+                       "Please consider merging them.</strong><br>"))
 
 def reset_root_dir(root_dir, overlayed=False):
     global data_dir, text_dir, filefuncs
@@ -1324,7 +1323,7 @@ def reset_root_dir(root_dir, overlayed=False):
 CFG_FILE = 'fnwiki.cfg'
 WIKIROOT = 'wiki_root'
 # REDFLAG: Hacks to make this work in windows binary mercurial distro?
-from ConfigParser import ConfigParser
+from configparser import ConfigParser
 def set_data_dir_from_cfg(base_path=None):
     if base_path is None:
         # REDFLAG: test on windoze.
@@ -1371,7 +1370,7 @@ def dump(output_dir, wiki_root, overlayed=False):
             try:
                 page = FreenetPage(name)
                 sys.stdout = out
-                print '<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">'
+                print('<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">')
                 page.send_page()
                 sys.stdout.flush()
                 out.close()
@@ -1417,5 +1416,5 @@ if __name__ == "__main__" or __name__ == "__builtin__":
         serve_one_page()
     finally:
         sys.stdout = real_out
-        print buf.getvalue().encode('utf8')
+        print(buf.getvalue().encode('utf8'))
 

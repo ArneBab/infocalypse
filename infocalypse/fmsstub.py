@@ -4,8 +4,8 @@ import stat
 import time
 import traceback
 
-from fms import MSG_TEMPLATE
-from fcpconnection import make_id
+from .fms import MSG_TEMPLATE
+from .fcpconnection import make_id
 
 def read_msg(full_path, default_sender, default_subject, default_group):
     article_num = os.stat(full_path)[stat.ST_MTIME]
@@ -51,7 +51,7 @@ def read_msg(full_path, default_sender, default_subject, default_group):
 FAKE_TRUST = 65 # Trust value returned for all queries.
 class NNTPStub:
     def quit(self):
-        print "NNTPStub.quit -- called."
+        print("NNTPStub.quit -- called.")
         traceback.print_stack()
         #raise Exception("DCI: forcing stack trace")
     def shortcmd(self, cmd):
@@ -74,7 +74,7 @@ class FMSStub:
 
     def send_msgs(self, dummy_server, msg_tuples, send_quit=False):
         if not os.path.exists(self.base_dir):
-            print "FMSStub.send_msg -- THE MESSAGE SPOOL DIR DOESN'T EXIST!"
+            print("FMSStub.send_msg -- THE MESSAGE SPOOL DIR DOESN'T EXIST!")
             raise IOError("Message spool directory doesn't exist.")
 
         for msg_tuple in msg_tuples:
@@ -83,9 +83,9 @@ class FMSStub:
             # print "sender_lut: ", self.sender_lut
             sender = self.sender_lut.get(msg_tuple[0].split('@')[0],
                                          msg_tuple[0])
-            print "sender: ", sender
+            print("sender: ", sender)
             if sender != msg_tuple[0]:
-                print "fmsstub: FIXED UP %s->%s" % (msg_tuple[0], sender)
+                print("fmsstub: FIXED UP %s->%s" % (msg_tuple[0], sender))
 
             if sender.find('@') == -1:
                 raise IOError("Couldn't fixup fms_id: %s. Add it to the LUT."
@@ -119,8 +119,8 @@ class FMSStub:
                                             name))[stat.ST_MTIME]
 
             if mod_time in by_mtime:
-                print "The msg ID hack in FMSStub failed!!!"
-                print "MANUALLY DELETE MSG FILE: ", name
+                print("The msg ID hack in FMSStub failed!!!")
+                print("MANUALLY DELETE MSG FILE: ", name)
 
             assert not mod_time in by_mtime
             by_mtime[mod_time] = name
@@ -129,7 +129,7 @@ class FMSStub:
             #print "BAILING OUT, no files."
             return
 
-        times = by_mtime.keys()
+        times = list(by_mtime.keys())
         times.sort()
         if times[-1] <= max_articles[self.group]:
             #print "BAILING OUT, no new files."
@@ -148,7 +148,7 @@ class FMSStub:
                 continue
 
             if not msg_sink.wants_msg(self.group, items):
-                print "fmsstub: Rejected by sink: %s" % by_mtime[mod_time]
+                print("fmsstub: Rejected by sink: %s" % by_mtime[mod_time])
                 continue
 
             msg_sink.recv_fms_msg(self.group, items, items[-2])

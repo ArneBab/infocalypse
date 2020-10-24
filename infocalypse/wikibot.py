@@ -26,30 +26,30 @@ import time
 
 from mercurial import ui, hg, commands
 
-from fcpmessage import GET_DEF, PUT_COMPLEX_DIR_DEF
-from fcpclient import parse_progress, get_file_infos, \
+from .fcpmessage import GET_DEF, PUT_COMPLEX_DIR_DEF
+from .fcpclient import parse_progress, get_file_infos, \
      set_index_file, dir_data_source
 
-from requestqueue import QueueableRequest, RequestQueue
+from .requestqueue import QueueableRequest, RequestQueue
 
-from validate import is_hex_string
-from chk import ENCODED_CHK_SIZE
-from fms import TrustCache, to_msg_string
-from fmsbot import FMSBot
-from submission import ForkingSubmissionHandler, \
+from .validate import is_hex_string
+from .chk import ENCODED_CHK_SIZE
+from .fms import TrustCache, to_msg_string
+from .fmsbot import FMSBot
+from .submission import ForkingSubmissionHandler, \
      REJECT_NOTRUST, REJECT_FCPFAIL, REJECT_APPLIED
 
-from bundlecache import BundleCache, is_writable, make_temp_file
-from updatesm import UpdateContext, UpdateStateMachine, QUIESCENT, FINISHING
-from infcmds import UICallbacks, set_debug_vars
+from .bundlecache import BundleCache, is_writable, make_temp_file
+from .updatesm import UpdateContext, UpdateStateMachine, QUIESCENT, FINISHING
+from .infcmds import UICallbacks, set_debug_vars
 
 # freesite insert stuff
-from statemachine import StatefulRequest
-from sitecmds import dump_wiki_html
+from .statemachine import StatefulRequest
+from .sitecmds import dump_wiki_html
 
-from wikibotctx import WikiBotContext, context_to_str
+from .wikibotctx import WikiBotContext, context_to_str
 
-from pathhacks import add_parallel_sys_path
+from .pathhacks import add_parallel_sys_path
 add_parallel_sys_path('fniki')
 
 HTML_DUMP_DIR = '__html_dump_deletable__'
@@ -88,8 +88,8 @@ def parse_submission(fms_id, lines, usk_hash):
 
         Returns None if no submission could be parsed.
     """
-    print "LINES:"
-    print lines
+    print("LINES:")
+    print(lines)
     for line in lines:
         if not line.startswith('W:'):
             continue
@@ -185,7 +185,7 @@ class WikiBot(FMSBot, RequestQueue):
         self.applier.base_dir = os.path.join(self.repo.root,
                                              self.params['WIKI_ROOT'])
 
-        print "BASE_DIR:", self.applier.base_dir
+        print("BASE_DIR:", self.applier.base_dir)
         
         # 2qt?
         self.applier.notify_needs_commit = (
@@ -204,7 +204,7 @@ class WikiBot(FMSBot, RequestQueue):
                 self.trace("on_shutdown -- removed lock file: %s"
                            % self.parent.get_path(self, 'pid'))
 
-            except IOError, err:
+            except IOError as err:
                 self.warn("on_shutdown -- err: %s" % str(err))
 
         self._send_status_notification('STOPPED')

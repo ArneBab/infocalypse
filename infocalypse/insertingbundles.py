@@ -20,14 +20,14 @@
     Author: djk@isFiaD04zgAgnrEC5XJt1i4IE7AkNPqhBG5bONi6Yks
 """
 
-from graph import UpToDate, INSERT_SALTED_METADATA, INSERT_HUGE, \
+from .graph import UpToDate, INSERT_SALTED_METADATA, INSERT_HUGE, \
      FREENET_BLOCK_LEN, build_version_table, get_heads, \
      PENDING_INSERT1
-from graphutil import graph_to_string, find_redundant_edges, \
+from .graphutil import graph_to_string, find_redundant_edges, \
      find_alternate_edges, get_huge_top_key_edges
-from bundlecache import BundleException
+from .bundlecache import BundleException
 
-from statemachine import RequestQueueState
+from .statemachine import RequestQueueState
 
 # REDFLAG: duplicated to get around circular deps.
 INSERTING_GRAPH = 'INSERTING_GRAPH'
@@ -95,7 +95,7 @@ class InsertingBundles(RequestQueueState):
         # Update graph.
         try:
             self.set_new_edges(graph)
-        except UpToDate, err:
+        except UpToDate as err:
             # REDFLAG: Later, add FORCE_INSERT parameter?
             # REDFLAG: rework UpToDate exception to include versions, stuff
             #      versions in  ctx?
@@ -140,7 +140,7 @@ class InsertingBundles(RequestQueueState):
     def leave(self, dummy):
         """ Implementation of State virtual. """
         # Hmmm...
-        for request in self.pending.values():
+        for request in list(self.pending.values()):
             self.parent.runner.cancel_request(request)
 
     def reset(self):

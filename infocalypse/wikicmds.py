@@ -20,24 +20,24 @@
 """
 
 import os
-import StringIO
+import io
 
 from binascii import hexlify
 
 from mercurial import util
 
-from config import write_default_config, read_freesite_cfg, normalize
-from submission import bundle_wikitext, unbundle_wikitext, get_info, \
+from .config import write_default_config, read_freesite_cfg, normalize
+from .submission import bundle_wikitext, unbundle_wikitext, get_info, \
      NoChangesError, validate_wikitext
-from hgoverlay import HgFileOverlay
-from infcmds import setup, run_until_quiescent, cleanup
-from statemachine import StatefulRequest
-from fcpmessage import PUT_FILE_DEF, GET_DEF
-from graph import FREENET_BLOCK_LEN, has_version
-from updatesm import QUIESCENT, FINISHING, RUNNING_SINGLE_REQUEST
-from bundlecache import make_temp_file
+from .hgoverlay import HgFileOverlay
+from .infcmds import setup, run_until_quiescent, cleanup
+from .statemachine import StatefulRequest
+from .fcpmessage import PUT_FILE_DEF, GET_DEF
+from .graph import FREENET_BLOCK_LEN, has_version
+from .updatesm import QUIESCENT, FINISHING, RUNNING_SINGLE_REQUEST
+from .bundlecache import make_temp_file
 # HACK
-from pathhacks import add_parallel_sys_path
+from .pathhacks import add_parallel_sys_path
 add_parallel_sys_path('fniki')
 
 import servepiki
@@ -203,7 +203,7 @@ def execute_wiki_apply(ui_, repo, params, stored_cfg):
                         final_msg[2]
             assert request.response[0] == 'AllData'
             ui_.status("Fetched %i byte submission.\n" % len(raw_bytes))
-            base_ver, submitter = get_info(StringIO.StringIO(raw_bytes))
+            base_ver, submitter = get_info(io.StringIO(raw_bytes))
             ui_.status("Base version: %s, Submitter: %s (unverifiable!)\n"
                        % (base_ver[:12], submitter))
 
@@ -231,7 +231,7 @@ def execute_wiki_apply(ui_, repo, params, stored_cfg):
             overlay.version = base_ver
             validate_wikitext(overlay)
             updates = unbundle_wikitext(overlay,
-                                        StringIO.StringIO(raw_bytes))
+                                        io.StringIO(raw_bytes))
             for index, label in enumerate(('CREATED', 'MODIFIED', 'REMOVED',
                                            'ALREADY PATCHED')):
                 if len(updates[index]) > 0:

@@ -20,7 +20,7 @@
 """
 
 
-from topkey import top_key_tuple_to_bytes, bytes_to_top_key_tuple, \
+from .topkey import top_key_tuple_to_bytes, bytes_to_top_key_tuple, \
      dump_top_key_tuple
 
 BAD_CHK1 = ('CHK@badroutingkey155JblbGup0yNSpoDJgVPnL8E5WXoc,'

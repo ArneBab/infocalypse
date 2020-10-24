@@ -21,10 +21,10 @@
 
 import random
 
-from graph import MAX_PATH_LEN, block_cost, print_list, canonical_path_itr, \
+from .graph import MAX_PATH_LEN, block_cost, print_list, canonical_path_itr, \
      build_version_table
 
-from graphutil import get_rollup_bounds
+from .graphutil import get_rollup_bounds
 # This is the maximum allowed ratio of allowed path block cost
 # to minimum full update block cost.
 # It is used in low_block_cost_edges() to determine when a
@@ -281,11 +281,11 @@ def get_update_edges(graph, from_index, redundancy, shuffle_redundancy=False,
 
 def dump_update_edges(first, second, all_edges):
     """ Debugging function to print update edges. """
-    print "--- update edges --- "
+    print("--- update edges --- ")
     print_list("known edges  :", all_edges)
     print_list("first choice :", first)
     print_list("second choice:", second)
-    print "---"
+    print("---")
 
 def get_top_key_updates(graph, repo, version_table=None):
     """ Returns the update tuples needed to build the top key."""
@@ -332,7 +332,7 @@ def get_top_key_updates(graph, repo, version_table=None):
 
     for head in ret[0][2]:
         if not head in result[1]:
-            print "Expected head not in all_heads!", head[:12]
+            print("Expected head not in all_heads!", head[:12])
             assert False
 
     #top_update = list(ret[0])

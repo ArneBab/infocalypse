@@ -40,17 +40,17 @@ import shutil
 import sys
 import unittest
 
-from infcmds import UICallbacks, run_until_quiescent
-from fcpconnection import PolledSocket, FCPConnection
-from fcpclient import FCPClient
-from requestqueue import RequestRunner
-from statemachine import State
-from archivesm import ArchiveStateMachine, ArchiveUpdateContext, \
+from .infcmds import UICallbacks, run_until_quiescent
+from .fcpconnection import PolledSocket, FCPConnection
+from .fcpclient import FCPClient
+from .requestqueue import RequestRunner
+from .statemachine import State
+from .archivesm import ArchiveStateMachine, ArchiveUpdateContext, \
      create_dirs, start, InsertingRedundantBlocks, RequestingRedundantBlocks, \
      chk_file_name
 
-from updatesm import FAILING, FINISHING, QUIESCENT
-from graph import FREENET_BLOCK_LEN
+from .updatesm import FAILING, FINISHING, QUIESCENT
+from .graph import FREENET_BLOCK_LEN
 
 TEST_BASE = '/tmp'
 TEST_ROOT = '__block_test_run__'
@@ -105,13 +105,13 @@ BAD_CHKS = bad_chk_itr()
 def break_primary(chks):
     chks = list(chks)
     assert len(chks) > 0
-    chks[0] = BAD_CHKS.next()
+    chks[0] = next(BAD_CHKS)
     return chks
 
 def break_redundant(chks):
     chks = list(chks)
     assert len(chks) > 0
-    chks[-1] = BAD_CHKS.next()
+    chks[-1] = next(BAD_CHKS)
     return chks
 
 # Not sure that this will work.
@@ -122,7 +122,7 @@ class FakeUI:
     def status(self, text):
         if text.endswith('\n'):
             text = text[:-1]
-            print text
+            print(text)
 
 class HoldingBlocks(State):
     """ State to hold blocks for testing RequestingRedundantBlocks """
@@ -134,7 +134,7 @@ class HoldingBlocks(State):
     def enter(self, dummy_from_state):
         """ State implemenation. """
 
-        print self.blocks
+        print(self.blocks)
         self.parent.transition(self.next_state)
 
     def reset(self):
@@ -197,20 +197,20 @@ class RedundancyTests(unittest.TestCase):
 
 
     def checkCHK(self, chk, logical_len, length, data=None):
-        print "---"
-        print "Checking: ", chk
+        print("---")
+        print("Checking: ", chk)
         # Something is closing the connection?
         resp = FCPClient.connect(FCP_HOST, FCP_PORT).get(chk)
         self.assertTrue(resp[0] == 'AllData')
-        print "Length: ", len(resp[2])
-        print "Mime_Type: ", resp[1]['Metadata.ContentType']
+        print("Length: ", len(resp[2]))
+        print("Mime_Type: ", resp[1]['Metadata.ContentType'])
         if len(resp[2]) != length:
-            print "Expected len: %i, got: %i!" % (length, len(resp[2]))
+            print("Expected len: %i, got: %i!" % (length, len(resp[2])))
             self.assertTrue(False)
         if not data is None and resp[2][:logical_len] != data:
-            print "Data doesn't match! (only showing first 16 bytes below)"
-            print "got: ", repr(resp[2][:logical_len][:16])
-            print "expected: " , repr(data[:16])
+            print("Data doesn't match! (only showing first 16 bytes below)")
+            print("got: ", repr(resp[2][:logical_len][:16]))
+            print("expected: " , repr(data[:16]))
             self.assertTrue(False)
 
     def _testCheckCHK(self):
@@ -223,7 +223,7 @@ class RedundancyTests(unittest.TestCase):
     def test_inserting(self):
         # Takes longer to insert existing blocks?
         offset = random.randrange(0, 256)
-        print "offset: ", offset
+        print("offset: ", offset)
         lengths = (FREENET_BLOCK_LEN - 1,
                    FREENET_BLOCK_LEN,
                    FREENET_BLOCK_LEN + 1,
@@ -267,9 +267,9 @@ class RedundancyTests(unittest.TestCase):
 
         blocks = update_sm.states['TEST_STATE'].files
         for index, entry in enumerate(blocks):
-            print "block [%i]: len: %i" % (index, entry[1])
+            print("block [%i]: len: %i" % (index, entry[1]))
             for chk in entry[2]:
-                print "   ", chk
+                print("   ", chk)
 
         # FREENET_BLOCK_LEN - 1, first is unpadded
         self.checkCHK(blocks[0][2][0], blocks[0][1], blocks[0][1],
@@ -349,7 +349,7 @@ class RedundancyTests(unittest.TestCase):
                 full_path = os.path.join(ctx.arch_cache_dir(),
                                          chk_file_name(chk))
                 if os.path.exists(full_path):
-                    print "Already cached: ", chk
+                    print("Already cached: ", chk)
                     self.assertTrue(False)
 
 
@@ -360,19 +360,19 @@ class RedundancyTests(unittest.TestCase):
                 full_path = os.path.join(ctx.arch_cache_dir(),
                                          chk_file_name(chk))
                 if os.path.exists(full_path):
-                    print "%s: CACHED" % str((index, ordinal))
+                    print("%s: CACHED" % str((index, ordinal)))
                     self.assertTrue(os.path.getsize(full_path) ==
                                     block[0])
                     count += 1
                 else:
-                    print "%s: MISSING" % str((index, ordinal))
+                    print("%s: MISSING" % str((index, ordinal)))
             self.assertTrue(count > 0)
 
 
     # REQUIRES: test_inserting run first.
     def test_requesting_all(self):
         if not 'FILE_BLOCKS' in SHARED_STATE:
-            print "You must run test_inserting() before this test."
+            print("You must run test_inserting() before this test.")
             self.assertTrue(False)
 
         ctx, update_sm, start_state = self.setup_request_sm()
@@ -393,7 +393,7 @@ class RedundancyTests(unittest.TestCase):
 
     def test_requesting_primary(self):
         if not 'FILE_BLOCKS' in SHARED_STATE:
-            print "You must run test_inserting() before this test."
+            print("You must run test_inserting() before this test.")
             self.assertTrue(False)
 
         ctx, update_sm, start_state = self.setup_request_sm()
@@ -414,7 +414,7 @@ class RedundancyTests(unittest.TestCase):
 
     def test_requesting_redundant(self):
         if not 'FILE_BLOCKS' in SHARED_STATE:
-            print "You must run test_inserting() before this test."
+            print("You must run test_inserting() before this test.")
             self.assertTrue(False)
 
         ctx, update_sm, start_state = self.setup_request_sm()
