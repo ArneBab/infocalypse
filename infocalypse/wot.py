@@ -1,8 +1,8 @@
 import fcp
 from mercurial import util
-from .config import Config
+from . import config
 import xml.etree.ElementTree as ET
-from defusedxml.ElementTree import fromstring
+import defusedxml.ElementTree
 import smtplib
 import atexit
 from .keys import USK
@@ -33,7 +33,7 @@ def send_pull_request(ui, repo, from_identity, to_identity, to_repo_name, mailho
     from_address = require_freemail(from_identity)
     to_address = require_freemail(to_identity)
 
-    cfg = Config.from_ui(ui)
+    cfg = config.Config.from_ui(ui)
     password = cfg.get_freemail_password(from_identity)
 
     to_repo = find_repo(ui, to_identity, to_repo_name)
@@ -102,7 +102,7 @@ def check_notifications(ui, local_identity, mailhost=None, imapport=None):
     address = require_freemail(local_identity)
 
     # Log in and open inbox.
-    cfg = Config.from_ui(ui)
+    cfg = config.Config.from_ui(ui)
     host = mailhost or cfg.defaults['HOST']
     port = imapport or FREEMAIL_IMAP_PORT
     imap = imaplib.IMAP4(host, port)
@@ -165,7 +165,7 @@ def read_message_yaml(ui, from_address, subject, body):
     end_token = '...'
     yaml_end = body.rfind(end_token)
 
-    cfg = Config.from_ui(ui)
+    cfg = config.Config.from_ui(ui)
 
     if not yaml_end == -1:
         # Better to point to the end of the end token, but don't confuse
@@ -245,7 +245,7 @@ def update_repo_listing(ui, for_identity, fcphost=None, fcpport=None):
     # TODO: Somehow store the edition, perhaps in ~/.infocalypse. WoT
     # properties are apparently not appropriate.
 
-    cfg = Config.from_ui(ui)
+    cfg = config.Config.from_ui(ui)
 
     # TODO: WoT property containing repo list edition. Used when requesting.
     # Version number to support possible format changes.
@@ -278,7 +278,7 @@ def update_repo_listing(ui, for_identity, fcphost=None, fcpport=None):
     else:
         ui.status("Updated repository listing:\n{0}\n".format(uri))
         cfg.set_repo_list_edition(for_identity, USK(uri).edition)
-        Config.to_file(cfg)
+        config.Config.to_file(cfg)
 
 
 def build_repo_list(ui, for_identity):
@@ -289,13 +289,13 @@ def build_repo_list(ui, for_identity):
     :param ui: to provide feedback
     :param for_identity: local WoT identity to list repos for.
     """
-    config = Config.from_ui(ui)
+    cfg = config.Config.from_ui(ui)
 
     repos = []
 
     # Add request URIs associated with the given identity.
-    for request_uri in config.request_usks.values():
-        if config.get_wot_identity(request_uri) == for_identity.identity_id:
+    for request_uri in cfg.request_usks.values():
+        if cfg.get_wot_identity(request_uri) == for_identity.identity_id:
             repos.append(request_uri)
 
     return repos
@@ -330,7 +330,7 @@ def read_repo_listing(ui, identity, fcphost=None, fcpport=None):
     
     TODO: get host and port from config
     """
-    cfg = Config.from_ui(ui)
+    cfg = config.Config.from_ui(ui)
     uri = identity.request_uri.clone()
     uri.name = 'vcs'
     uri.edition = cfg.get_repo_list_edition(identity)
@@ -341,11 +341,11 @@ def read_repo_listing(ui, identity, fcphost=None, fcpport=None):
     ui.status("Fetched {0}.\n".format(uri))
 
     cfg.set_repo_list_edition(identity, uri.edition)
-    Config.to_file(cfg)
+    config.Config.to_file(cfg)
 
     repositories = {}
     ambiguous = []
-    root = fromstring(repo_xml)
+    root = ElementTree.fromstring(repo_xml)
     for repository in root.iterfind('repository'):
         if repository.get('vcs') == VCS_NAME:
             uri = USK(repository.text)
@@ -484,18 +484,21 @@ def resolve_push_uri(ui, path, resolve_edition=True, fcphost=None, fcpport=None)
     where the identity is a local one. (Such that the insert URI is known.)
     """
     # Expecting <id stuff>/repo_name
-    wot_id, repo_name = path.split('/', 1)
-    local_id = Local_WoT_ID(wot_id,
+    wot_id, repo_name = path.split(b'/', 1)
+    local_id = Local_WoT_ID(wot_id.decode("utf-8"),
                             fcpopts=get_fcpopts(fcphost=fcphost,
                                                 fcpport=fcpport))
 
+    print("wot_id, repo_name, local_id", wot_id, repo_name, local_id) # bytes, bytes, string
     if resolve_edition:
         # TODO: find_repo should make it clearer that it returns a request URI,
         # and return a USK.
         repo = find_repo(ui, local_id, repo_name)
-
+        print("repo", repo)
+        
         # Request URI
         repo_uri = USK(repo)
+        print("repo_uri", repo_uri)
 
         # Maintains name, edition.
         repo_uri.key = local_id.insert_uri.key
@@ -503,6 +506,8 @@ def resolve_push_uri(ui, path, resolve_edition=True, fcphost=None, fcpport=None)
         return str(repo_uri)
     else:
         repo_uri = local_id.insert_uri.clone()
+        print("local_id.insert_uri", local_id.insert_uri)
+        print("repo_uri", repo_uri)
 
         repo_uri.name = repo_name
         repo_uri.edition = 0
@@ -516,12 +521,12 @@ def execute_setup_wot(ui_, local_id):
 
     :type local_id: Local_WoT_ID
     """
-    cfg = Config.from_ui(ui_)
+    cfg = config.Config.from_ui(ui_)
 
     ui_.status("Setting default truster to {0}.\n".format(local_id))
 
     cfg.defaults['DEFAULT_TRUSTER'] = local_id.identity_id
-    Config.to_file(cfg)
+    config.Config.to_file(cfg)
 
 
 def execute_setup_freemail(ui, local_id, mailhost=None, smtpport=None):
@@ -539,7 +544,7 @@ def execute_setup_freemail(ui, local_id, mailhost=None, smtpport=None):
 
     ui.status("Checking password for {0}.\n".format(local_id))
 
-    cfg = Config.from_ui(ui)
+    cfg = config.Config.from_ui(ui)
     host = mailhost or cfg.defaults['HOST']
     port = smtpport or FREEMAIL_SMTP_PORT
     
@@ -556,5 +561,5 @@ def execute_setup_freemail(ui, local_id, mailhost=None, smtpport=None):
                          .format(e.smtp_error))
 
     cfg.set_freemail_password(local_id, password)
-    Config.to_file(cfg)
+    config.Config.to_file(cfg)
     ui.status("Password set.\n")

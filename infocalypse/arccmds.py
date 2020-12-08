@@ -23,7 +23,7 @@ from mercurial import util
 
 from .fcpclient import get_version, get_usk_for_usk_version, is_usk_file, is_usk
 
-from .config import Config
+from . import config
 from .infcmds import setup, do_key_setup, is_redundant, run_until_quiescent
 from .updatesm import QUIESCENT, FINISHING
 from .archivesm import create_dirs, ArchiveUpdateContext, \
@@ -90,7 +90,7 @@ def arc_handle_updating_config(update_sm, params, stored_cfg,
         # uri too when it doesn't match the insert uri. Ok for now.
         # Only for usks and only on success.
         #print "UPDATED STORED CONFIG(0)"
-        Config.to_file(stored_cfg)
+        config.Config.to_file(stored_cfg)
 
     else:
         # Only finishing required. same. REDFLAG: look at this again
@@ -106,7 +106,7 @@ def arc_handle_updating_config(update_sm, params, stored_cfg,
         stored_cfg.update_index(updated_uri, version)
         stored_cfg.update_dir(base_dir, updated_uri)
         #print "UPDATED STORED CONFIG(1)"
-        Config.to_file(stored_cfg)
+        config.Config.to_file(stored_cfg)
 
 
 def execute_arc_create(ui_, params, stored_cfg):

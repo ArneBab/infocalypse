@@ -221,19 +221,19 @@ class FileInfoDataSource(IDataSource):
 #-----------------------------------------------------------#
 
 # REDFLAG:  Use a common regex?  Not sure that would cut loc...
-USK_FILE_REGEX = re.compile('(freenet:)?(USK).*/((\\-)?[0-9]+[0-9]*)$')
+USK_FILE_REGEX = re.compile(b'(freenet:)?(USK).*/((\\-)?[0-9]+[0-9]*)$')
 def is_usk_file(uri):
     """ Returns True if uri points to a single file, False otherwise. """
     return bool(USK_FILE_REGEX.match(uri))
 
-USK_CONTAINER_REGEX = re.compile('(freenet:)?(USK).*/((\\-)?[0-9]+[0-9]*)/$')
+USK_CONTAINER_REGEX = re.compile(b'(freenet:)?(USK).*/((\\-)?[0-9]+[0-9]*)/$')
 def is_usk_container(uri):
     """ Return True if uri is USK uri which points to a Freenet
         Container, False otherwise.
     """
     return bool(USK_CONTAINER_REGEX.match(uri))
 
-KEY_TYPE_REGEX = re.compile('(freenet:)?(?P<key_type>CHK|KSK|SSK|USK)@')
+KEY_TYPE_REGEX = re.compile(b'(freenet:)?(?P<key_type>CHK|KSK|SSK|USK)@')
 def key_type(uri):
     """ Returns the key type. """
 
@@ -244,23 +244,23 @@ def key_type(uri):
 
 def is_chk(uri):
     """ Returns True if the URI is a CHK key, False otherwise. """
-    return key_type(uri) == 'CHK'
+    return key_type(uri) == b'CHK'
 
 def is_ksk(uri):
     """ Returns True if the URI is a KSK key, False otherwise. """
-    return key_type(uri) == 'KSK'
+    return key_type(uri) == b'KSK'
 
 def is_ssk(uri):
     """ Returns True if the URI is a SSK key, False otherwise. """
-    return key_type(uri) == 'SSK'
+    return key_type(uri) == b'SSK'
 
 def is_usk(uri):
     """ Returns True if the URI is a USK key, False otherwise. """
-    return key_type(uri) == 'USK'
+    return key_type(uri) == b'USK'
 
 # LATER: fix regex to work for SSKs too.
-VERSION_REGEX = re.compile('(?P<usk>USK)@(.*)/(?P<version>'
-                           + '(\\-)?[0-9]+[0-9]*)(/.*)?')
+VERSION_REGEX = re.compile(b'(?P<usk>USK)@(.*)/(?P<version>'
+                           + b'(\\-)?[0-9]+[0-9]*)(/.*)?')
 def get_version(uri):
     """ Return the version index of USK.
 
@@ -284,8 +284,8 @@ def get_ssk_for_usk_version(usk_uri, version):
     if not match:
         raise Exception("Couldn't parse version from USK: %s" % usk_uri)
 
-    return 'SSK' + usk_uri[match.end('usk') : match.start('version') - 1] \
-           + '-' + str(version) + usk_uri[match.end('version'):]
+    return b'SSK' + usk_uri[match.end('usk') : match.start('version') - 1] \
+           + b'-' + str(version).encode("utf-8") + usk_uri[match.end('version'):]
 
 def get_usk_for_usk_version(usk_uri, version, negative = False):
     """ Return an USK for a specific version of a USK.
@@ -299,7 +299,7 @@ def get_usk_for_usk_version(usk_uri, version, negative = False):
         raise Exception("Couldn't parse version from USK: %s" % usk_uri)
     if negative and version > 0:
         version = -1 * version
-    version_str = str(version)
+    version_str = str(version).encode("utf-8")
     if version == 0 and negative:
         version_str = '-0'
         # BITCH:
@@ -307,7 +307,7 @@ def get_usk_for_usk_version(usk_uri, version, negative = False):
         # encourage implementers to jam the version into an integer.
         # i.e. because you can't represent the version with an integer
         # because -0 == 0.
-    assert not negative or version_str.find('-') > -1
+    assert not negative or version_str.find(b'-') > -1
 
     return usk_uri[0 : match.start('version')] \
            + version_str + usk_uri[match.end('version'):]
@@ -321,7 +321,7 @@ def is_negative_usk(usk_uri):
     match = VERSION_REGEX.match(usk_uri)
     if not match:
         raise Exception("Couldn't parse version from USK: %s" % usk_uri)
-    return match.groupdict()['version'].find('-') > -1
+    return match.groupdict()['version'].find(b'-') > -1
 
 def get_negative_usk(usk_uri):
     """ Return an USK with a negative version index.
@@ -770,9 +770,9 @@ def package_metadata(metadata):
     """
     return "%s;%s,%s,%s" % (HG_MIME_TYPE, metadata[0], metadata[1], metadata[2])
 
-CHANGESET_REGEX = re.compile('.*;\s*([0-9a-fA-F]{40,40})\s*,'
-                              + '\s*([0-9a-fA-F]{40,40})\s*,'
-                              + '\s*([0-9a-fA-F]{40,40})')
+CHANGESET_REGEX = re.compile(b'.*;\s*([0-9a-fA-F]{40,40})\s*,'
+                              + b'\s*([0-9a-fA-F]{40,40})\s*,'
+                              + b'\s*([0-9a-fA-F]{40,40})')
 def parse_metadata(msg):
     """ INTERNAL: Parse the (base_rev, first_rev, tip) info out of the
         Metadata.ContentType field of msg.

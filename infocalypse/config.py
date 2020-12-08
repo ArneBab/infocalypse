@@ -25,8 +25,11 @@ import sys
 
 from .fcpclient import get_usk_hash, is_usk_file, get_version, \
      get_usk_for_usk_version
-from .knownrepos import DEFAULT_TRUST, DEFAULT_GROUPS, \
-     DEFAULT_NOTIFICATION_GROUP
+
+from . import knownrepos
+DEFAULT_TRUST = knownrepos.DEFAULT_TRUST
+DEFAULT_GROUPS = knownrepos.DEFAULT_GROUPS
+DEFAULT_NOTIFICATION_GROUP = knownrepos.DEFAULT_NOTIFICATION_GROUP
 
 from .validate import is_hex_string, is_fms_id
 

@@ -33,7 +33,7 @@ from .pathhacks import add_parallel_sys_path
 add_parallel_sys_path('fniki')
 import piki
 
-from .config import write_default_config
+from . import config
 
 def get_insert_uri(params):
     """ Helper function builds the insert URI. """
@@ -148,7 +148,7 @@ def execute_putsite(ui_, repo, params):
 
 
     if params.get('SITE_CREATE_CONFIG', False):
-        write_default_config(ui_, repo)
+        config.write_default_config(ui_, repo)
         return
 
     # Remove trailing /
@@ -184,11 +184,11 @@ def genkeypair(fcphost, fcpport):
     client = FCPClient.connect(fcphost, fcpport)
     client.message_callback = lambda x, y : None # silence.
     resp = client.generate_ssk()
-    return resp[1]['InsertURI'], resp[1]['RequestURI']
+    return resp[1][b'InsertURI'], resp[1][b'RequestURI']
 
 def execute_genkey(ui_, params):
     """ Run the genkey command. """
-    insert, request = genkeypair(params['FCP_HOST'], params['FCP_PORT'])
+    insert, request = genkeypair(params[b'FCP_HOST'], params[b'FCP_PORT'])
     ui_.status(MSG_FMT % (insert, request,
-                          insert.split('/')[0] +'/',
-                          "U" + insert.split('/')[0][1:] +'/NAME.R1/0'))
+                          insert.split(b'/')[0] +b'/',
+                          b"U" + insert.split(b'/')[0][1:] +b'/NAME.R1/0'))

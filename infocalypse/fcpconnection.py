@@ -59,7 +59,7 @@ try:
     from hashlib import sha1
     def sha1_hexdigest(bytes):
         """ Return the SHA1 hexdigest of bytes using the hashlib module. """
-        return sha1(bytes.encode('utf8')).hexdigest().encode("utf-8")
+        return sha1(bytes).hexdigest().encode("utf-8")
 except ImportError:
     # Fall back so that code still runs on pre 2.6 systems.
     import sha
@@ -100,7 +100,7 @@ def example_state_callback(dummy, state):
 
 def make_id():
     """ INTERNAL: Make a unique id string. """
-    return sha1_hexdigest(str(random.random()) + str(time.time()))
+    return sha1_hexdigest(str(random.random()).encode("utf-8") + str(time.time()).encode("utf-8"))
 
 #-----------------------------------------------------------#
 # Byte level socket handling
@@ -553,8 +553,7 @@ class FCPConnection:
 
         self.socket.write_bytes(make_request(client.in_params.definition,
                                              client.in_params.fcp_params,
-                                             client.in_params.
-                                             default_fcp_params))
+                                             client.in_params.default_fcp_params))
 
         if write_string:
             self.socket.write_bytes(client.in_params.send_data)

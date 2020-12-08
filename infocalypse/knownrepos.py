@@ -42,7 +42,7 @@ def build_trust_list(id_usk_list):
     table = {}
     for fms_id, usk in id_usk_list:
         hashes = table.get(fms_id, [])
-        usk_hash = get_usk_hash(usk)
+        usk_hash = get_usk_hash(usk.encode("utf-8"))
         if not usk_hash in hashes:
             hashes.append(usk_hash)
         table[fms_id] = hashes

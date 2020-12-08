@@ -32,7 +32,8 @@ from .knownrepos import KNOWN_REPOS
 from .fms import recv_msgs, to_msg_string, MSG_TEMPLATE, send_msgs, \
      USKNotificationParser, show_table, get_connection
 
-from .config import Config, trust_id_for_repo, untrust_id_for_repo, known_hashes
+from . import config
+
 from .infcmds import do_key_setup, setup, cleanup, execute_insert_patch
 from .wikicmds import execute_wiki_submit
 
@@ -79,18 +80,18 @@ def dump_trust_map(ui_, params, trust_map, force=False):
 def handled_trust_cmd(ui_, params, stored_cfg):
     """ INTERNAL: Handle --trust, --untrust and --showtrust. """
     if params['FMSREAD'] == 'trust':
-        if trust_id_for_repo(stored_cfg.fmsread_trust_map,
+        if config.trust_id_for_repo(stored_cfg.fmsread_trust_map,
                              params['FMSREAD_FMSID'],
                              params['FMSREAD_HASH']):
             ui_.status("Updated the trust map.\n")
-            Config.to_file(stored_cfg)
+            config.Config.to_file(stored_cfg)
         return True
     elif params['FMSREAD'] == 'untrust':
-        if untrust_id_for_repo(stored_cfg.fmsread_trust_map,
+        if config.untrust_id_for_repo(stored_cfg.fmsread_trust_map,
                                params['FMSREAD_FMSID'],
                                params['FMSREAD_HASH']):
             ui_.status("Updated the trust map.\n")
-            Config.to_file(stored_cfg)
+            config.Config.to_file(stored_cfg)
         return True
 
     elif params['FMSREAD'] == 'showtrust':
@@ -147,7 +148,7 @@ def execute_fmsread(ui_, params, stored_cfg):
     # IMPORTANT: Must include versions that are in the trust map
     #            but which we haven't seen before.
     full_version_table = stored_cfg.version_table.copy()
-    for usk_hash in known_hashes(trust_map):
+    for usk_hash in config.known_hashes(trust_map):
         if not usk_hash in full_version_table:
             full_version_table[usk_hash] = None # works
 
@@ -182,7 +183,7 @@ def execute_fmsread(ui_, params, stored_cfg):
     for usk_hash in changed:
         stored_cfg.update_index(usk_hash, changed[usk_hash])
 
-    Config.to_file(stored_cfg)
+    config.Config.to_file(stored_cfg)
     ui_.status('Saved updated indices.\n')
 
 
@@ -320,7 +321,7 @@ def check_trust_map(ui_, stored_cfg, repo_hash, notifiers, trusted_notifiers):
             if result is None:
                 raise util.Abort("Interactive input required.")
             elif result == 'y':
-                trust_id_for_repo(stored_cfg.fmsread_trust_map, fms_id,
+                config.trust_id_for_repo(stored_cfg.fmsread_trust_map, fms_id,
                                   repo_hash)
                 added = True
                 break
@@ -335,7 +336,7 @@ def check_trust_map(ui_, stored_cfg, repo_hash, notifiers, trusted_notifiers):
     if not added:
         raise util.Abort("No trusted notifiers!")
 
-    Config.to_file(stored_cfg)
+    config.Config.to_file(stored_cfg)
     ui_.status("Saved updated config file.\n\n")
 
 # Broke into a separate function to appease pylint.
@@ -459,7 +460,7 @@ def connect_to_fms(ui_, fms_host, fms_port, timeout):
 # Passing opts instead of separate args to get around pylint
 # warning about long arg list.
 def get_fms_args(cfg, opts):
-    """ INTERNAL: Helper to extract args from Config/mercurial opts. """
+    """ INTERNAL: Helper to extract args from config.Config/mercurial opts. """
     def false_to_none(value):
         """ INTERNAL: Return None if not bool(value),  value otherwise. """
         if value:
@@ -534,7 +535,7 @@ def setup_fms_config(ui_, cfg, opts):
 
 def execute_setupfms(ui_, opts):
     """ Execute the fn-setupfms command. """
-    cfg = Config.from_ui(ui_)
+    cfg = config.Config.from_ui(ui_)
     result = setup_fms_config(ui_, cfg, opts)
     if result:
         cfg.defaults['FMS_ID'] = result[2]
@@ -545,7 +546,7 @@ fms_id = %s
 fms_host = %s
 fms_port = %i
 """ % (result[2], result[0], result[1]))
-        Config.to_file(cfg)
+        config.Config.to_file(cfg)
     else:
         ui_.warn("""
 Run:

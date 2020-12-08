@@ -51,9 +51,11 @@ from .archivesm import ArchiveStateMachine, ArchiveUpdateContext
 
 from .statemachine import StatefulRequest
 
-from .config import Config, DEFAULT_CFG_PATH, FORMAT_VERSION, normalize
+from . import config
 
-from .knownrepos import DEFAULT_TRUST, DEFAULT_GROUPS
+from . import knownrepos
+DEFAULT_TRUST = knownrepos.DEFAULT_TRUST
+DEFAULT_GROUPS = knownrepos.DEFAULT_GROUPS
 
 DEFAULT_PARAMS = {
     # FCP params
@@ -193,13 +195,13 @@ def get_config_info(ui_, opts):
     """ INTERNAL: Read configuration info out of the config file and
         or command line options. """
 
-    cfg = Config.from_ui(ui_)
-    if cfg.defaults['FORMAT_VERSION'] != FORMAT_VERSION:
+    cfg = config.Config.from_ui(ui_)
+    if cfg.defaults['FORMAT_VERSION'] != config.FORMAT_VERSION:
         ui_.warn((b'Updating config file: %s\n'
                   + b'From format version: %s\nTo format version: %s\n') %
                  (cfg.file_name,
-                  cfg.defaults['FORMAT_VERSION'],
-                  FORMAT_VERSION))
+                  cfg.defaults['config.FORMAT_VERSION'],
+                  config.FORMAT_VERSION))
 
         # Hacks to clean up variables that were set wrong.
         if not cfg.fmsread_trust_map:
@@ -208,7 +210,7 @@ def get_config_info(ui_, opts):
         if not cfg.fmsread_groups or cfg.fmsread_groups == ['', ]:
             ui_.warn('Set default fmsread groups.\n')
             cfg.fmsread_groups = DEFAULT_GROUPS
-        Config.to_file(cfg)
+        config.Config.to_file(cfg)
         ui_.warn('Converted OK.\n')
 
     if opts.get('fcphost') != '':
@@ -282,7 +284,7 @@ def setup(ui_, repo, params, stored_cfg):
     check_uri(ui_, params.get('INSERT_URI'))
     check_uri(ui_, params.get('REQUEST_URI'))
 
-    if not is_writable(os.path.expanduser(stored_cfg.defaults['TMP_DIR'])):
+    if not is_writable(os.path.expanduser(stored_cfg.defaults['TMP_DIR'].encode("utf-8"))):
         raise error.Abort(b"Can't write to temp dir: %s\n"
                          % stored_cfg.defaults['TMP_DIR'])
 
@@ -294,7 +296,7 @@ def setup(ui_, repo, params, stored_cfg):
 
     if not repo is None:
         # BUG:? shouldn't this be reading TMP_DIR from stored_cfg
-        cache = BundleCache(repo, ui_, params['TMP_DIR'])
+        cache = BundleCache(repo, ui_, params['TMP_DIR'].encode("utf-8"))
 
     try:
         async_socket = PolledSocket(params['FCP_HOST'], params['FCP_PORT'])
@@ -329,7 +331,7 @@ def setup(ui_, repo, params, stored_cfg):
     update_sm.monitor_callback = callbacks.monitor_callback
 
     # Modify only after copy.
-    update_sm.params['FREENET_BUILD'] = runner.connection.node_hello[1]['Build']
+    update_sm.params[b'FREENET_BUILD'] = runner.connection.node_hello[1][b'Build']
 
     return update_sm
 
@@ -383,15 +385,15 @@ def cleanup(update_sm):
 def do_key_setup(ui_, update_sm, params, stored_cfg):
     """ INTERNAL:  Handle inverting/updating keys before running a command."""
     insert_uri = params.get('INSERT_URI')
-    if not insert_uri is None and insert_uri.startswith('USK@/'):
-        insert_uri = ('USK'
-                      + stored_cfg.defaults['DEFAULT_PRIVATE_KEY'][3:]
+    if not insert_uri is None and insert_uri.startswith(b'USK@/'):
+        insert_uri = (b'USK'
+                      + stored_cfg.defaults['DEFAULT_PRIVATE_KEY'][3:].encode("utf-8")
                       + insert_uri[5:])
         ui_.status(b"Filled in the insert URI using the default private key.\n")
 
     if insert_uri is None or not (is_usk(insert_uri) or is_ssk(insert_uri)):
         return (params.get('REQUEST_URI'), False)
-
+    
     update_sm.start_inverting(insert_uri)
     run_until_quiescent(update_sm, params['POLL_SECS'], False)
     if update_sm.get_state(QUIESCENT).prev_state != INVERTING_URI:
@@ -464,7 +466,7 @@ def handle_updating_config(repo, update_sm, params, stored_cfg,
         # uri too when it doesn't match the insert uri. Ok for now.
         # Only for usks and only on success.
         #print "UPDATED STORED CONFIG(0)"
-        Config.to_file(stored_cfg)
+        config.Config.to_file(stored_cfg)
 
     else:
         # Only finishing required. same. REDFLAG: look at this again
@@ -481,7 +483,7 @@ def handle_updating_config(repo, update_sm, params, stored_cfg,
         stored_cfg.update_index(updated_uri, version)
         stored_cfg.update_dir(repo.root, updated_uri)
         #print "UPDATED STORED CONFIG(1)"
-        Config.to_file(stored_cfg)
+        config.Config.to_file(stored_cfg)
 
 def is_redundant(uri):
     """ Return True if uri is a file USK and ends in '.R1',
@@ -739,7 +741,7 @@ def execute_info(ui_, repo, params, stored_cfg):
         ui_.status(b"Only works with USK file URIs.\n")
         return
 
-    usk_hash = normalize(request_uri)
+    usk_hash = config.normalize(request_uri)
     max_index = stored_cfg.get_index(request_uri)
     if max_index is None:
         ui_.status(NO_INFO_FMT % usk_hash)
@@ -828,7 +830,7 @@ def execute_setup(ui_, host, port, tmp, cfg_file = None):
         port = 9481
 
     if cfg_file is None:
-        cfg_file = os.path.expanduser(DEFAULT_CFG_PATH)
+        cfg_file = os.path.expanduser(config.DEFAULT_CFG_PATH)
 
     existing_name = ui_.config(b'infocalypse', b'cfg_file', None)
     if not existing_name is None:
@@ -884,12 +886,12 @@ def execute_setup(ui_, host, port, tmp, cfg_file = None):
         # Horked.
         connection_failure("\nSocket level error.\n")
 
-    cfg = Config()
+    cfg = config.Config()
     cfg.defaults['HOST'] = host
     cfg.defaults['PORT'] = port
     cfg.defaults['TMP_DIR'] = tmp
     cfg.defaults['DEFAULT_PRIVATE_KEY'] = default_private_key
-    Config.to_file(cfg, cfg_file)
+    config.Config.to_file(cfg, cfg_file)
 
     ui_.status(b"""\nFinished setting configuration.
 FCP host: %s
@@ -980,7 +982,7 @@ def execute_insert_patch(ui_, repo, params, stored_cfg):
             ui_.status(b"Patch CHK:\n%s\n" %
                        chk)
             # ':', '|' not in freenet base64
-            ret = b':'.join((b'B', normalize(params['REQUEST_URI']), str(chk_len).encode("utf8"),
+            ret = b':'.join((b'B', config.normalize(params['REQUEST_URI']), str(chk_len).encode("utf8"),
                             ':'.join([base[:12] for base in freenet_heads]),
                             b'|', ':'.join([head[:12] for head in heads]), chk))
 

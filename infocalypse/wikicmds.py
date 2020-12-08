@@ -26,7 +26,7 @@ from binascii import hexlify
 
 from mercurial import util
 
-from .config import write_default_config, read_freesite_cfg, normalize
+from . import config
 from .submission import bundle_wikitext, unbundle_wikitext, get_info, \
      NoChangesError, validate_wikitext
 from .hgoverlay import HgFileOverlay
@@ -71,7 +71,7 @@ def execute_wiki(ui_, repo, params):
 
         create_default_wiki(os.path.join(repo.root, 'wiki_root'))
         ui_.status("Created skeleton wiki_root dir.\n")
-        write_default_config(ui_, repo, True)
+        config.write_default_config(ui_, repo, True)
         return
 
     raise util.Abort("Unsupported subcommand: " + params.get('WIKI', 'unknown'))
@@ -104,7 +104,7 @@ def execute_wiki_submit(ui_, repo, params, stored_cfg):
         version = get_hg_version(repo)
 
         params['ISWIKI'] = True
-        read_freesite_cfg(ui_, repo, params, stored_cfg)
+        config.read_freesite_cfg(ui_, repo, params, stored_cfg)
         if not params.get('OVERLAYED', False):
             raise util.Abort("Can't submit from non-overlayed wiki edits!")
         if not params.get('CLIENT_WIKI_GROUP', None):
@@ -149,10 +149,10 @@ def execute_wiki_submit(ui_, repo, params, stored_cfg):
             ui_.status("Patch CHK:\n%s\n" %
                        chk)
             # ':', '|' not in freenet base64
-            # DCI: why normalize???
+            # DCI: why config.normalize???
             # (usk_hash, base_version, chk, length)
             ret = ':'.join(('W',
-                            normalize(params['REQUEST_URI']),
+                            config.normalize(params['REQUEST_URI']),
                             version[:12],
                             chk,
                             str(len(raw_bytes))))
@@ -179,7 +179,7 @@ def execute_wiki_apply(ui_, repo, params, stored_cfg):
 
         # Get target directory.
         params['ISWIKI'] = True
-        read_freesite_cfg(ui_, repo, params, stored_cfg)
+        config.read_freesite_cfg(ui_, repo, params, stored_cfg)
 
         update_sm = setup(ui_, repo, params, stored_cfg)
 

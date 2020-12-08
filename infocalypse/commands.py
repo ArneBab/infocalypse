@@ -1,9 +1,17 @@
 from binascii import hexlify
-from mercurial import util
+from mercurial import util, error
 
-from .infcmds import get_config_info, execute_create, execute_pull, \
-    execute_push, execute_setup, execute_copy, execute_reinsert, \
-    execute_info
+from . import infcmds
+get_config_info = infcmds.get_config_info
+execute_create = infcmds.execute_create
+execute_pull = infcmds.execute_pull
+execute_push = infcmds.execute_push
+execute_setup = infcmds.execute_setup
+execute_copy = infcmds.execute_copy
+execute_reinsert = infcmds.execute_reinsert
+execute_info = infcmds.execute_info
+
+
 
 from .fmscmds import execute_fmsread, execute_fmsnotify, get_uri_from_hash, \
     execute_setupfms
@@ -13,7 +21,8 @@ from .wikicmds import execute_wiki, execute_wiki_apply
 from .arccmds import execute_arc_create, execute_arc_pull, execute_arc_push, \
     execute_arc_reinsert
 
-from .config import read_freesite_cfg, Config, normalize
+from . import config
+
 from .validate import is_hex_string, is_fms_id
 
 import os
@@ -112,15 +121,15 @@ def infocalypse_create(ui_, repo, local_identity=None, **opts):
             for directory, request_usk in stored_cfg.request_usks.items():
                 if request_usk == existing_usk:
                     if existing_dir:
-                        raise util.Abort("Configuration lists the same "
+                        raise error.Abort("config.Configuration lists the same "
                                          "request USK multiple times.")
                     existing_dir = directory
 
             assert existing_dir
 
-            existing_hash = normalize(existing_usk)
+            existing_hash = config.normalize(existing_usk)
 
-            # Config file changes will not be written until a successful insert
+            # config.Config file changes will not be written until a successful insert
             # below.
             del stored_cfg.version_table[existing_hash]
             del stored_cfg.request_usks[existing_dir]
@@ -155,7 +164,7 @@ def infocalypse_create(ui_, repo, local_identity=None, **opts):
     if inserted_to and local_identity:
         # creation returns a list of request URIs; use the first.
         stored_cfg.set_wot_identity(inserted_to[0], local_identity)
-        Config.to_file(stored_cfg)
+        config.Config.to_file(stored_cfg)
 
         from . import wot
         wot.update_repo_listing(ui_, local_identity, 
@@ -455,7 +464,7 @@ def infocalypse_putsite(ui_, repo, **opts):
                              + "insert key or CHK@.")
 
     params['ISWIKI'] = opts['wiki']
-    read_freesite_cfg(ui_, repo, params, stored_cfg)
+    config.read_freesite_cfg(ui_, repo, params, stored_cfg)
 
     try:
         # --index not required for CHK@
@@ -588,7 +597,7 @@ def get_truster(ui, repo=None, truster_identifier=None, fcpport=None, fcphost=No
     if truster_identifier:
         return wot_id.Local_WoT_ID(truster_identifier, fcpopts=fcpopts)
     else:
-        cfg = Config.from_ui(ui)
+        cfg = config.Config.from_ui(ui)
 
         # Value is identity ID, so '@' prefix makes it an identifier with an
         # empty nickname.

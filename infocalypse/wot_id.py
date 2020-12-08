@@ -1,5 +1,5 @@
 import fcp
-from mercurial import util
+from mercurial import util, error
 import string
 import atexit
 from .keys import USK
@@ -45,7 +45,7 @@ class WoT_ID(object):
             return message['Replies.{0}{1}'.format(attribute, id_num)]
 
         self.nickname = get_attribute('Nickname')
-        self.request_uri = USK(get_attribute('RequestURI'))
+        self.request_uri = USK(get_attribute('RequestURI').encode("utf-8"))
         self.identity_id = get_attribute('Identity')
 
         self.contexts = []
@@ -84,13 +84,13 @@ class WoT_ID(object):
         if not 'Freemail' in self.contexts:
             self.freemail_address = None
         else:
-            re_encode = b32encode(base64decode(self.identity_id))
+            re_encode = b32encode(base64decode(self.identity_id)).decode("utf-8")
             # Remove trailing '=' padding.
             re_encode = re_encode.rstrip('=')
 
             # Freemail addresses are lower case.
-            self.freemail_address = string.lower(self.nickname + '@' + re_encode
-                                                 + '.freemail')
+            self.freemail_address = (self.nickname + '@' + re_encode
+                                                 + '.freemail').lower()
 
         # TODO: Would it be preferable to use ui to obey quieting switches?
         if is_local_identity:
@@ -122,7 +122,7 @@ class Local_WoT_ID(WoT_ID):
         """
         id_num, message = _get_local_identity(wot_identifier, fcpopts=fcpopts)
 
-        self.insert_uri = USK(message['Replies.InsertURI{0}'.format(id_num)])
+        self.insert_uri = USK(message['Replies.InsertURI{0}'.format(id_num)].encode("utf-8"))
 
         WoT_ID.__init__(self, None, None, id_num=id_num, message=message, fcpopts=fcpopts)
 
@@ -143,7 +143,7 @@ def _request_matching_identities_lcwot(truster, context="vcs", prefix=None, fcpo
 
     # GetIdentitiesByPartialNickname does not support empty nicknames.
     if not nickname_prefix:
-        raise util.Abort(
+        raise error.Abort(
             "Partial matching in LCWoT does not support empty nicknames. Got {}"
             .format(prefix))
     
@@ -161,7 +161,7 @@ def _request_matching_identities_lcwot(truster, context="vcs", prefix=None, fcpo
 
     if response['header'] != 'FCPPluginReply' or \
             'Replies.Message' not in response:
-        raise util.Abort('Unexpected reply. Got {0}\n'.format(response))
+        raise error.Abort('Unexpected reply. Got {0}\n'.format(response))
             
     return response
             
@@ -184,7 +184,7 @@ def _request_matching_identities(truster, context="vcs", prefix=None, fcpopts={}
     
     if response['header'] != 'FCPPluginReply' or \
        'Replies.Message' not in response:
-        raise util.Abort('Unexpected reply. Got {0}\n'.format(response))
+        raise error.Abort('Unexpected reply. Got {0}\n'.format(response))
     nIDs = int(response["Replies.Identities.Amount"])
 
     def get_attribute(attribute, i, message):
@@ -229,21 +229,21 @@ def _get_identity(wot_identifier, truster, exact=False, fcpopts={}):
             if response['Replies.Message'] == 'Identities':
                 matches = response['Replies.IdentitiesMatched']
             else:
-                raise util.Abort("WoT does not support partial matching.")
-        except util.Abort:
+                raise error.Abort("WoT does not support partial matching.")
+        except error.Abort:
             all_responses = _request_matching_identities(truster, prefix=wot_identifier, fcpopts=fcpopts)
             matches = len(all_responses)
             if matches:
                 response = all_responses[0]
         
         if matches == 0:
-            raise util.Abort("No identities match '{0}'."
+            raise error.Abort("No identities match '{0}'."
                              .format(wot_identifier))
         elif matches == 1:
             return response
         else:
             # TODO: Ask the user to choose interactively (select 1, 2, 3, ...)
-            raise util.Abort("'{0}' matches more than one identity."
+            raise error.Abort("'{0}' matches more than one identity."
                              .format(wot_identifier))
 
     # exact matching requested. The key_prefix must be the complete key.
@@ -257,7 +257,7 @@ def _get_identity(wot_identifier, truster, exact=False, fcpopts={}):
 
     if response['Replies.Message'] == 'Error':
         # Searching by exact public key hash, not matching.
-        raise util.Abort("No identity has the complete public key hash '{0}'. "
+        raise error.Abort("No identity has the complete public key hash '{0}'. "
                          "({1}). Error: {2}"
                          .format(key_prefix, wot_identifier, response.get('Replies.Message', "")))
 
@@ -287,7 +287,7 @@ def _get_local_identity(wot_identifier, fcpopts={}):
     if response['header'] != 'FCPPluginReply' or \
             'Replies.Message' not in response or \
             response['Replies.Message'] != 'OwnIdentities':
-        raise util.Abort("Unexpected reply. Got {0}\n.".format(response))
+        raise error.Abort(b"Unexpected reply. Got {0}\n.".format(response))
 
     # Find nicknames starting with the supplied nickname prefix.
     prefix = 'Replies.Nickname'
@@ -314,11 +314,11 @@ def _get_local_identity(wot_identifier, fcpopts={}):
             del matches[key]
 
     if len(matches) > 1:
-        raise util.Abort("'{0}' matches more than one local identity."
+        raise error.Abort("'{0}' matches more than one local identity."
                          .format(wot_identifier))
 
     if len(matches) == 0:
-        raise util.Abort("No local identities match '{0}'."
+        raise error.Abort("No local identities match '{0}'."
                          .format(wot_identifier))
 
     assert len(matches) == 1

@@ -54,6 +54,7 @@ def format_params(params, allowed, required):
         if not field in allowed:
             raise ValueError("Illegal field [%s]." % field)
 
+    print("params, allowed, required", params, allowed, required)
     for field in allowed:
         if field in params:
             if field == b'Files':
