@@ -582,8 +582,8 @@ except AttributeError as e: # Mercurial 3.8 API change
 def findcommonoutgoing(orig, *args, **opts):
     repo = args[0]
     remoterepo = args[1]
-    capable = getattr(remoterepo, b'capable', lambda x: False)
-    if capable('infocalypse'):
+    capable = getattr(remoterepo, 'capable', lambda x: False)
+    if capable(b'infocalypse'):
         class fakeoutgoing(object):
             def __init__(self):
                 self.excluded = []
@@ -622,23 +622,23 @@ def freenetpathtouri(ui, path, operation, repo=None, truster_identifier=None, fc
     """
     # TODO: Is this the only URL encoding that may happen? Why not use a more
     # semantically meaningful function?
-    path = path.replace("%7E", "~").replace("%2C", ",")
+    path = path.replace(b"%7E", "~").replace(b"%2C", ",")
     path = strip_protocol(path)
 
     # Guess whether it's WoT. This won't work if someone has chosen their WoT
     # nick to be "USK", but this is a corner case. Using --wot will still work.
-    if not path.startswith("USK"):
+    if not path.startswith(b"USK"):
         from . import wot
-        if operation == "pull":
+        if operation == b"pull":
             truster = get_truster(ui, repo, truster_identifier)
             return wot.resolve_pull_uri(ui, path, truster, repo, fcphost=fcphost, fcpport=fcpport)
-        elif operation == "push":
+        elif operation == b"push":
             return wot.resolve_push_uri(ui, path, fcphost=fcphost, fcpport=fcpport)
-        elif operation == "clone-push":
+        elif operation == b"clone-push":
             return wot.resolve_push_uri(ui, path, resolve_edition=False, fcphost=fcphost, fcpport=fcpport)
         else:
-            raise util.Abort("Internal error: invalid operation '{0}' when "
-                             "resolving WoT-integrated URI.".format(operation))
+            raise util.Abort(b"Internal error: invalid operation '{0}' when "
+                             b"resolving WoT-integrated URI.".format(operation))
     else:
         return path
 
@@ -647,22 +647,22 @@ def freenetpull(orig, *args, **opts):
         return ui, repo, path
     def isfreenetpath(path):
         try:
-            if path.startswith("freenet:") or path.startswith("USK@"):
+            if path.startswith(b"freenet:") or path.startswith(b"USK@"):
                 return True
         except AttributeError:
             return False
         return False
     ui, repo, path = parsepushargs(*args)
     if not path:
-        path = ui.expandpath('default', b'default-push')
+        path = ui.expandpath(b'default', b'default-push')
     else:
         path = ui.expandpath(path)
     # only act differently, if the target is an infocalypse repo.
     if not isfreenetpath(path):
         return orig(*args, **opts)
-    uri = freenetpathtouri(ui, path, "pull", repo, opts.get('truster'), fcphost = opts['fcphost'], fcpport = opts['fcpport'])
-    opts["uri"] = uri
-    opts["aggressive"] = True # always search for the latest revision.
+    uri = freenetpathtouri(ui, path, b"pull", repo, opts.get(b'truster'), fcphost = opts[b'fcphost'], fcpport = opts[b'fcpport'])
+    opts[b"uri"] = uri
+    opts[b"aggressive"] = True # always search for the latest revision.
     return infocalypse_pull(ui, repo, **opts)
 
 def fixnamepart(namepart):
@@ -672,12 +672,12 @@ def fixnamepart(namepart):
     parse the short form USK@/reponame to upload to a key
     in the form USK@<key>/reponame.R1/0 - avoids the very easy
     to make error of forgetting the .R1"""
-    nameparts = namepart.split("/")
+    nameparts = namepart.split(b"/")
     name = nameparts[0]
     if nameparts[1:]: # user supplied a number
         number = nameparts[1]
     else: number = "0"
-    if not name.endswith(".R0") and not name.endswith(".R1"):
+    if not name.endswith(b".R0") and not name.endswith(b".R1"):
         name = name + ".R1"
     namepart = name + "/" + number
     return namepart
@@ -686,7 +686,7 @@ def freenetpush(orig, *args, **opts):
     def parsepushargs(ui, repo, path=None):
         return ui, repo, path
     def isfreenetpath(path):
-        if path and path.startswith(b"freenet:") or path.startswith("USK@"):
+        if path and path.startswith(b"freenet:") or path.startswith(b"USK@"):
             return True
         return False
     ui, repo, path = parsepushargs(*args)
@@ -701,8 +701,8 @@ def freenetpush(orig, *args, **opts):
     if uri is None:
         return
     # if the uri is the short form (USK@/name/#), generate the key and preprocess the uri.
-    if uri.startswith("USK@/"):
-        ui.status("creating a new key for the repo. For a new repo with an existing key, use clone.\n")
+    if uri.startswith(b"USK@/"):
+        ui.status(b"creating a new key for the repo. For a new repo with an existing key, use clone.\n")
         from .sitecmds import genkeypair
         fcphost, fcpport = opts["fcphost"], opts["fcpport"]
         if not fcphost:
@@ -728,7 +728,7 @@ def freenetclone(orig, *args, **opts):
 
     def isfreenetpath(path):
         try:
-            if path.startswith("freenet:") or path.startswith("USK@"):
+            if path.startswith(b"freenet:") or path.startswith(b"USK@"):
                 return True
         except AttributeError:
             return False
@@ -744,14 +744,14 @@ def freenetclone(orig, *args, **opts):
         else: # this is a freenet key.  It has a /# at the end and
               # could contain .R1 or .R0 as pure technical identifiers
               # which we do not need in the local name.
-            segments = source.split("/")
+            segments = source.split(b"/")
             pathindex = -2
             try:
                 int(segments[-1])
             except ValueError: # no number revision
                 pathindex = -1
             dest = segments[pathindex]
-            if dest.endswith(".R1") or dest.endswith(".R0"):
+            if dest.endswith(b".R1") or dest.endswith(b".R0"):
                 dest = dest[:-3]
 
     # TODO: source holds the "repo" argument, but the naming is confusing in
@@ -774,15 +774,15 @@ def freenetclone(orig, *args, **opts):
     elif pushuri:
         action = "create"
     else: 
-        raise util.Abort("""Can't clone without source and target. This message should not be reached. If you see it, this is a bug.""")
+        raise util.Abort(b"""Can't clone without source and target. This message should not be reached. If you see it, this is a bug.""")
 
     if action == "copy":
-        raise util.Abort("""Cloning without intermediate local repo not yet supported in the simplified commands. Use fn-copy directly.""")
+        raise util.Abort(b"""Cloning without intermediate local repo not yet supported in the simplified commands. Use fn-copy directly.""")
     
     if action == "create":
         # if the pushuri is the short form (USK@/name/#), generate the key.
-        if pushuri.startswith("USK@/"):
-            ui.status("creating a new key for the repo. To use your default key, call fn-create.\n")
+        if pushuri.startswith(b"USK@/"):
+            ui.status(b"creating a new key for the repo. To use your default key, call fn-create.\n")
             from .sitecmds import genkeypair
             fcphost, fcpport = opts["fcphost"], opts["fcpport"]
             if not fcphost:
@@ -795,7 +795,7 @@ def freenetclone(orig, *args, **opts):
             namepart = fixnamepart(namepart)
             insert, request = genkeypair(fcphost, fcpport)
             pushuri = "USK"+insert[3:]+namepart
-        elif pushuri.endswith("/0"): # initial create, catch the no-.R1 error
+        elif pushuri.endswith(b"/0"): # initial create, catch the no-.R1 error
             pass
             # this rewriting is dangerous here since it could make it
             # impossible to update old repos when they drop
@@ -804,11 +804,11 @@ def freenetclone(orig, *args, **opts):
             # the backend*. Keep it as /name/#, but add /name.Rn/0
             # backup repos. Needs going into the backend.
 
-            #namepart = pushuri.split("/")[-2] + "/0"
+            #namepart = pushuri.split(b"/")[-2] + "/0"
             #namepartpos = -len(namepart)
             #namepart2 = fixnamepart(namepart)
             # if namepart2 != namepart:
-            # ui.status("changed the repo name to " + namepart2 + " to have more redundancy and longer lifetime. This is a small tweak on infocalypse to avoid the frequent error of forgetting to add .R1 to the name. If you really want no additional redundancy for your repo, use NAME.R0 or call hg fn-create directly.\n")
+            # ui.status(b"changed the repo name to " + namepart2 + " to have more redundancy and longer lifetime. This is a small tweak on infocalypse to avoid the frequent error of forgetting to add .R1 to the name. If you really want no additional redundancy for your repo, use NAME.R0 or call hg fn-create directly.\n")
             #pushuri = pushuri[:namepartpos] + namepart
         opts["uri"] = pushuri
         repo = hg.repository(ui, ui.expandpath(source))
@@ -827,14 +827,14 @@ def freenetclone(orig, *args, **opts):
 
         # TODO: Function for adding paths? It's currently here, for pull,
         # and in WoT pull URI resolution.
-        with repo.opener("hgrc", "a", text=True) as f:
-            f.write("""[paths]
+        with repo.opener(b"hgrc", "a", text=True) as f:
+            f.write(b"""[paths]
 default-push = freenet:{0}
 """.format(pushuri))
 
     if action == "pull":
         if os.path.exists(dest):
-            raise util.Abort(_("destination " + dest + " already exists."))
+            raise util.Abort(_(b"destination " + dest + " already exists."))
         # create the repo
         req = dispatch.request(["init", dest], ui=ui)
         dispatch.dispatch(req)
@@ -861,16 +861,16 @@ commit = !$HG clt --date "$(date -u "+%Y-%m-%d %H:%M:%S +0000")" "$@"
         # second alternative: commit done at local time but with
         # timezone +0000 (could be correlated against forum entries
         # and such to find the real timezone): Leave out the -u
-        with destrepo.opener("hgrc", "a", text=True) as f:
+        with destrepo.opener(b"hgrc", "a", text=True) as f:
             f.write(_hgrc_template.format(pulluri=pulluri))
         
-        ui.warn("As basic protection, infocalypse automatically \n"
-                "  set the username 'anonymous' for commits in this repo, \n"
-                "  changed the commands `commit` and `ci` to fake UTC time \n"
-                "  and added `clt` which commits in the local timezone. \n"
-                "  To change this, edit " 
-                + str(os.path.join(destrepo.root, ".hg", "hgrc"))
-                + "\n")
+        ui.warn(b"As basic protection, infocalypse automatically \n"
+                b"  set the username 'anonymous' for commits in this repo, \n"
+                b"  changed the commands `commit` and `ci` to fake UTC time \n"
+                b"  and added `clt` which commits in the local timezone. \n"
+                b"  To change this, edit " 
+                + os.path.join(destrepo.root, b".hg", b"hgrc")
+                + b"\n")
         # and update the repo
         return hg.update(destrepo, None)
 
