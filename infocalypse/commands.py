@@ -1,9 +1,16 @@
 from binascii import hexlify
 from mercurial import util
 
-from .infcmds import get_config_info, execute_create, execute_pull, \
-    execute_push, execute_setup, execute_copy, execute_reinsert, \
-    execute_info
+
+from . import infcmds
+get_config_info = infcmds.get_config_info
+execute_create = infcmds.execute_create
+execute_pull = infcmds.execute_pull
+execute_push = infcmds.execute_push
+execute_setup = infcmds.execute_setup
+execute_copy = infcmds.execute_copy
+execute_reinsert = infcmds.execute_reinsert
+execute_info = infcmds.execute_info
 
 from .fmscmds import execute_fmsread, execute_fmsnotify, get_uri_from_hash, \
     execute_setupfms
