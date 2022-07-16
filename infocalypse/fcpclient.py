@@ -861,12 +861,12 @@ def make_search_uris(uri):
         with '.R1', a tuple containing only uri. """
     if not is_usk_file(uri):
         return (uri,)
-    fields = uri.split('/')
-    if not fields[-2].endswith('.R1'):
+    fields = uri.split(b'/')
+    if not fields[-2].endswith(b'.R1'):
         return (uri, )
     #print "make_search_uris -- is redundant"
-    fields[-2] = fields[-2][:-2] + 'R0'
-    return (uri, '/'.join(fields))
+    fields[-2] = fields[-2][:-2] + b'R0'
+    return (uri, b'/'.join(fields))
 
 def make_frozen_uris(uri, increment=True):
     """ Returns a possibly redundant SSK tuple for the 'frozen'

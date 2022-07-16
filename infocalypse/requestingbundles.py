@@ -109,8 +109,8 @@ class RequestingBundles(RetryingRequestList):
         # Catch state machine stalls.
         if (self.parent.current_state == self and
             self.is_stalled()):
-            self.parent.ctx.ui_.warn("Giving up because the state "
-                                     + "machine stalled.\n")
+            self.parent.ctx.ui_.warn(b"Giving up because the state "
+                                     + b"machine stalled.\n")
             self.parent.transition(self.failure_state)
 
     # DONT add to pending. Base class does that.
@@ -287,13 +287,13 @@ class RequestingBundles(RetryingRequestList):
             updates = self.top_key_tuple[1]
             if updates[0][5]:
                 self.freenet_heads = updates[0][2]
-                self.parent.ctx.ui_.status('Freenet heads: %s\n' %
-                                           ' '.join([ver[:12] for ver in
+                self.parent.ctx.ui_.status(b'Freenet heads: %s\n' %
+                                           b' '.join([ver[:12] for ver in
                                                      updates[0][2]]))
 
                 if self.parent.ctx.has_versions(updates[0][2]):
-                    self.parent.ctx.ui_.warn("All remote heads are already "
-                                             + "in the local repo.\n")
+                    self.parent.ctx.ui_.warn(b"All remote heads are already "
+                                             + b"in the local repo.\n")
                     self.parent.transition(self.success_state)
                     return
 
@@ -305,18 +305,18 @@ class RequestingBundles(RetryingRequestList):
                                                          -1, False, True)
 
                 if latest_queued != -1:
-                    self.parent.ctx.ui_.status("Full update is possible in a "
-                                               + "single FCP fetch. :-)\n")
+                    self.parent.ctx.ui_.status(b"Full update is possible in a "
+                                               + b"single FCP fetch. :-)\n")
 
             else:
-                self.parent.ctx.ui_.warn("Couldn't read all Freenet heads from "
-                                         + "top key.\n"
-                                         + "Dunno if you're up to date :-(\n"
-                                         + "Waiting for graph...\n")
+                self.parent.ctx.ui_.warn(b"Couldn't read all Freenet heads from "
+                                         + b"top key.\n"
+                                         + b"Dunno if you're up to date :-(\n"
+                                         + b"Waiting for graph...\n")
 
                 if len(self.top_key_tuple[0]) == 0:
-                    self.parent.ctx.ui_.warn("No graph CHKs in top key! "
-                                             + "Giving up...\n")
+                    self.parent.ctx.ui_.warn(b"No graph CHKs in top key! "
+                                             + b"Giving up...\n")
                     self.parent.transition(self.failure_state)
                     return
             # Kick off the fetch(es) for the full update graph.
@@ -418,7 +418,7 @@ class RequestingBundles(RetryingRequestList):
         #self.dump()
         self.rep_invariant()
 
-        self.parent.ctx.ui_.status("Got graph. Latest graph index: %i\n" %
+        self.parent.ctx.ui_.status(b"Got graph. Latest graph index: %i\n" %
                                    graph.latest_index)
 
     def _handle_graph_failure(self, candidate):
@@ -436,7 +436,7 @@ class RequestingBundles(RetryingRequestList):
         if self.is_stalled():
             # BUG: Kind of. We can update w/o the graph without ever reporting
             # that we couldn't get the graph.
-            self.parent.ctx.ui_.warn("Couldn't read graph from Freenet!\n")
+            self.parent.ctx.ui_.warn(b"Couldn't read graph from Freenet!\n")
             self.parent.transition(self.failure_state)
 
     def _handle_dump_canonical_paths(self, graph):
@@ -475,9 +475,9 @@ class RequestingBundles(RetryingRequestList):
                 data = in_file.read()
                 # REDFLAG: log graph?
                 if self.parent.params.get('DUMP_GRAPH', False):
-                    self.parent.ctx.ui_.status("--- Raw Graph Data ---\n")
+                    self.parent.ctx.ui_.status(b"--- Raw Graph Data ---\n")
                     self.parent.ctx.ui_.status(data)
-                    self.parent.ctx.ui_.status("\n---\n")
+                    self.parent.ctx.ui_.status(b"\n---\n")
                 graph = parse_graph(data)
                 self._handle_dump_canonical_paths(graph)
                 self._set_graph(graph)
@@ -488,8 +488,8 @@ class RequestingBundles(RetryingRequestList):
                     self.parent.ctx.ui_.status('Freenet heads: %s\n' %
                                            ' '.join([ver[:12] for ver in
                                                      self.freenet_heads]))
-                    self.parent.ctx.ui_.warn("All remote heads are already "
-                                             + "in the local repo.\n")
+                    self.parent.ctx.ui_.warn(b"All remote heads are already "
+                                             + b"in the local repo.\n")
                     self.parent.transition(self.success_state)
                     return True
                 self._reevaluate()
@@ -588,12 +588,12 @@ class RequestingBundles(RetryingRequestList):
                         candidate[1] = 0
                         self.next_candidates.insert(0, candidate)
                         #print "_handle_success -- already another running."
-                        self.parent.ctx.ui_.status(("Other salted key is "
-                                                    + "running. Didn't "
-                                                    + "requeue: %s\n")
-                                                   % str(candidate[3]))
+                        self.parent.ctx.ui_.status((b"Other salted key is "
+                                                    + b"running. Didn't "
+                                                    + b"requeue: %s\n")
+                                                   % candidate[3])
                         return
-            self.parent.ctx.ui_.status("Requeuing full download for: %s\n"
+            self.parent.ctx.ui_.status(b"Requeuing full download for: %s\n"
                               % str(candidate[3]))
             # Reset the CHK because the control bytes were zorched.
             candidate[0] = self.parent.ctx.graph.get_chk(candidate[3])
@@ -619,7 +619,7 @@ class RequestingBundles(RetryingRequestList):
         self._pull_bundle(client, msg, candidate)
         #print "_handle_success -- pulled bundle ", candidate[3]
 
-        self.parent.ctx.ui_.status("Pulled bundle: %s\n" % name)
+        self.parent.ctx.ui_.status(b"Pulled bundle: %s\n" % name)
 
         if self.parent.ctx.has_versions(self.freenet_heads):
             # Done and done!
@@ -660,7 +660,7 @@ class RequestingBundles(RetryingRequestList):
         if alternate_edge in all_edges:
             return False
 
-        self.parent.ctx.ui_.status("Queueing redundant edge: %s\n"
+        self.parent.ctx.ui_.status(b"Queueing redundant edge: %s\n"
                                % str(alternate_edge))
 
         # Order is important because this changes SaltingState.
@@ -693,7 +693,7 @@ class RequestingBundles(RetryingRequestList):
             self.finished_candidates.append(candidate)
 
         if self.is_stalled():
-            self.parent.ctx.ui_.warn("Too many failures. Gave up :-(\n")
+            self.parent.ctx.ui_.warn(b"Too many failures. Gave up :-(\n")
             self.parent.transition(self.failure_state)
 
     def _multiple_block(self, candidate):
@@ -1015,9 +1015,9 @@ class RequestingBundles(RetryingRequestList):
             """ INTERNAL: print a list of values. """
             self.parent.ctx.ui_.status(msg + '\n')
             for value in values:
-                self.parent.ctx.ui_.status("   " + str(value) + '\n')
+                self.parent.ctx.ui_.status(b"   " + str(value).encode('utf8') + b'\n')
 
-        self.parent.ctx.ui_.status("--- dumping state: " + self.name + '\n')
+        self.parent.ctx.ui_.status(b"--- dumping state: " + self.name + b'\n')
         print_list("pending_candidates", self.pending_candidates())
         print_list("current_candidates", self.current_candidates)
         print_list("next_candidates", self.next_candidates)

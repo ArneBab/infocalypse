@@ -70,7 +70,7 @@ DEFAULT_CFG_PATH = b'~/%s' % CFG_NAME
 FORMAT_VERSION = '348500df1ac6'
 def normalize(usk_or_id):
     """ Returns a USK hash. """
-    if usk_or_id.startswith('USK'):
+    if usk_or_id.startswith(b'USK'):
         usk_or_id = get_usk_hash(usk_or_id)
     return usk_or_id
 

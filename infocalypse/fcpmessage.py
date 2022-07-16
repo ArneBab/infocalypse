@@ -54,7 +54,7 @@ def format_params(params, allowed, required):
         if not field in allowed:
             raise ValueError("Illegal field [%s]." % field)
 
-    print("params, allowed, required", params, allowed, required)
+    # print("params, allowed, required", params, allowed, required)
     for field in allowed:
         if field in params:
             if field == b'Files':
@@ -66,12 +66,14 @@ def format_params(params, allowed, required):
             value = params[field]
             if not value:
                 raise ValueError("Illegal value for field [%s]." % field)
+            if isinstance(value, int):
+                value = str(value).encode('utf8')
             if value.lower() == b'true' or value.lower() == b'false':
                 value = value.lower()
             ret += b"%s=%s\n" % (field, value)
         elif field in required:
             #print "FIELD:", field, required
-            raise ValueError("A required field [%s] was not set." % field)
+            raise ValueError("A required field [%s] was not set. Params: %s" % (field, params))
     return ret
 
 # REDFLAG: remove trailing_data?

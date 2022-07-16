@@ -50,11 +50,11 @@ from .requestingbundles import RequestingBundles
 
 from . import topkey
 
-HG_MIME_TYPE = 'application/mercurial-bundle'
-HG_MIME_TYPE_FMT = HG_MIME_TYPE + '_%i'
+HG_MIME_TYPE = b'application/mercurial-bundle'
+HG_MIME_TYPE_FMT = HG_MIME_TYPE + b'_%i'
 
-METADATA_MARKER = HG_MIME_TYPE + '_'
-PAD_BYTE = '\xff'
+METADATA_MARKER = HG_MIME_TYPE + b'_'
+PAD_BYTE = b'\xff'
 
 MAX_SSK_LEN = 1024
 
@@ -78,10 +78,10 @@ class UpdateContextBase(dict):
 
         # If this is True states can use the results of index searches on the
         # public key to update the private key.
-        self['IS_KEYPAIR'] = False
+        self[b'IS_KEYPAIR'] = False
 
-        self['INSERT_URI'] = 'CHK@'
-        self['REQUEST_URI'] = None
+        self[b'INSERT_URI'] = 'CHK@'
+        self[b'REQUEST_URI'] = None
 
     def set_cancel_time(self, request):
         """ Sets the timeout on a QueueableRequest. """
@@ -109,7 +109,7 @@ class UpdateContext(UpdateContextBase):
         UpdateContextBase.__init__(self, parent)
 
         self.graph = None
-        self['TARGET_VERSIONS'] = None
+        self[b'TARGET_VERSIONS'] = None
 
     def has_versions(self, versions):
         """ Returns True if all versions are already in the hg repository,
@@ -147,7 +147,7 @@ class UpdateContext(UpdateContextBase):
         uri = clear_control_bytes(self.parent.ctx.graph.get_chk(edge))
         request.in_params.definition = GET_DEF
         request.in_params.fcp_params = self.parent.params.copy()
-        request.in_params.fcp_params['URI'] = uri
+        request.in_params.fcp_params[b'URI'] = uri
         self.set_cancel_time(request)
         return request
 
@@ -162,7 +162,7 @@ class UpdateContext(UpdateContextBase):
         request.tag = tag
         request.in_params.definition = PUT_FILE_DEF
         request.in_params.fcp_params = self.parent.params.copy()
-        request.in_params.fcp_params['URI'] = 'CHK@'
+        request.in_params.fcp_params[b'URI'] = 'CHK@'
         kind = self.graph.insert_type(edge)
         if kind == INSERT_SALTED_METADATA:
             #print "make_edge_insert_request -- salted"
@@ -174,10 +174,10 @@ class UpdateContext(UpdateContextBase):
 
             salted_pos = pos + len(METADATA_MARKER)
             old_salt = raw_bytes[salted_pos]
-            if old_salt != '0':
+            if old_salt != b'0':
                 raise Exception("Unexpected salt byte: %s" % old_salt)
 
-            twiddled_bytes = raw_bytes[:salted_pos] + '1' \
+            twiddled_bytes = raw_bytes[:salted_pos] + b'1' \
                              + raw_bytes[salted_pos + 1:]
             assert len(raw_bytes) == len(twiddled_bytes)
 
@@ -194,7 +194,7 @@ class UpdateContext(UpdateContextBase):
         request.in_params.file_name = tmp_file
         request.in_params.send_data = True
         if not mime_type is None:
-            request.in_params.fcp_params['Metadata.ContentType'] = mime_type
+            request.in_params.fcp_params[b'Metadata.ContentType'] = mime_type
         self.set_cancel_time(request)
         return request
 
@@ -220,7 +220,7 @@ class UpdateContext(UpdateContextBase):
                                       % (original_len, bundle[0]))
             assert bundle[0] == original_len
             if pad:
-                out_file = open(tmp_file, 'ab')
+                out_file = open(tmp_file, b'ab')
                 try:
                     out_file.seek(0, os.SEEK_END)
                     out_file.write(PAD_BYTE)
@@ -300,7 +300,7 @@ class StaticRequestList(RetryingRequestList):
             False otherwise. """
         # REDFLAG: rationalize parameter names
         # ATL == Above the Line
-        max_retries = self.parent.params.get('MAX_ATL_RETRIES', 0)
+        max_retries = self.parent.params.get(b'MAX_ATL_RETRIES', 0)
         return candidate[1] > max_retries + 1
 
     # Override to provide better tags.
@@ -351,20 +351,20 @@ class StaticRequestList(RetryingRequestList):
         request.tag = self.get_tag(candidate)
         request.candidate = candidate
         request.in_params.fcp_params = self.parent.params.copy()
-        request.in_params.fcp_params['URI'] = candidate[0]
+        request.in_params.fcp_params[b'URI'] = candidate[0]
         if candidate[2]:
             # Insert from raw data.
             request.in_params.definition = PUT_FILE_DEF
             if not candidate[4] is None:
                 mime_type = candidate[4]
-                request.in_params.fcp_params['Metadata.ContentType'] = mime_type
+                request.in_params.fcp_params[b'Metadata.ContentType'] = mime_type
             request.in_params.send_data = candidate[3]
         else:
             # Request data
             request.in_params.definition = GET_DEF
-            request.in_params.fcp_params['MaxSize'] = FREENET_BLOCK_LEN
+            request.in_params.fcp_params[b'MaxSize'] = FREENET_BLOCK_LEN
             request.in_params.allowed_redirects = (
-                self.parent.params.get('ALLOWED_REDIRECTS', 5))
+                self.parent.params.get(b'ALLOWED_REDIRECTS', 5))
         # Hmmmm...
         self.parent.ctx.set_cancel_time(request)
         candidate[1] += 1
@@ -388,10 +388,10 @@ class InsertingGraph(StaticRequestList):
         """
         require_state(from_state, INSERTING_BUNDLES)
 
-        if self.parent.params.get('DUMP_GRAPH', False):
-            self.parent.ctx.ui_.status("--- Updated Graph ---\n")
+        if self.parent.params.get(b'DUMP_GRAPH', False):
+            self.parent.ctx.ui_.status(b"--- Updated Graph ---\n")
             self.parent.ctx.ui_.status(graph_to_string(self.parent.ctx.graph)
-                                   + '\n')
+                                   + b'\n')
 
         # Create minimal graph that will fit in a 32k block.
         assert not self.parent.ctx.version_table is None
@@ -399,18 +399,18 @@ class InsertingGraph(StaticRequestList):
                                            self.parent.ctx.repo,
                                            self.parent.ctx.version_table,
                                            31*1024)
-        if self.parent.params.get('DUMP_GRAPH', False):
-            self.parent.ctx.ui_.status("--- Minimal Graph ---\n")
+        if self.parent.params.get(b'DUMP_GRAPH', False):
+            self.parent.ctx.ui_.status(b"--- Minimal Graph ---\n")
             self.parent.ctx.ui_.status(graph_to_string(self.working_graph)
-                                       + '\n---\n')
+                                       + b'\n---\n')
 
         # Make sure the string rep is small enough!
         graph_bytes = graph_to_string(self.working_graph)
         assert len(graph_bytes) <= 31 * 1024
 
         # Insert the graph twice for redundancy
-        self.queue(['CHK@', 0, True, '#A\n' + graph_bytes, None, None])
-        self.queue(['CHK@', 0, True, '#B\n' + graph_bytes, None, None])
+        self.queue([b'CHK@', 0, True, '#A\n' + graph_bytes, None, None])
+        self.queue([b'CHK@', 0, True, '#B\n' + graph_bytes, None, None])
         self.required_successes = 2
 
     def leave(self, to_state):
@@ -435,7 +435,7 @@ class InsertingGraph(StaticRequestList):
         assert not graph is None
 
         # REDFLAG: graph redundancy hard coded to 2.
-        chks = (self.get_result(0)[1]['URI'], self.get_result(1)[1]['URI'])
+        chks = (self.get_result(0)[1][b'URI'], self.get_result(1)[1]['URI'])
 
         # Slow.
         updates = get_top_key_updates(graph, self.parent.ctx.repo)
@@ -472,7 +472,7 @@ class InsertingGraph(StaticRequestList):
 def should_increment(state):
     """ INTERNAL: Returns True if the insert uri should be incremented,
         False otherwise. """
-    level = state.parent.ctx.get('REINSERT', 0)
+    level = state.parent.ctx.get(b'REINSERT', 0)
     assert level >= 0 and level <= 5
     return (level < 1 or level > 3) and level != 5
 
@@ -500,25 +500,25 @@ class InsertingUri(StaticRequestList):
         top_key_tuple = from_state.get_top_key_tuple()
         self.cached_top_key_tuple = top_key_tuple # hmmmm...
 
-        if (self.parent.ctx['INSERT_URI'] is None
-            and self.parent.ctx.get('REINSERT', 0) > 0):
+        if (self.parent.ctx[b'INSERT_URI'] is None
+            and self.parent.ctx.get(b'REINSERT', 0) > 0):
             # Hmmmm... hackery to deal with reinsert w/o insert uri
             self.parent.transition(self.success_state)
             return
 
-        assert not self.parent.ctx['INSERT_URI'] is None
+        assert not self.parent.ctx[b'INSERT_URI'] is None
 
-        if self.parent.params.get('DUMP_TOP_KEY', False):
+        if self.parent.params.get(b'DUMP_TOP_KEY', False):
             self.topkey_funcs.dump_top_key_tuple(top_key_tuple,
                                                  self.parent.ctx.ui_.status)
 
         salt = {0:0x00, 1:0xff} # grrr.... less code.
-        insert_uris = make_frozen_uris(self.parent.ctx['INSERT_URI'],
+        insert_uris = make_frozen_uris(self.parent.ctx[b'INSERT_URI'],
                                        should_increment(self))
         assert len(insert_uris) < 3
         for index, uri in enumerate(insert_uris):
-            if self.parent.params.get('DUMP_URIS', False):
-                self.parent.ctx.ui_.status("INSERT_URI: %s\n" % uri)
+            if self.parent.params.get(b'DUMP_URIS', False):
+                self.parent.ctx.ui_.status(b"INSERT_URI: %s\n" % uri)
             self.queue([uri, 0, True,
                         self.topkey_funcs.top_key_tuple_to_bytes(top_key_tuple,
                                                                  salt[index]),
@@ -531,21 +531,21 @@ class InsertingUri(StaticRequestList):
             # Hmmm... what about chks?
             # Update the index in the insert_uri on success
             if (should_increment(self) and
-                is_usk(self.parent.ctx['INSERT_URI'])):
-                version = get_version(self.parent.ctx['INSERT_URI']) + 1
-                self.parent.ctx['INSERT_URI'] = (
-                    get_usk_for_usk_version(self.parent.ctx['INSERT_URI'],
+                is_usk(self.parent.ctx[b'INSERT_URI'])):
+                version = get_version(self.parent.ctx[b'INSERT_URI']) + 1
+                self.parent.ctx[b'INSERT_URI'] = (
+                    get_usk_for_usk_version(self.parent.ctx[b'INSERT_URI'],
                                             version))
-                if self.parent.params.get('DUMP_URIS', False):
-                    self.parent.ctx.ui_.status(("INSERT UPDATED INSERT "
-                                               + "URI:\n%s\n")
-                                               % self.parent.ctx['INSERT_URI'])
+                if self.parent.params.get(b'DUMP_URIS', False):
+                    self.parent.ctx.ui_.status((b"INSERT UPDATED INSERT "
+                                               + b"URI:\n%s\n")
+                                               % self.parent.ctx[b'INSERT_URI'])
     def get_request_uris(self):
         """ Return the inserted request uri(s). """
         ret = []
-        was_usk = is_usk_file(self.parent.ctx['INSERT_URI'])
+        was_usk = is_usk_file(self.parent.ctx[b'INSERT_URI'])
         for candidate in self.ordered:
-            uri = candidate[5][1]['URI']
+            uri = candidate[5][1][b'URI']
             if is_ssk(uri) and was_usk:
                 uri = ssk_to_usk(uri)
             ret.append(uri)
@@ -571,24 +571,24 @@ class RequestingUri(StaticRequestList):
         """ Implementation of State virtual. """
         #require_state(from_state, QUIESCENT)
         #print "REQUEST_URI:"
-        #print self.parent.ctx['REQUEST_URI']
+        #print self.parent.ctx[b'REQUEST_URI']
 
-        request_uri = self.parent.ctx['REQUEST_URI']
+        request_uri = self.parent.ctx[b'REQUEST_URI']
         if (is_usk(request_uri) and
             self.parent.params.get('AGGRESSIVE_SEARCH', False)):
             request_uri = get_negative_usk(request_uri)
 
         if (is_usk(request_uri) and self.parent.params['NO_SEARCH']):
             request_uris = make_frozen_uris(request_uri, False)
-            self.parent.ctx.ui_.status("Request URI index searching "
-                                       + "disabled.\n")
+            self.parent.ctx.ui_.status(b"Request URI index searching "
+                                       + b"disabled.\n")
         else:
             request_uris = make_search_uris(request_uri)
 
         for uri in request_uris:
             #[uri, tries, is_insert, raw_data, mime_type, last_msg]
-            if self.parent.params.get('DUMP_URIS', False):
-                self.parent.ctx.ui_.status("REQUEST URI: %s\n" % uri)
+            if self.parent.params.get(b'DUMP_URIS', False):
+                self.parent.ctx.ui_.status(b"REQUEST URI: %s\n" % uri)
             self.queue([uri, 0, False, None, None, None])
 
         self.required_successes = 1 #len(self.results) # Hmmm fix, but how
@@ -599,25 +599,25 @@ class RequestingUri(StaticRequestList):
     def leave(self, to_state):
         """ Implementation of State virtual. """
         if to_state.name == self.success_state:
-            self.parent.ctx['REQUEST_URI'] = self.get_latest_uri()
-            if is_usk(self.parent.ctx['REQUEST_URI']):
-                self.parent.ctx.ui_.status("Current USK version: %i\n" %
+            self.parent.ctx[b'REQUEST_URI'] = self.get_latest_uri()
+            if is_usk(self.parent.ctx[b'REQUEST_URI']):
+                self.parent.ctx.ui_.status(b"Current USK version: %i\n" %
                                        get_version(self.parent
-                                                   .ctx['REQUEST_URI']))
+                                                   .ctx[b'REQUEST_URI']))
 
-            if (self.parent.ctx['IS_KEYPAIR'] and
-                is_usk(self.parent.ctx['REQUEST_URI']) and # lose usk checks?
-                is_usk(self.parent.ctx['INSERT_URI'])):
-                version = get_version(self.parent.ctx['REQUEST_URI'])
-                self.parent.ctx['INSERT_URI'] = (
-                    get_usk_for_usk_version(self.parent.ctx['INSERT_URI'],
+            if (self.parent.ctx[b'IS_KEYPAIR'] and
+                is_usk(self.parent.ctx[b'REQUEST_URI']) and # lose usk checks?
+                is_usk(self.parent.ctx[b'INSERT_URI'])):
+                version = get_version(self.parent.ctx[b'REQUEST_URI'])
+                self.parent.ctx[b'INSERT_URI'] = (
+                    get_usk_for_usk_version(self.parent.ctx[b'INSERT_URI'],
                                             version))
                 #print "SEARCH UPDATED INSERT URI: ", \
-                # self.parent.ctx['INSERT_URI']
+                # self.parent.ctx[b'INSERT_URI']
 
             # Allow pending requests to run to completion.
             self.parent.ctx.orphan_requests(self)
-            if self.parent.params.get('DUMP_TOP_KEY', False):
+            if self.parent.params.get(b'DUMP_TOP_KEY', False):
                 self.topkey_funcs.dump_top_key_tuple(self.get_top_key_tuple(),
                                                      self.parent.ctx.ui_.status)
 
@@ -626,7 +626,7 @@ class RequestingUri(StaticRequestList):
         top_key_tuple = None
         for candidate in self.ordered:
             result = candidate[5]
-            if result is None or result[0] != 'AllData':
+            if result is None or result[0] != b'AllData':
                 continue
             top_key_tuple = self.topkey_funcs.bytes_to_top_key_tuple(result[2])[0]
             break
@@ -635,25 +635,28 @@ class RequestingUri(StaticRequestList):
 
     def get_latest_uri(self):
         """ Returns the URI with the version part update if the URI is a USK."""
-        if (is_usk(self.parent.ctx['REQUEST_URI']) and
+        if (is_usk(self.parent.ctx[b'REQUEST_URI']) and
             self.parent.params['NO_SEARCH']):
-            return self.parent.ctx['REQUEST_URI']
+            return self.parent.ctx[b'REQUEST_URI']
 
         max_version = None
         for candidate in self.ordered:
             result = candidate[5]
-            if result is None or result[0] != 'AllData':
+            if result is None or result[0] != b'AllData':
                 continue
-            uri = result[1]['URI']
+            uri = result[1][b'URI']
             if not is_usk_file(uri):
                 return uri
-            max_version = max(max_version, abs(get_version(uri)))
+            
+            max_version = max(
+                (max_version if max_version is not None else -1),
+                abs(get_version(uri)))
             break
 
         assert not max_version is None
         # The .R1 URI is queued first.
         assert (len(self.ordered) < 2 or
-                self.ordered[0][0].find('.R1') != -1)
+                self.ordered[0][0].find(b'.R1') != -1)
         return get_usk_for_usk_version(self.ordered[0][0],
                                        max_version)
 class RequiresGraph(DecisionState):
@@ -697,17 +700,17 @@ class InvertingUri(RequestQueueState):
         self.failure_state = failure_state
     def get_request_uri(self):
         """ Returns the request URI."""
-        if self.msg is None or self.msg[0] != 'PutSuccessful':
+        if self.msg is None or self.msg[0] != b'PutSuccessful':
             return None
-        inverted = self.msg[1]['URI']
-        public = inverted[inverted.find('@') + 1: inverted.find('/')]
-        return self.insert_uri[:self.insert_uri.find('@') + 1] + public \
-               + self.insert_uri[self.insert_uri.find('/'):]
+        inverted = self.msg[1][b'URI']
+        public = inverted[inverted.find(b'@') + 1: inverted.find(b'/')]
+        return self.insert_uri[:self.insert_uri.find(b'@') + 1] + public \
+               + self.insert_uri[self.insert_uri.find(b'/'):]
 
     def enter(self, dummy):
         """ Implementation of State virtual. """
         if self.insert_uri == None:
-            self.insert_uri = self.parent.ctx['INSERT_URI']
+            self.insert_uri = self.parent.ctx[b'INSERT_URI']
         assert not self.insert_uri is None
 
     def leave(self, to_state):
@@ -717,8 +720,8 @@ class InvertingUri(RequestQueueState):
         """
         if to_state.name == self.success_state:
             # Don't overwrite request_uri in the pushing from case.
-            if self.parent.ctx['REQUEST_URI'] is None:
-                self.parent.ctx['REQUEST_URI'] = self.get_request_uri()
+            if self.parent.ctx[b'REQUEST_URI'] is None:
+                self.parent.ctx[b'REQUEST_URI'] = self.get_request_uri()
 
     def reset(self):
         """ Implementation of State virtual. """
@@ -741,21 +744,21 @@ class InvertingUri(RequestQueueState):
         request = StatefulRequest(self.parent)
         request.in_params.definition = GET_REQUEST_URI_DEF
         request.in_params.fcp_params = {'URI': uri,
-                                        'MaxRetries': 1,
-                                        'PriorityClass':1,
-                                        'UploadFrom':'direct',
-                                        'GetCHKOnly':True}
-        request.in_params.send_data = '@' * 9
-        request.in_params.fcp_params['DataLength'] = (
+                                        b'MaxRetries': 1,
+                                        b'PriorityClass':1,
+                                        b'UploadFrom':b'direct',
+                                        b'GetCHKOnly':True}
+        request.in_params.send_data = b'@' * 9
+        request.in_params.fcp_params[b'DataLength'] = (
             len(request.in_params.send_data))
-        request.tag = 'only_invert' # Hmmmm...
+        request.tag = b'only_invert' # Hmmmm...
         self.parent.ctx.set_cancel_time(request)
         return request
 
     def request_done(self, dummy_client, msg):
         """ Implementation of RequestQueueState virtual. """
         self.msg = msg
-        if msg[0] == 'PutSuccessful':
+        if msg[0] == b'PutSuccessful':
             self.parent.transition(self.success_state)
             return
         self.parent.transition(self.failure_state)
@@ -787,7 +790,7 @@ class RequestingGraph(StaticRequestList):
             graph = None
             for candidate in self.ordered:
                 result = candidate[5]
-                if not result is None and result[0] == 'AllData':
+                if not result is None and result[0] == b'AllData':
                     graph = parse_graph(result[2])
 
             assert not graph is None
@@ -803,40 +806,40 @@ class RequestingGraph(StaticRequestList):
             self.pending.clear()
 
 # Allow entry into starting
-QUIESCENT = 'QUIESCENT'
+QUIESCENT = b'QUIESCENT'
 
 # Get the request_uri from the insert_uri
-INVERTING_URI = 'INVERTING_URI'
+INVERTING_URI = b'INVERTING_URI'
 
 # Get the request_uri from the insert_uri, and start inserting
-INVERTING_URI_4_INSERT = 'INVERTING_URI_4_INSERT'
+INVERTING_URI_4_INSERT = b'INVERTING_URI_4_INSERT'
 
 # Used to lookup graph.
-REQUESTING_URI_4_INSERT = 'REQUESTING_URI_4_INSERT'
+REQUESTING_URI_4_INSERT = b'REQUESTING_URI_4_INSERT'
 
 # Read the graph out of freenet.
-REQUESTING_GRAPH = 'REQUESTING_GRAPH'
+REQUESTING_GRAPH = b'REQUESTING_GRAPH'
 
 # Wait for bundles to insert, handle metadata salting.
-INSERTING_BUNDLES = 'INSERTING_BUNDLES'
+INSERTING_BUNDLES = b'INSERTING_BUNDLES'
 # Wait for graphs to insert.
-INSERTING_GRAPH = 'INSERTING_GRAPH'
+INSERTING_GRAPH = b'INSERTING_GRAPH'
 # Wait for ssks to insert
-INSERTING_URI = 'INSERTING_URI'
+INSERTING_URI = b'INSERTING_URI'
 # Wait for pending requests to finish
-CANCELING = 'CANCELING'
-FAILING = 'FAILING'
-FINISHING = 'FINISHING'
+CANCELING = b'CANCELING'
+FAILING = b'FAILING'
+FINISHING = b'FINISHING'
 
-REQUESTING_URI = 'REQUESTING_URI'
-REQUESTING_BUNDLES = 'REQUESTING_BUNDLES'
-REQUESTING_URI_4_COPY = 'REQUESTING_URI_4_COPY'
+REQUESTING_URI = b'REQUESTING_URI'
+REQUESTING_BUNDLES = b'REQUESTING_BUNDLES'
+REQUESTING_URI_4_COPY = b'REQUESTING_URI_4_COPY'
 
-REQUESTING_URI_4_HEADS = 'REQUESTING_URI_4_HEADS'
-REQUIRES_GRAPH_4_HEADS  = 'REQUIRES_GRAPH'
-REQUESTING_GRAPH_4_HEADS = 'REQUESTING_GRAPH_4_HEADS'
+REQUESTING_URI_4_HEADS = b'REQUESTING_URI_4_HEADS'
+REQUIRES_GRAPH_4_HEADS  = b'REQUIRES_GRAPH'
+REQUESTING_GRAPH_4_HEADS = b'REQUESTING_GRAPH_4_HEADS'
 
-RUNNING_SINGLE_REQUEST = 'RUNNING_SINGLE_REQUEST'
+RUNNING_SINGLE_REQUEST = b'RUNNING_SINGLE_REQUEST'
 # REDFLAG: DRY out (after merging wiki stuff)
 # 1. write state_name(string) func to create state names by inserting them
 #    into globals.
@@ -958,13 +961,13 @@ class UpdateStateMachine(RequestQueue, StateMachine):
         self.require_state(QUIESCENT)
         self.reset()
         self.ctx.graph = graph
-        self.ctx['TARGET_VERSIONS'] = to_versions
-        self.ctx['INSERT_URI'] = insert_uri
+        self.ctx[b'TARGET_VERSIONS'] = to_versions
+        self.ctx[b'INSERT_URI'] = insert_uri
         self.transition(INSERTING_BUNDLES)
 
     # Update a repo USK.
     # REDFLAG: later, keys_match=False arg
-    def start_pushing(self, insert_uri, to_versions=('tip',), request_uri=None,
+    def start_pushing(self, insert_uri, to_versions=(b'tip',), request_uri=None,
                       is_keypair=False):
 
         """ Start pushing local changes up to to_version to an existing
@@ -973,16 +976,16 @@ class UpdateStateMachine(RequestQueue, StateMachine):
         self.require_state(QUIESCENT)
         self.reset()
         self.ctx.graph = None
-        self.ctx['INSERT_URI'] = insert_uri
-        self.ctx['REQUEST_URI'] = request_uri
+        self.ctx[b'INSERT_URI'] = insert_uri
+        self.ctx[b'REQUEST_URI'] = request_uri
         # Hmmmm... better exception if to_version isn't in the repo?
-        self.ctx['TARGET_VERSIONS'] = tuple([hex_version(self.ctx.repo, ver)
+        self.ctx[b'TARGET_VERSIONS'] = tuple([hex_version(self.ctx.repo, ver)
                                              for ver in to_versions])
         if request_uri is None:
-            self.ctx['IS_KEYPAIR'] = True
+            self.ctx[b'IS_KEYPAIR'] = True
             self.transition(INVERTING_URI_4_INSERT)
         else:
-            self.ctx['IS_KEYPAIR'] = is_keypair
+            self.ctx[b'IS_KEYPAIR'] = is_keypair
             self.transition(REQUESTING_URI_4_INSERT)
 
     # Pull from a repo USK.
@@ -992,7 +995,7 @@ class UpdateStateMachine(RequestQueue, StateMachine):
         self.require_state(QUIESCENT)
         self.reset()
         self.ctx.graph = None
-        self.ctx['REQUEST_URI'] = request_uri
+        self.ctx[b'REQUEST_URI'] = request_uri
         self.transition(REQUESTING_URI)
 
     def start_requesting_heads(self, request_uri):
@@ -1002,7 +1005,7 @@ class UpdateStateMachine(RequestQueue, StateMachine):
         self.require_state(QUIESCENT)
         self.reset()
         self.ctx.graph = None
-        self.ctx['REQUEST_URI'] = request_uri
+        self.ctx[b'REQUEST_URI'] = request_uri
         self.transition(REQUESTING_URI_4_HEADS)
 
     def start_single_request(self, stateful_request):
@@ -1026,9 +1029,9 @@ class UpdateStateMachine(RequestQueue, StateMachine):
         assert not from_uri is None
         assert not to_insert_uri is None
 
-        self.ctx['REQUEST_URI'] = from_uri
-        self.ctx['INSERT_URI'] = to_insert_uri
-        self.ctx['IS_KEYPAIR'] = False
+        self.ctx[b'REQUEST_URI'] = from_uri
+        self.ctx[b'INSERT_URI'] = to_insert_uri
+        self.ctx[b'IS_KEYPAIR'] = False
         self.transition(REQUESTING_URI_4_COPY)
 
     # REDFLAG: SSK case untested
@@ -1046,10 +1049,10 @@ class UpdateStateMachine(RequestQueue, StateMachine):
         """ Start reinserting the repository"""
         self.require_state(QUIESCENT)
         self.reset()
-        self.ctx['REQUEST_URI'] = request_uri
-        self.ctx['INSERT_URI'] = insert_uri
-        self.ctx['IS_KEYPAIR'] = is_keypair
-        self.ctx['REINSERT'] = level
+        self.ctx[b'REQUEST_URI'] = request_uri
+        self.ctx[b'INSERT_URI'] = insert_uri
+        self.ctx[b'IS_KEYPAIR'] = is_keypair
+        self.ctx[b'REINSERT'] = level
         # REDFLAG: added hack code to InsertingUri to handle
         # reinsert w/o insert uri?
         # Tradedoff: hacks in states vs. creating extra state

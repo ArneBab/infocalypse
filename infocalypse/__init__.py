@@ -838,7 +838,7 @@ default-push = freenet:{0}
 
     if action == "pull":
         if os.path.exists(dest):
-            raise util.Abort(_(b"destination " + dest + b" already exists."))
+            raise error.Abort(_(b"destination " + dest + b" already exists."))
         # create the repo
         req = dispatch.request([b"init", dest], ui=ui)
         dispatch.dispatch(req)

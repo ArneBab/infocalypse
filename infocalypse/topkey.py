@@ -50,13 +50,13 @@ from .chk import CHK_SIZE, bytes_to_chk, chk_to_bytes
 # 1.00 -- Initial release.
 # 2.00 -- Support for multiple head and parent versions and incomplete lists.
 
-HDR_V1 = 'HGINF100' # Obsolete
+HDR_V1 = b'HGINF100' # Obsolete
 
-MAJOR_VERSION = '2'
-MINOR_VERSION = '00'
+MAJOR_VERSION = b'2'
+MINOR_VERSION = b'00'
 
 HDR_VERSION = MAJOR_VERSION + MINOR_VERSION
-HDR_PREFIX = 'HGINF'
+HDR_PREFIX = b'HGINF'
 HDR_BYTES = HDR_PREFIX + HDR_VERSION
 
 # Header length 'HGINF100'
@@ -83,7 +83,7 @@ HAS_HEADS = 0x02
 def versions_to_bytes(versions):
     """ INTERNAL: Return raw byte string from hg 40 digit hex
     version list. """
-    bytes = ''
+    bytes = b''
     for version in versions:
         try:
             raw = unhexlify(version)
@@ -129,7 +129,7 @@ def versions_from_bytes(version_bytes):
         a raw byte block. """
     assert (len(version_bytes) % HGVER_SIZE) == 0
     ret = []
-    for count in range(0, len(version_bytes) / HGVER_SIZE):
+    for count in range(0, len(version_bytes) // HGVER_SIZE):
         try:
             ret.append(hexlify(version_bytes[count * HGVER_SIZE:
                                              (count + 1) * HGVER_SIZE]))

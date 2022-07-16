@@ -129,7 +129,7 @@ class UICallbacks:
             return
         msg = MSG_TABLE.get((from_state.name, to_state.name))
         if not msg is None:
-            self.ui_.status(b"%s\n" % msg)
+            self.ui_.status(b"%s\n" % msg.encode('utf8'))
 
     def monitor_callback(self, update_sm, client, msg):
         """ FCP message status callback which writes to a ui. """
@@ -489,11 +489,11 @@ def is_redundant(uri):
     """ Return True if uri is a file USK and ends in '.R1',
         False otherwise. """
     if not is_usk_file(uri):
-        return ''
-    fields = uri.split('/')
-    if not fields[-2].endswith('.R1'):
-        return ''
-    return 'Redundant '
+        return b''
+    fields = uri.split(b'/')
+    if not fields[-2].endswith(b'.R1'):
+        return b''
+    return b'Redundant '
 
 ############################################################
 # User feedback? success, failure?

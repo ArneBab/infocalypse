@@ -501,6 +501,11 @@ class FCPConnection:
         if self.socket:
             self.socket.close()
 
+    def convert_params_keys_to_bytes(self, params):
+        """ Convert the keys in the given params to bytes before they are
+            handed to fcpmesage.make_request."""
+        return {(key.encode('utf8') if isinstance(key, str) else key): value for key, value in params.items()}
+            
     # set_data_length only applies if data_source is set
     def start_request(self, client, data_source = None, set_data_length = True):
         """ Start an FCP request.
@@ -526,6 +531,8 @@ class FCPConnection:
         assert not client.context
         assert not client.response
         assert not b'Identifier' in client.in_params.fcp_params
+        assert not 'Identifier' in client.in_params.fcp_params
+        client.in_params.fcp_params = self.convert_params_keys_to_bytes(client.in_params.fcp_params)
         identifier = make_id()
         client.in_params.fcp_params[b'Identifier'] = identifier
         write_string = False

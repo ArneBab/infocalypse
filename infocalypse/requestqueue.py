@@ -104,10 +104,11 @@ class RequestRunner:
             client = self.request_queues[self.index].next_runnable()
             #print "CLIENT:", client
             if client:
-                #print "client.queue: ", client.queue
-                #print "running: ", client
-                #if 'URI' in client.in_params.fcp_params:
-                #    print "   ", client.in_params.fcp_params['URI']
+#                 print ("client.queue: ", str(client.queue))
+#                 print ("running: ", str(client))
+#                 print ("client.in_params: ", str(client.in_params))
+#                 if 'URI' in client.in_params.fcp_params:
+#                     print ("   ", client.in_params.fcp_params['URI'])
                 assert client.queue == self.request_queues[self.index]
                 client.in_params.__async = True
                 client.message_callback = self.msg_callback
@@ -119,11 +120,16 @@ class RequestRunner:
 
     def msg_callback(self, client, msg):
         """ Route incoming FCP messages to the appropriate queues. """
+        print(self.running)
         if client.is_finished():
             client.queue.request_done(client, msg)
             #print "RUNNING:"
             #print self.running
-            del self.running[client.request_id()]
+            try:
+                del self.running[client.request_id()]
+            except KeyError:
+                print (self.running)
+                raise
             self.kick() # haha
         else:
             client.queue.request_progress(client, msg)

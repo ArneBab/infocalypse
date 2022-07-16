@@ -29,9 +29,9 @@ ENCODED_CHK_SIZE = 99
 # REDFLAG: Is this correct?
 def freenet_base64_encode(data):
     """ INTERNAL: Base64 encode data using Freenet's base64 algo. """
-    encoded =  base64.b64encode(data, '~-')
+    encoded =  base64.b64encode(data, b'~-')
     length = len(encoded)
-    while encoded[length - 1] == '=':
+    while encoded[length - 1] == b'=':
         length -= 1
     return encoded[:length]
 
@@ -39,25 +39,25 @@ def freenet_base64_encode(data):
 def freenet_base64_decode(data):
     """ INTERNAL: Base64 decode data using Freenet's base64 algo. """
     while len(data) % 4 != 0:
-        data += '='
-    return base64.b64decode(data, '~-')
+        data += b'='
+    return base64.b64decode(data, b'~-')
 
 def bytes_to_chk(bytes):
     """ Reads the binary representation of a Freenet CHK and returns
     the human readable equivalent. """
     assert len(bytes) == CHK_SIZE
 
-    return 'CHK@' + freenet_base64_encode(bytes[5:37]) + ',' \
-           + freenet_base64_encode(bytes[37:69]) + ',' \
+    return b'CHK@' + freenet_base64_encode(bytes[5:37]) + b',' \
+           + freenet_base64_encode(bytes[37:69]) + b',' \
            + freenet_base64_encode(bytes[:5])
 
 def chk_to_bytes(chk):
     """ Returns the binary representation of a Freenet CHK."""
 
-    assert chk.startswith('CHK@')
+    assert chk.startswith(b'CHK@')
     # NO / or filename allowed.
     assert len(chk) == ENCODED_CHK_SIZE
-    fields = chk[4:].split(',')
+    fields = chk[4:].split(b',')
     assert len(fields) == 3
 
     # [0, 4] -- control bytes
@@ -81,21 +81,21 @@ def clear_control_bytes(key):
         REQUIRES: key is a CHK key.
     """
 
-    if not key.startswith('CHK@'):
+    if not key.startswith(b'CHK@'):
         raise ValueError("Only works for CHK keys.")
-    fields = key.split('/')
-    key_fields = fields[0].split(',')
+    fields = key.split(b'/')
+    key_fields = fields[0].split(b',')
 
     bytes = freenet_base64_decode(key_fields[2])
 
     # Hmmm... ok since it is very short
-    bytes = bytes[:2] + '\x00' + bytes[3:]
-    ret = key_fields[0] + ','  + key_fields[1] + ',' \
+    bytes = bytes[:2] + b'\x00' + bytes[3:]
+    ret = key_fields[0] + b','  + key_fields[1] + b',' \
           + freenet_base64_encode(bytes)
 
     # REDFLAG: different.  was there really a bug in somedudes code???
     if len(fields) > 1:
         for index in range(1, len(fields)):
-            ret += '/' + fields[index]
+            ret += b'/' + fields[index]
     return ret
 
