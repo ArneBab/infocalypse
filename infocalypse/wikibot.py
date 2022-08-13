@@ -531,7 +531,7 @@ class WikiBot(FMSBot, RequestQueue):
 
     def request_progress(self, dummy_client, msg):
         """ RequestQueue implementation dumps progress to log."""
-        if msg[0] != 'SimpleProgress':
+        if msg[0] != b'SimpleProgress':
             self.debug(msg[0])
             return
 
@@ -546,7 +546,7 @@ class WikiBot(FMSBot, RequestQueue):
         # DCI: Retrying ???
         submission_tuple = self.ctx.remove_submission(msg_id)
 
-        if msg[0] == 'AllData': # Success
+        if msg[0] == b'AllData': # Success
             self._handle_submission(msg_id, submission_tuple, msg)
         else:
             self._handle_fcp_failure(msg_id, submission_tuple, msg)
@@ -573,7 +573,7 @@ class WikiBot(FMSBot, RequestQueue):
                 code = int(msg[1]['Code'])
             except ValueError:
                 code = -1 # Silence W0704
-        self.debug("handle_fcp_failure --  %s[%i]" % (msg[0], code))
+        self.debug("handle_fcp_failure --  %b[%i]" % (msg[0], code))
         self.trace("handle_fcp_failure --  msg:\n%s" % str(msg))
         # DCI: Handle PutFailed, code 9
         self.applier.update_change_log(msg_id, submission_tuple,

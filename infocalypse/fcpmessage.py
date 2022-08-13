@@ -61,16 +61,16 @@ def format_params(params, allowed, required):
                 # Special case Files dictionary.
                 assert params[b'Files']
                 for subfield in params[b'Files']:
-                    ret += b"%s=%s\n" % (subfield, params[b'Files'][subfield])
+                    ret += b"%b=%b\n" % (subfield, params[b'Files'][subfield])
                 continue
             value = params[field]
             if not value:
                 raise ValueError("Illegal value for field [%s]." % field)
             if isinstance(value, int):
-                value = str(value).encode('utf8')
+                value = str(value).encode('utf-8')
             if value.lower() == b'true' or value.lower() == b'false':
                 value = value.lower()
-            ret += b"%s=%s\n" % (field, value)
+            ret += b"%b=%b\n" % (field, value)
         elif field in required:
             #print "FIELD:", field, required
             raise ValueError("A required field [%s] was not set. Params: %s" % (field, params))

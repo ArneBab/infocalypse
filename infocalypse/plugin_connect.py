@@ -21,7 +21,7 @@ def connect(ui, repo):
     node = fcp.FCPNode()
     atexit.register(node.shutdown)
 
-    ui.status("Connecting.\n")
+    ui.status(b"Connecting.\n")
 
     # TODO: Would it be worthwhile to have a wrapper that includes PLUGIN_NAME?
     # TODO: Where to document the spec? devnotes.txt? How to format?

@@ -42,8 +42,8 @@ def graph_to_string(graph):
 
         # Example:
         # I:0:aaaaaaaaaaaa:|:bbbbbbbbbbbb:cccccccccccc
-        lines.append(':'.join(('I', str(index), ':'.join(entry[0]), '|',
-                               ':'.join(entry[1]))))
+        lines.append(b':'.join((b'I', str(index).encode("utf-8"), b':'.join(entry[0]), b'|',
+                               b':'.join(entry[1]))))
 
     # Edges
     index_pairs = list(graph.edge_table.keys())
@@ -51,14 +51,14 @@ def graph_to_string(graph):
     index_pairs.sort()
     for index_pair in index_pairs:
         edge_info = graph.edge_table[index_pair]
-        as_str = ':'.join(edge_info[1:])
-        if as_str != '':
-            as_str = ':' + as_str
-        lines.append("E:%i:%i:%i%s" % (index_pair[0], index_pair[1],
+        as_str = b':'.join(edge_info[1:])
+        if as_str != b'':
+            as_str = b':' + as_str
+        lines.append(b"E:%i:%i:%i%b" % (index_pair[0], index_pair[1],
                                        edge_info[0],
                                        as_str))
 
-    return '\n'.join(lines) + '\n'
+    return b'\n'.join(lines) + b'\n'
 
 def parse_graph(text):
     """ Returns a graph parsed from text.

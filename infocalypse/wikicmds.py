@@ -134,7 +134,7 @@ def execute_wiki_submit(ui_, repo, params, stored_cfg):
         request.tag = 'submission_zip_insert'
         request.in_params.definition = PUT_FILE_DEF
         request.in_params.fcp_params = update_sm.params.copy()
-        request.in_params.fcp_params['URI'] = 'CHK@'
+        request.in_params.fcp_params['URI'] = b'CHK@'
         request.in_params.send_data = raw_bytes
 
         ui_.status("Inserting %i byte submission CHK...\n" % len(raw_bytes))

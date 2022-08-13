@@ -27,15 +27,16 @@
 # REDFLAG: DOCUMENT version sorting assumptions/requirements
 import copy
 import random
+import functools
 
 from binascii import hexlify
 from mercurial import commands
 
 # Index for an empty repo.
 FIRST_INDEX = -1
-NULL_REV = '0000000000000000000000000000000000000000'
-PENDING_INSERT = 'pending'
-PENDING_INSERT1 = 'pending1'
+NULL_REV = b'0000000000000000000000000000000000000000'
+PENDING_INSERT = b'pending'
+PENDING_INSERT1 = b'pending1'
 
 # Values greater than 4  won't work without fixing the implementation
 # of canonical_paths().
@@ -60,10 +61,10 @@ MAX_METADATA_HACK_LEN = 7 * 1024 * 1024
 def hex_version(repo, version = 'tip', offset=0):
     """ Returns the 40 digit hex changeset id for an changeset in repo. """
     #print "hex_version -- ", version
-    ctx = repo.changectx(version)
+    ctx = repo[version]
     assert not ctx is None
     if offset != 0:
-        ctx = repo.changectx(ctx.rev() + offset)
+        ctx = repo[ctx.rev() + offset]
         assert not ctx is None
     return hexlify(ctx.node())
 
@@ -72,8 +73,9 @@ def has_version(repo, version):
         False otherwise. """
     try:
         # Is there a faster way?
-        repo.changectx(version)
-    except:
+        repo[version]
+    except Exception as err:
+        print("Checking version failed:", err)
         # REDFLAG: Back to this. Hack for 1.2
         # Mercurial 1.2 can't find RepoError???
         return False
@@ -117,20 +119,21 @@ def edges_containing(graph, index):
     """ INTERNAL: Returns a list of edges containing index in order of
         ascending 'canonicalness'.
     """
-    def cmp_edge(edge_a, edge_b):
-        """ INTERNAL: Comparison function. """
-        # First, ascending final index. == Most recent.
-        diff = edge_a[1] - edge_b[1]
-        if diff == 0:
-            # Then, descending  initial index. == Most redundant
-            diff = edge_b[0] - edge_a[0]
-            if diff == 0:
-                # Finally, descending 'canonicalness'
-                diff = edge_b[2] - edge_a[2]
-        return diff
+    # old cmp function, kept as documentation of the sort key lambda
+    # def cmp_edge(edge_a, edge_b):
+    #     """ INTERNAL: Comparison function. """
+    #     # First, ascending final index. == Most recent.
+    #     diff = edge_a[1] - edge_b[1]
+    #     if diff == 0:
+    #         # Then, descending  initial index. == Most redundant
+    #         diff = edge_b[0] - edge_a[0]
+    #         if diff == 0:
+    #             # Finally, descending 'canonicalness'
+    #             diff = edge_b[2] - edge_a[2]
+    #     return diff
 
     edges = graph.contain(index)
-    edges.sort(cmp_edge) # Best last so you can pop
+    edges.sort(key=lambda x: (x[1], -x[0], -x[2])) # Best last so you can pop
     #print "--- dumping edges_containing ---"
     #print '\n'.join([str(edge) for edge in edges])
     #print "---"
@@ -316,7 +319,7 @@ class UpdateGraph:
         """ Return True if the graph has a CHK for the edge,
             false otherwise. """
         chk = self.edge_table.get(edge_triple[:2])[1:][edge_triple[2]]
-        return chk.startswith('CHK@') # Hmmm... False for pending???
+        return chk.startswith(b'CHK@') # Hmmm... False for pending???
 
     def get_chk(self, edge_triple):
         """ Return the CHK for an edge. """
@@ -403,7 +406,6 @@ class UpdateGraph:
             return INSERT_SALTED_METADATA
 
         print("insert_type -- called for edge that's too big to salt???")
-        print(edge_triple)
         return INSERT_HUGE
 
     def insert_length(self, step):
@@ -525,7 +527,8 @@ class UpdateGraph:
                                              self.latest_index, 1)
         #print paths
 
-        paths.sort(self._cmp_block_cost)
+        
+        paths.sort(key=functools.cmp_to_key(self._cmp_block_cost))
         #dump_paths(self, paths, "Paths sorted by block cost")
 
         if len(paths) > 0:
@@ -968,6 +971,7 @@ def get_heads(graph, to_index=None):
             heads.add(head)
     heads = list(heads - bases)
     heads.sort()
+    # print(heads, graph.index_table)
     return tuple(heads)
 
 # ASSUMPTIONS:

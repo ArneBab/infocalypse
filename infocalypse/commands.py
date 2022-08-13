@@ -54,7 +54,7 @@ def infocalypse_update_repo_list(ui, **opts):
 
     from . import wot
     from .wot_id import Local_WoT_ID
-    wot.update_repo_listing(ui, Local_WoT_ID(opts['wot'], fcpopts=wot.get_fcpopts(
+    wot.update_repo_listing(ui, Local_WoT_ID(opts['wot'], fcpopts=wot.get_fcpopts(ui,
         fcphost=opts["fcphost"],
         fcpport=opts["fcpport"])), 
                             fcphost=opts["fcphost"],
@@ -143,7 +143,7 @@ def infocalypse_create(ui_, repo, local_identity=None, **opts):
 
         import fcp
         from . import wot
-        node = fcp.FCPNode(**wot.get_fcpopts(fcphost=opts["fcphost"],
+        node = fcp.FCPNode(**wot.get_fcpopts(ui_, fcphost=opts["fcphost"],
                                              fcpport=opts["fcpport"]))
         atexit.register(node.shutdown)
         vcs_response =\
@@ -290,7 +290,7 @@ def infocalypse_check_notifications(ui, repo, **opts):
         raise util.Abort("What ID do you want to check for notifications? Set"
                          " --wot.\n")
 
-    fcpopts = wot.get_fcpopts(fcpport=opts["fcpport"], fcphost=opts["fcphost"])
+    fcpopts = wot.get_fcpopts(ui, fcpport=opts["fcpport"], fcphost=opts["fcphost"])
     wot.check_notifications(ui, Local_WoT_ID(opts['wot'], fcpopts=fcpopts))
 
 
@@ -560,7 +560,7 @@ def infocalypse_setupwot(ui_, **opts):
 
     from . import wot
     from .wot_id import Local_WoT_ID
-    fcpopts = wot.get_fcpopts(fcphost=opts["fcphost"], fcpport=opts["fcpport"])
+    fcpopts = wot.get_fcpopts(ui_, fcphost=opts["fcphost"], fcpport=opts["fcpport"])
     wot.execute_setup_wot(ui_, Local_WoT_ID(opts['truster'], fcpopts=fcpopts))
 
 
@@ -593,7 +593,7 @@ def get_truster(ui, repo=None, truster_identifier=None, fcpport=None, fcphost=No
     """
     from . import wot
     from . import wot_id
-    fcpopts = wot.get_fcpopts(fcphost=fcphost, fcpport=fcpport)
+    fcpopts = wot.get_fcpopts(ui, fcphost=fcphost, fcpport=fcpport)
     if truster_identifier:
         return wot_id.Local_WoT_ID(truster_identifier, fcpopts=fcpopts)
     else:

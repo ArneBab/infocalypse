@@ -75,16 +75,16 @@ class BundleCache:
     def get_bundle_path(self, index_pair):
         """ INTERNAL: Get the full path to a bundle file for the given edge. """
         bundle_id = sha1_hexdigest(
-            ''.join(self.graph.index_table[index_pair[0]][0])
-            + '|' # hmmm really needed?
-            +''.join(self.graph.index_table[index_pair[0]][1])
+            b''.join(self.graph.index_table[index_pair[0]][0])
+            + b'|' # hmmm really needed?
+            +b''.join(self.graph.index_table[index_pair[0]][1])
 
-            +''.join(self.graph.index_table[index_pair[1]][0])
-            + '|' # hmmm really needed?
-            +''.join(self.graph.index_table[index_pair[1]][1])
+            +b''.join(self.graph.index_table[index_pair[1]][0])
+            + b'|' # hmmm really needed?
+            +b''.join(self.graph.index_table[index_pair[1]][1])
             )
 
-        return os.path.join(self.base_dir, "_tmp_%s.hg" % bundle_id)
+        return os.path.join(self.base_dir, b"_tmp_%b.hg" % bundle_id)
 
     def get_cached_bundle(self, index_pair, out_file):
         """ INTERNAL: Copy the cached bundle file for the edge to out_file. """
@@ -147,7 +147,7 @@ class BundleCache:
                 #print 'PARENTS:', list(parents)
                 #print 'HEADS:', list(heads)
                 commands.bundle(self.ui_, self.repo, out_file,
-                                None, base=list(parents),
+                                base=list(parents),
                                 rev=list(heads))
             finally:
                 self.ui_.popbuffer()

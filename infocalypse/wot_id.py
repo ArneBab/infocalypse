@@ -279,15 +279,19 @@ def _get_local_identity(wot_identifier, fcpopts={}):
 
     node = fcp.FCPNode(**fcpopts)
     atexit.register(node.shutdown)
+    # print("get local identity for", wot_identifier, fcpopts)
+    plugin_name = "plugins.WebOfTrust.WebOfTrust"
+    plugin_params = {'Message':
+                     'GetOwnIdentities'}
+    # print(plugin_name, plugin_params)
     response = \
-        node.fcpPluginMessage(plugin_name="plugins.WebOfTrust.WebOfTrust",
-                              plugin_params={'Message':
-                                             'GetOwnIdentities'})[0]
-
+        node.fcpPluginMessage(plugin_name=plugin_name,
+                              plugin_params=plugin_params)[0]
+    # print(response)
     if response['header'] != 'FCPPluginReply' or \
             'Replies.Message' not in response or \
             response['Replies.Message'] != 'OwnIdentities':
-        raise error.Abort(b"Unexpected reply. Got {0}\n.".format(response))
+        raise error.Abort(b"Unexpected reply. Got %b\n." % str(response).encode("utf-8"))
 
     # Find nicknames starting with the supplied nickname prefix.
     prefix = 'Replies.Nickname'
@@ -314,12 +318,12 @@ def _get_local_identity(wot_identifier, fcpopts={}):
             del matches[key]
 
     if len(matches) > 1:
-        raise error.Abort("'{0}' matches more than one local identity."
-                         .format(wot_identifier))
+        raise error.Abort(b"'%b' matches more than one local identity."
+                         % wot_identifier)
 
     if len(matches) == 0:
-        raise error.Abort("No local identities match '{0}'."
-                         .format(wot_identifier))
+        raise error.Abort(b"No local identities match '%b'."
+                         % wot_identifier)
 
     assert len(matches) == 1
 

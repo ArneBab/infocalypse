@@ -625,13 +625,13 @@ def freenetpathtouri(ui, path, operation, repo=None, truster_identifier=None, fc
     path = path.replace(b"%7E", b"~").replace(b"%2C", b",")
     path = strip_protocol(path)
 
-    print("path", path, "operation", operation)
+    # print("path", path, "operation", operation)
     # Guess whether it's WoT. This won't work if someone has chosen their WoT
     # nick to be "USK", but this is a corner case. Using --wot will still work.
     if not path.startswith(b"USK"):
         from . import wot
         if operation == b"pull":
-            truster = get_truster(ui, repo, truster_identifier)
+            truster = fncommands.get_truster(ui, repo, truster_identifier)
             return wot.resolve_pull_uri(ui, path, truster, repo, fcphost=fcphost, fcpport=fcpport)
         elif operation == b"push":
             return wot.resolve_push_uri(ui, path, fcphost=fcphost, fcpport=fcpport)
@@ -661,9 +661,9 @@ def freenetpull(orig, *args, **opts):
     # only act differently, if the target is an infocalypse repo.
     if not isfreenetpath(path):
         return orig(*args, **opts)
-    uri = freenetpathtouri(ui, path, b"pull", repo, opts.get(b'truster'), fcphost = opts[b'fcphost'], fcpport = opts[b'fcpport'])
-    opts[b"uri"] = uri
-    opts[b"aggressive"] = True # always search for the latest revision.
+    uri = freenetpathtouri(ui, path, b"pull", repo, opts.get(b'truster'), fcphost = opts['fcphost'], fcpport = opts['fcpport'])
+    opts["uri"] = uri
+    opts["aggressive"] = True # always search for the latest revision.
     return infocalypse_pull(ui, repo, **opts)
 
 def fixnamepart(namepart):
@@ -715,7 +715,7 @@ def freenetpush(orig, *args, **opts):
         namepart = uri[5:]
         namepart = fixnamepart(namepart)
         insert, request = genkeypair(fcphost, fcpport)
-        uri = "USK"+insert[3:]+namepart
+        uri = b"USK"+insert[3:]+namepart
         opts["uri"] = uri
         opts["aggressive"] = True # always search for the latest revision.
         return infocalypse_create(ui, repo, **opts)
@@ -761,12 +761,14 @@ def freenetclone(orig, *args, **opts):
     pulluri, pushuri = None, None
     if isfreenetpath(source):
         pulluri = parse_repo_path(
-            freenetpathtouri(ui, source, b"pull", None, opts.get('truster')))
+            freenetpathtouri(ui, source, b"pull", None, opts.get(b'truster')))
 
     if isfreenetpath(dest):
+        # print(opts)
         pushuriuri = freenetpathtouri(ui, dest, b"clone-push", fcphost = opts['fcphost'], fcpport = opts['fcpport'])
+        # print(pushuriuri) # careful: this is the insert uri. If others get to know this, your ID is compromised.
         pushuri = parse_repo_path(
-            pushuriuri.encode("utf-8"),
+            pushuriuri,
             assume_redundancy=True)
         
     # decide which infocalypse command to use.
@@ -822,19 +824,26 @@ def freenetclone(orig, *args, **opts):
 
         from .wot_id import Local_WoT_ID
         from .wot import get_fcpopts
-        local_identity = Local_WoT_ID(local_identifier.decode("utf-8"),
-                                      get_fcpopts(fcphost=opts["fcphost"],
-                                                  fcpport=opts["fcpport"]))
+        import fcp
 
-        print(local_identity, opts)
+        try:
+            local_identity = Local_WoT_ID(local_identifier.decode("utf-8"),
+                                          get_fcpopts(ui,
+                                                      fcphost=opts["fcphost"],
+                                                      fcpport=opts["fcpport"]))
+        except Exception as err:
+            ui.warn(b"Could not load WoT ID: " + str(err).encode("utf-8"))
+            raise
+            local_identity = None
+
         fncommands.infocalypse_create(ui, repo, local_identity, **opts)
 
         # TODO: Function for adding paths? It's currently here, for pull,
         # and in WoT pull URI resolution.
-        with repo.opener(b"hgrc", "a", text=True) as f:
-            f.write(b"""[paths]
+        with open(ui.expandpath(source) + b"/.hg/hgrc", "a") as f:
+            f.write("""[paths]
 default-push = freenet:{0}
-""".format(pushuri))
+""".format(pushuri.decode("utf-8")))
 
     if action == "pull":
         if os.path.exists(dest):
@@ -848,7 +857,7 @@ default-push = freenet:{0}
         destrepo = hg.repository(ui, dest)
         fncommands.infocalypse_pull(ui, destrepo, aggressive=True, hash=None, uri=pulluri, **opts)
         # store the request uri for future updates
-        _hgrc_template = b"""[paths]
+        _hgrc_template = """[paths]
 default = freenet://{pulluri}
 
 [ui]
@@ -866,7 +875,7 @@ commit = !$HG clt --date "$(date -u "+%Y-%m-%d %H:%M:%S +0000")" "$@"
         # timezone +0000 (could be correlated against forum entries
         # and such to find the real timezone): Leave out the -u
         with destrepo.opener(b"hgrc", "a", text=True) as f:
-            f.write(_hgrc_template.format(pulluri=pulluri))
+            f.write(_hgrc_template.format(pulluri=pulluri.decode("utf-8")).encode("utf-8"))
         
         ui.warn(b"As basic protection, infocalypse automatically \n"
                 b"  set the username 'anonymous' for commits in this repo, \n"

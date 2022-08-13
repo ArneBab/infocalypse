@@ -101,7 +101,7 @@ class RequestingBundles(RetryingRequestList):
         # Hmmmm... special case hack code to handle graph.
         if not self._graph_request_done(client, msg, candidate):
             assert not candidate[6]
-            if msg[0] == 'AllData':
+            if msg[0] == b'AllData':
                 self._handle_success(client, msg, candidate)
             else:
                 self._handle_failure(client, msg, candidate)
@@ -469,12 +469,12 @@ class RequestingBundles(RetryingRequestList):
             self.finished_candidates.append(candidate)
             return True
 
-        if msg[0] == 'AllData':
+        if msg[0] == b'AllData':
             in_file = open(client.in_params.file_name, 'rb')
             try:
                 data = in_file.read()
                 # REDFLAG: log graph?
-                if self.parent.params.get('DUMP_GRAPH', False):
+                if self.parent.params.get(b'DUMP_GRAPH', False):
                     self.parent.ctx.ui_.status(b"--- Raw Graph Data ---\n")
                     self.parent.ctx.ui_.status(data)
                     self.parent.ctx.ui_.status(b"\n---\n")
@@ -485,8 +485,8 @@ class RequestingBundles(RetryingRequestList):
                 if self.parent.ctx.has_versions(self.freenet_heads):
                     # Handle case where we are up to date but the heads list
                     # didn't fit in the top key.
-                    self.parent.ctx.ui_.status('Freenet heads: %s\n' %
-                                           ' '.join([ver[:12] for ver in
+                    self.parent.ctx.ui_.status(b'Freenet heads: %s\n' %
+                                           b' '.join([ver[:12] for ver in
                                                      self.freenet_heads]))
                     self.parent.ctx.ui_.warn(b"All remote heads are already "
                                              + b"in the local repo.\n")

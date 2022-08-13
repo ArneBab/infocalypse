@@ -30,10 +30,10 @@ from .bundlecache import BundleException
 from .statemachine import RequestQueueState
 
 # REDFLAG: duplicated to get around circular deps.
-INSERTING_GRAPH = 'INSERTING_GRAPH'
-FAILING = 'FAILING'
-CANCELING = 'CANCELING'
-QUIESCENT = 'QUIESCENT'
+INSERTING_GRAPH = b'INSERTING_GRAPH'
+FAILING = b'FAILING'
+CANCELING = b'CANCELING'
+QUIESCENT = b'QUIESCENT'
 
 # Hmmmm... hard coded exit states.
 class InsertingBundles(RequestQueueState):
@@ -61,22 +61,23 @@ class InsertingBundles(RequestQueueState):
 
         """
         #require_state(from_state, QUIESCENT)
-        assert (self.parent.ctx.get('REINSERT', 0) > 0 or
-                (not self.parent.ctx['INSERT_URI'] is None))
+        print ("parent.ctx", self.parent.ctx)
+        print ("parent.ctx", self.parent.ctx)
+        assert (self.parent.ctx.get(b'REINSERT', 0) > 0 or
+                (not self.parent.ctx[b'INSERT_URI'] is None))
         assert not self.parent.ctx.graph is None
 
         graph = self.parent.ctx.graph.clone()
         if self.parent.params.get('DUMP_GRAPH', False):
-            self.parent.ctx.ui_.status("--- Initial Graph ---\n")
-            self.parent.ctx.ui_.status(graph_to_string(graph) +'\n')
+            self.parent.ctx.ui_.status(b"--- Initial Graph ---\n")
+            self.parent.ctx.ui_.status(graph_to_string(graph) +b'\n')
 
         latest_revs = get_heads(graph)
-
-        self.parent.ctx.ui_.status("Latest heads(s) in Freenet: %s\n"
-                                 % ' '.join([ver[:12] for ver in latest_revs]))
+        self.parent.ctx.ui_.status(b"Latest heads(s) in Freenet: %b\n"
+                                 % b' '.join([ver[:12] for ver in latest_revs]))
 
         if self.parent.ctx.get('REINSERT', 0) == 1:
-            self.parent.ctx.ui_.status("No bundles to reinsert.\n")
+            self.parent.ctx.ui_.status(b"No bundles to reinsert.\n")
             # REDFLAG: Think this through. Crappy code, but expedient.
             # Hmmmm.... need version table to build minimal graph
             self.parent.ctx.version_table = build_version_table(graph,
@@ -86,9 +87,9 @@ class InsertingBundles(RequestQueueState):
             return
 
         if not self.parent.ctx.has_versions(latest_revs):
-            self.parent.ctx.ui_.warn("The local repository isn't up "
-                                     + "to date.\n"
-                                     + "Try doing an fn-pull.\n")
+            self.parent.ctx.ui_.warn(b"The local repository isn't up "
+                                     + b"to date.\n"
+                                     + b"Try doing an fn-pull.\n")
             self.parent.transition(FAILING) # Hmmm... hard coded state name
             return
 
@@ -99,16 +100,16 @@ class InsertingBundles(RequestQueueState):
             # REDFLAG: Later, add FORCE_INSERT parameter?
             # REDFLAG: rework UpToDate exception to include versions, stuff
             #      versions in  ctx?
-            self.parent.ctx['UP_TO_DATE'] = True
-            self.parent.ctx.ui_.warn(str(err) + '\n') # Hmmm
+            self.parent.ctx[b'UP_TO_DATE'] = True
+            self.parent.ctx.ui_.warn(str(err).encode("utf-8") + b'\n') # Hmmm
             self.parent.transition(FAILING) # Hmmm... hard coded state name
             return
 
-        text = ''
+        text = b''
         for edge in self.new_edges:
-            text += "%i:%s\n" % (graph.get_length(edge), str(edge))
+            text += b"%i:%b\n" % (graph.get_length(edge), str(edge).encode("utf-8"))
         if len(text) > 0:
-            self.parent.ctx.ui_.status('Inserting bundles:\n' + text)
+            self.parent.ctx.ui_.status(b'Inserting bundles:\n' + text)
 
         #print "--- Updated Graph ---"
         #print graph_to_string(graph)
@@ -205,19 +206,19 @@ class InsertingBundles(RequestQueueState):
         assert client.tag in self.pending
         edge = client.tag
         del self.pending[edge]
-        if msg[0] == 'AllData':
+        if msg[0] == b'AllData':
             self.salting_cache[client.tag] = msg[2]
 
             # Queue insert request now that the required data is cached.
             if edge in self.required_edges:
                 assert edge[2] == 0
                 self.required_edges.remove(edge)
-                self.parent.ctx.ui_.status("Re-adding put request for salted "
-                                       + "metadata: %s\n"
-                                       % str((edge[0], edge[1], 1)))
+                self.parent.ctx.ui_.status(b"Re-adding put request for salted "
+                                       + b"metadata: %b\n"
+                                           % str((edge[0], edge[1], 1)).encode("utf-8"))
                 self.new_edges.append((edge[0], edge[1], 1))
-        elif msg[0] == 'PutSuccessful':
-            chk1 = msg[1]['URI']
+        elif msg[0] == b'PutSuccessful':
+            chk1 = msg[1][b'URI']
             graph = self.parent.ctx.graph
             if edge[2] == 1 and graph.insert_length(edge) > FREENET_BLOCK_LEN:
                 # HACK HACK HACK
@@ -232,7 +233,7 @@ class InsertingBundles(RequestQueueState):
                 # Hmmm... also no file names.
                 assert len(chk0_fields) == len(chk1_fields)
                 chk1 = ','.join(chk1_fields[:-1] + chk0_fields[-1:])
-            if self.parent.ctx.get('REINSERT', 0) < 1:
+            if self.parent.ctx.get(b'REINSERT', 0) < 1:
                 graph.set_chk(edge[:2], edge[2],
                               graph.get_length(edge),
                               chk1)
@@ -244,10 +245,10 @@ class InsertingBundles(RequestQueueState):
                               graph.get_length(edge),
                               chk1)
                 if chk1 != graph.get_chk(edge):
-                    self.parent.ctx.ui_.status("Bad CHK: %s %s\n" %
-                                               (str(edge), chk1))
-                    self.parent.ctx.ui_.warn("CHK for reinserted edge doesn't "
-                                             + "match!\nPossibly inserted with a different version of Mercurial.\n")
+                    self.parent.ctx.ui_.status(b"Bad CHK: %s %b\n" %
+                                               (str(edge).encode("utf-8"), chk1))
+                    self.parent.ctx.ui_.warn(b"CHK for reinserted edge doesn't "
+                                             + b"match!\nPossibly inserted with a different version of Mercurial.\n")
                     self.parent.transition(FAILING)
                     return 
 
@@ -280,7 +281,7 @@ class InsertingBundles(RequestQueueState):
         if level == 0: # Insert update, don't re-insert
             self.new_edges = graph.update(self.parent.ctx.repo,
                                           self.parent.ctx.ui_,
-                                          self.parent.ctx['TARGET_VERSIONS'],
+                                          self.parent.ctx[b'TARGET_VERSIONS'],
                                           self.parent.ctx.bundle_cache)
         elif level ==  2 or level == 3: # Topkey(s), graphs(s), updates
             # Hmmmm... later support different values of REINSERT?

@@ -37,21 +37,21 @@ from . import config
 
 def get_insert_uri(params):
     """ Helper function builds the insert URI. """
-    if params['SITE_KEY'] == 'CHK@':
-        return 'CHK@/'
-    return '%s/%s-%i/' % (params['SITE_KEY'],
+    if params['SITE_KEY'] == b'CHK@':
+        return b'CHK@/'
+    return b'%b/%b-%i/' % (params['SITE_KEY'],
                           params['SITE_NAME'], params['SITE_INDEX'])
 
 # Convert SSK to USK so n00b5 don't phr34k out.
 def show_request_uri(ui_, params, uri):
     """ Helper function to print the request URI."""
-    if uri.startswith('SSK@'):
-        request_uri = 'U%s/%s/%i/' % (uri.split('/')[0][1:],
+    if uri.startswith(b'SSK@'):
+        request_uri = b'U%b/%b/%i/' % (uri.split(b'/')[0][1:],
                                       params['SITE_NAME'],
                                       params['SITE_INDEX'])
     else:
         request_uri = uri
-    ui_.status('RequestURI:\n%s\n' % request_uri)
+    ui_.status(b'RequestURI:\n%b\n' % request_uri)
 
 def dump_wiki_html(wiki_root, staging_dir, overlayed):
     """ Dump the wiki as flat directory of html.

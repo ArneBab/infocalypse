@@ -351,10 +351,10 @@ class FCPError(Exception):
         self.last_uri = None
 
     def __str__(self):
-        text = "FCPError: " + self.fcp_msg[0]
+        text = b"FCPError: " + self.fcp_msg[0]
         if b'CodeDescription' in self.fcp_msg[1]:
             text += b" -- " + self.fcp_msg[1][b'CodeDescription']
-        return text
+        return text.decode("utf-8")
 
     def is_code(self, error_code):
         """ Returns True if the b'Code' field in the FCP error message
@@ -557,7 +557,7 @@ class FCPConnection:
                                                                 in_params.
                                                                 send_data)
                 write_string = True
-
+        # print(client.in_params.__dict__)
         self.socket.write_bytes(make_request(client.in_params.definition,
                                              client.in_params.fcp_params,
                                              client.in_params.default_fcp_params))
@@ -572,7 +572,7 @@ class FCPConnection:
         if not client.in_params.send_data:
             client.context.file_name = client.in_params.file_name
 
-        #print "MAPPED [%s]->[%s]" % (identifier, str(client))
+        # print (b"MAPPED [%b]->[%b]" % (identifier, str(client).encode("utf-8")))
         self.running_clients[identifier] = client
 
         if self.data_source:
@@ -596,7 +596,7 @@ class FCPConnection:
             print("FCPConnection.remove_request -- unknown identifier: ", \
                   identifier)
         params = {b'Identifier': identifier,
-                  b'Global': is_global}
+                  b'Global': (b"true" if is_global else b"false")}
         self.socket.write_bytes(make_request(REMOVE_REQUEST_DEF, params))
 
     def wait_for_terminal(self, client):
@@ -669,11 +669,11 @@ class FCPConnection:
                 self.state_callback(self, CONNECTED)
                 return True
 
-            raise Exception("Unexpected message before NodeHello: %s"
+            raise Exception(b"Unexpected message before NodeHello: %b"
                             % msg[0])
 
         if not b'Identifier' in msg[1]:
-            print("Saw message without b'Identifier': %s" % msg[0])
+            print(b"Saw message without b'Identifier': %b" % msg[0])
             print(msg)
             return True
 
@@ -681,7 +681,7 @@ class FCPConnection:
             #print "No client for identifier: %s" % msg[1][b'Identifier']
             # BITCH: You get a PersistentRequestRemoved msg even for non
             #        peristent requests AND you get it after the GetFailed.
-            #print msg[0]
+            #print (msg[0])
             return True
 
         return False

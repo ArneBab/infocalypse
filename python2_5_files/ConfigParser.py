@@ -232,6 +232,7 @@ class RawConfigParser:
 
         The DEFAULT section is not acknowledged.
         """
+        print(section, self._sections)
         return section in self._sections
 
     def options(self, section):

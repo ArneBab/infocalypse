@@ -469,9 +469,9 @@ class Config:
         parser.set('primary', 'format_version', FORMAT_VERSION)
         parser.set('primary', 'host', cfg.defaults['HOST'].decode("utf-8"))
         parser.set('primary', 'port', str(cfg.defaults['PORT']))
-        parser.set('primary', 'tmp_dir', cfg.defaults['TMP_DIR'].decode("utf-8"))
+        parser.set('primary', 'tmp_dir', cfg.defaults['TMP_DIR'])
         parser.set('primary', 'default_private_key',
-                   cfg.defaults['DEFAULT_PRIVATE_KEY'].decode("utf-8"))
+                   cfg.defaults['DEFAULT_PRIVATE_KEY'])
 
         parser.set('primary', 'fms_host', cfg.defaults['FMS_HOST'])
         parser.set('primary', 'fms_port', str(cfg.defaults['FMS_PORT']))

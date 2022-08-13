@@ -110,17 +110,18 @@ class RequestRunner:
 #                 if 'URI' in client.in_params.fcp_params:
 #                     print ("   ", client.in_params.fcp_params['URI'])
                 assert client.queue == self.request_queues[self.index]
-                client.in_params.__async = True
+                client.in_params._async = True
                 client.message_callback = self.msg_callback
-                self.running[self.connection.start_request(
-                    client, client.custom_data_source)] = client
+                request_id = self.connection.start_request(
+                    client, client.custom_data_source)
+                # print(request_id)
+                self.running[request_id] = client
             else:
                 idle_queues += 1
             self.index = (self.index + 1) % len(self.request_queues)
 
     def msg_callback(self, client, msg):
         """ Route incoming FCP messages to the appropriate queues. """
-        print(self.running)
         if client.is_finished():
             client.queue.request_done(client, msg)
             #print "RUNNING:"

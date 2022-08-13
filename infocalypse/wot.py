@@ -260,7 +260,8 @@ def update_repo_listing(ui, for_identity, fcphost=None, fcpport=None):
         repo.text = request_uri
 
     # TODO: Nonstandard IP and port from cfg
-    node = fcp.FCPNode(**get_fcpopts(fcphost=fcphost,
+    node = fcp.FCPNode(**get_fcpopts(ui,
+                                     fcphost=fcphost,
                                      fcpport=fcpport))
     atexit.register(node.shutdown)
 
@@ -337,7 +338,7 @@ def read_repo_listing(ui, identity, fcphost=None, fcpport=None):
 
     # TODO: Set and read vcs edition property.
     ui.status("Fetching.\n")
-    mime_type, repo_xml, msg = fetch_edition(uri, fcphost=fcphost, fcpport=fcpport)
+    mime_type, repo_xml, msg = fetch_edition(ui, uri, fcphost=fcphost, fcpport=fcpport)
     ui.status("Fetched {0}.\n".format(uri))
 
     cfg.set_repo_list_edition(identity, uri.edition)
@@ -385,13 +386,14 @@ def read_repo_listing(ui, identity, fcphost=None, fcpport=None):
     return repositories
 
 
-def fetch_edition(uri, fcphost=None, fcpport=None):
+def fetch_edition(ui, uri, fcphost=None, fcpport=None):
     """
     Fetch a USK uri, following redirects. Change the uri edition to the one
     fetched.
     :type uri: USK
     """
-    node = fcp.FCPNode(**get_fcpopts(fcphost=fcphost,
+    node = fcp.FCPNode(**get_fcpopts(ui,
+                                     fcphost=fcphost,
                                      fcpport=fcpport))
     atexit.register(node.shutdown)
     # Following a redirect automatically does not provide the edition used,
@@ -411,13 +413,18 @@ def fetch_edition(uri, fcphost=None, fcpport=None):
         return node.get(str(uri), priority=1)
 
 
-def get_fcpopts(fcphost=None, fcpport=None):
+def get_fcpopts(ui, fcphost=None, fcpport=None):
     """
     Get the minimal FCP opts.
 
+    
     TODO: Retrieve defaults from setup.
     """
-    fcpopts = {}
+    cfg = config.Config.from_ui(ui)
+    fcpopts = {
+        "host": cfg.defaults['HOST'],
+        "port": cfg.defaults['PORT'],
+    }
     if fcphost:
         fcpopts["host"] = fcphost
     if fcpport:
@@ -445,7 +452,8 @@ def resolve_pull_uri(ui, path, truster, repo=None, fcphost=None, fcpport=None):
         # Expecting <id stuff>/reponame
         wot_id, repo_name = path.split('/', 1)
         identity = WoT_ID(wot_id, truster,
-                          fcpopts=get_fcpopts(fcphost=fcphost,
+                          fcpopts=get_fcpopts(ui,
+                                              fcphost=fcphost,
                                               fcpport=fcpport))
 
         # TODO: How to handle redundancy? Does Infocalypse automatically try
@@ -466,7 +474,7 @@ def resolve_pull_uri(ui, path, truster, repo=None, fcphost=None, fcpport=None):
 {0} = freenet:{1}
 """.format(identity.nickname, request_uri))
 
-        return request_uri
+        return request_uri.encode("utf-8")
 
 
 def resolve_push_uri(ui, path, resolve_edition=True, fcphost=None, fcpport=None):
@@ -486,7 +494,8 @@ def resolve_push_uri(ui, path, resolve_edition=True, fcphost=None, fcpport=None)
     # Expecting <id stuff>/repo_name
     wot_id, repo_name = path.split(b'/', 1)
     local_id = Local_WoT_ID(wot_id.decode("utf-8"),
-                            fcpopts=get_fcpopts(fcphost=fcphost,
+                            fcpopts=get_fcpopts(ui,
+                                                fcphost=fcphost,
                                                 fcpport=fcpport))
 
     print("wot_id, repo_name, local_id", wot_id, repo_name, local_id) # bytes, bytes, string
@@ -512,7 +521,7 @@ def resolve_push_uri(ui, path, resolve_edition=True, fcphost=None, fcpport=None)
         repo_uri.name = repo_name
         repo_uri.edition = 0
 
-        return str(repo_uri)
+        return str(repo_uri).encode("utf-8")
 
 
 def execute_setup_wot(ui_, local_id):

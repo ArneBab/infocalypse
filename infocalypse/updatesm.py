@@ -80,7 +80,7 @@ class UpdateContextBase(dict):
         # public key to update the private key.
         self[b'IS_KEYPAIR'] = False
 
-        self[b'INSERT_URI'] = 'CHK@'
+        self[b'INSERT_URI'] = b'CHK@'
         self[b'REQUEST_URI'] = None
 
     def set_cancel_time(self, request):
@@ -162,7 +162,7 @@ class UpdateContext(UpdateContextBase):
         request.tag = tag
         request.in_params.definition = PUT_FILE_DEF
         request.in_params.fcp_params = self.parent.params.copy()
-        request.in_params.fcp_params[b'URI'] = 'CHK@'
+        request.in_params.fcp_params[b'URI'] = b'CHK@'
         kind = self.graph.insert_type(edge)
         if kind == INSERT_SALTED_METADATA:
             #print "make_edge_insert_request -- salted"
@@ -220,7 +220,7 @@ class UpdateContext(UpdateContextBase):
                                       % (original_len, bundle[0]))
             assert bundle[0] == original_len
             if pad:
-                out_file = open(tmp_file, b'ab')
+                out_file = open(tmp_file, 'ab')
                 try:
                     out_file.seek(0, os.SEEK_END)
                     out_file.write(PAD_BYTE)
@@ -388,7 +388,7 @@ class InsertingGraph(StaticRequestList):
         """
         require_state(from_state, INSERTING_BUNDLES)
 
-        if self.parent.params.get(b'DUMP_GRAPH', False):
+        if self.parent.params.get('DUMP_GRAPH', False):
             self.parent.ctx.ui_.status(b"--- Updated Graph ---\n")
             self.parent.ctx.ui_.status(graph_to_string(self.parent.ctx.graph)
                                    + b'\n')
@@ -399,7 +399,7 @@ class InsertingGraph(StaticRequestList):
                                            self.parent.ctx.repo,
                                            self.parent.ctx.version_table,
                                            31*1024)
-        if self.parent.params.get(b'DUMP_GRAPH', False):
+        if self.parent.params.get('DUMP_GRAPH', False):
             self.parent.ctx.ui_.status(b"--- Minimal Graph ---\n")
             self.parent.ctx.ui_.status(graph_to_string(self.working_graph)
                                        + b'\n---\n')
@@ -409,8 +409,8 @@ class InsertingGraph(StaticRequestList):
         assert len(graph_bytes) <= 31 * 1024
 
         # Insert the graph twice for redundancy
-        self.queue([b'CHK@', 0, True, '#A\n' + graph_bytes, None, None])
-        self.queue([b'CHK@', 0, True, '#B\n' + graph_bytes, None, None])
+        self.queue([b'CHK@', 0, True, b'#A\n' + graph_bytes, None, None])
+        self.queue([b'CHK@', 0, True, b'#B\n' + graph_bytes, None, None])
         self.required_successes = 2
 
     def leave(self, to_state):
@@ -435,7 +435,7 @@ class InsertingGraph(StaticRequestList):
         assert not graph is None
 
         # REDFLAG: graph redundancy hard coded to 2.
-        chks = (self.get_result(0)[1][b'URI'], self.get_result(1)[1]['URI'])
+        chks = (self.get_result(0)[1][b'URI'], self.get_result(1)[1][b'URI'])
 
         # Slow.
         updates = get_top_key_updates(graph, self.parent.ctx.repo)
@@ -955,7 +955,7 @@ class UpdateStateMachine(RequestQueue, StateMachine):
 
         self.ctx = ctx
 
-    def start_inserting(self, graph, to_versions, insert_uri='CHK@'):
+    def start_inserting(self, graph, to_versions, insert_uri=b'CHK@'):
         """ Start and insert of the graph and any required new edge CHKs
             to the insert URI. """
         self.require_state(QUIESCENT)

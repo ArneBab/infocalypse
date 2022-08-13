@@ -423,9 +423,9 @@ def latest_usk_index(client, usk_uri, allowed_redirects = 1,
 def get_insert_chk_filename(uri):
     """ Returns the file name part of CHK@/file_part.ext style
     CHK insert uris. """
-    assert uri.startswith('CHK@')
-    if not uri.startswith('CHK@/'):
-        if uri != 'CHK@':
+    assert uri.startswith(b'CHK@')
+    if not uri.startswith(b'CHK@/'):
+        if uri != b'CHK@':
             raise ValueError("Unexpected data after '@'. Maybe you forgot the "
                              + "'/' before the filename part?")
         return None
@@ -436,7 +436,7 @@ def set_insert_uri(params, uri):
     correctly handling CHK@/filename.ext style insert URIs. """
 
     if is_chk(uri):
-        params['URI'] = 'CHK@'
+        params['URI'] = b'CHK@'
         filename = get_insert_chk_filename(uri)
         if not filename is None:
             params['TargetFilename'] = filename
@@ -456,23 +456,23 @@ def check_usk_hash(usk, hash_value):
 def show_progress(dummy, msg):
     """ Default message callback implementation. """
 
-    if msg[0] == 'SimpleProgress':
-        print("Progress: (%s/%s/%s)" % (msg[1]['Succeeded'],
-                                        msg[1]['Required'],
-                                        msg[1]['Total']))
+    if msg[0] == b'SimpleProgress':
+        print("Progress: (%s/%s/%s)" % (msg[1][b'Succeeded'],
+                                        msg[1][b'Required'],
+                                        msg[1][b'Total']))
     else:
         print("Progress: %s" % msg[0])
 
 def parse_progress(msg):
     """ Parse a SimpleProgress message into a tuple. """
-    assert msg[0] == 'SimpleProgress'
+    assert msg[0] == b'SimpleProgress'
 
-    return (int(msg[1]['Succeeded']),
-            int(msg[1]['Required']),
-            int(msg[1]['Total']),
-            int(msg[1]['Failed']),
-            int(msg[1]['FatallyFailed']),
-            bool(msg[1]['FinalizedTotal'].lower() == 'true'))
+    return (int(msg[1][b'Succeeded']),
+            int(msg[1][b'Required']),
+            int(msg[1][b'Total']),
+            int(msg[1][b'Failed']),
+            int(msg[1][b'FatallyFailed']),
+            bool(msg[1][b'FinalizedTotal'].lower() == b'true'))
 
 class FCPClient(MinimalClient):
     """ A class to execute common FCP requests.
@@ -780,12 +780,12 @@ def parse_metadata(msg):
         FCP2.0 doesn't have support for user defined metadata, so we
         jam the metadata we need into the mime type field.
     """
-    match = CHANGESET_REGEX.match(msg[1]['Metadata.ContentType'])
+    match = CHANGESET_REGEX.match(msg[1][b'Metadata.ContentType'])
     if not match or len(match.groups()) != 3:
         # This happens for bundles inserted with older versions
         # of hg2fn.py
         raise ValueError("Couldn't parse changeset info from [%s]." \
-                         % msg[1]['Metadata.ContentType'])
+                         % msg[1][b'Metadata.ContentType'])
     return match.groups()
 
 def make_rollup_filename(rollup_info, request_uri):
@@ -804,21 +804,21 @@ def make_rollup_filename(rollup_info, request_uri):
     assert end_index >= 0
     assert end_index >= start_index
 
-    human_readable = request_uri.split('/')[1]
+    human_readable = request_uri.split(b'/')[1]
     # hmmmm... always supress .hg
-    if human_readable.lower().endswith('.hg'):
+    if human_readable.lower().endswith(b'.hg'):
         human_readable = human_readable[:-3]
     # <human_name>_<end_index>_<start_index>_<tip>_<parent>_ID<repoid>
-    return "%s_%i_%i_%s_%s_ID%s" % (human_readable, end_index, start_index,
+    return b"%b_%i_%i_%b_%b_ID%b" % (human_readable, end_index, start_index,
                                     tip[:12], parent[:12],
                                     get_usk_hash(request_uri))
 
 def parse_rollup_filename(filename):
     """ Parse a filename created with make_rollup_filename
         into a tuple."""
-    fields = filename.split('_')
+    fields = filename.split(b'_')
     repo_id = fields[-1]
-    if not repo_id.startswith("ID") or len(repo_id) != 14:
+    if not repo_id.startswith(b"ID") or len(repo_id) != 14:
         raise ValueError("Couldn't parse repo usk hash.")
     repo_id = repo_id[2:]
     parent = fields[-2]
@@ -829,7 +829,7 @@ def parse_rollup_filename(filename):
         raise ValueError("Couldn't parse tip.")
     start_index = int(fields[-4])
     end_index = int(fields[-5])
-    human_readable = '_'.join(fields[:-6]) # REDFLAG: dci obo?
+    human_readable = b'_'.join(fields[:-6]) # REDFLAG: dci obo?
     return (human_readable, start_index, end_index, tip, parent, repo_id)
 
 
@@ -848,12 +848,12 @@ def make_redundant_ssk(usk, version):
         part of usk ends with '.R1', otherwise a single
         ssk for the usk specified version. """
     ssk = get_ssk_for_usk_version(usk, version)
-    fields = ssk.split('-')
-    if not fields[-2].endswith('.R1'):
+    fields = ssk.split(b'-')
+    if not fields[-2].endswith(b'.R1'):
         return (ssk, )
     #print "make_redundant_ssk -- is redundant"
-    fields[-2] = fields[-2][:-2] + 'R0'
-    return (ssk, '-'.join(fields))
+    fields[-2] = fields[-2][:-2] + b'R0'
+    return (ssk, b'-'.join(fields))
 
 # For search
 def make_search_uris(uri):
@@ -875,7 +875,7 @@ def make_frozen_uris(uri, increment=True):
         NOTE: This increments the version by 1 if uri is a USK
               and increment is True.
     """
-    if uri == 'CHK@':
+    if uri == b'CHK@':
         return (uri,)
     assert is_usk_file(uri)
     version = get_version(uri)
@@ -883,9 +883,9 @@ def make_frozen_uris(uri, increment=True):
 
 def ssk_to_usk(ssk):
     """ Convert an SSK for a file USK back into a file USK. """
-    fields = ssk.split('-')
-    end = '/'.join(fields[-2:])
+    fields = ssk.split(b'-')
+    end = b'/'.join(fields[-2:])
     fields = fields[:-2] + [end, ]
-    return 'USK' + '-'.join(fields)[3:]
+    return b'USK' + b'-'.join(fields)[3:]
 
 

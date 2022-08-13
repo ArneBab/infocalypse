@@ -139,40 +139,41 @@ class UICallbacks:
         #prefix = update_sm.current_state.name
         prefix = ''
         if self.verbosity > 2:
-            prefix = client.request_id()[:10] + ':'
+            prefix = client.request_id()[:10] + b':'
 
         if hasattr(update_sm.current_state, 'pending') and self.verbosity > 1:
-            prefix = ("{%i}:" % len(update_sm.runner.running)) + prefix
+            prefix = (b"{%i}:" % len(update_sm.runner.running)) + prefix
 
-        if msg[0] == 'SimpleProgress':
-            text = str(parse_progress(msg))
-        elif msg[0] == 'URIGenerated':
+        if msg[0] == b'SimpleProgress':
+            text = str(parse_progress(msg)).encode("utf-8")
+        elif msg[0] == b'URIGenerated':
             return # shows up twice
-        #elif msg[0] == 'PutSuccessful':
-        #    text = 'PutSuccessful:' + msg[1]['URI']
-        elif msg[0] == 'ProtocolError':
-            text = 'ProtocolError:' + str(msg)
-        elif msg[0] == 'AllData':
+        #elif msg[0] == b'PutSuccessful':
+        #    text = b'PutSuccessful:' + msg[1][b'URI']
+        elif msg[0] == b'ProtocolError':
+            text = b'ProtocolError:' + str(msg).encode("utf-8")
+        elif msg[0] == b'AllData':
              # Don't try to print raw data.
-            text = 'AllData: length=%s' % msg[1].get('DataLength', '???')
-        elif msg[0].find('Failed') != -1:
+            text = b'AllData: length=%s' % msg[1].get(b'DataLength', b'???')
+        elif msg[0].find(b'Failed') != -1:
             code = get_code(msg) or -1
-            redirect = ''
-            if (code == 27 and 'RedirectURI' in msg[1]
-                and is_usk(msg[1]['RedirectURI'])):
-                redirect = ", redirected to version: %i" % \
-                           get_version(msg[1]['RedirectURI'])
+            redirect = b''
+            if (code == 27 and b'RedirectURI' in msg[1]
+                and is_usk(msg[1][b'RedirectURI'])):
+                redirect = b", redirected to version: %i" % \
+                           get_version(msg[1][b'RedirectURI'])
 
-            text = "%s: code=%i%s" % (msg[0], code, redirect)
+            text = b"%b: code=%i%b" % (msg[0], code, redirect)
         else:
             text = msg[0]
-
-        self.ui_.status(b"%s%s:%s\n" % (prefix, str(client.tag), text))
-        # REDFLAG: re-add full dumping of FCP errors at debug level?
-        #if msg[0].find('Failed') != -1 or msg[0].find('Error') != -1:
-            #print  client.in_params.pretty()
-            #print msg
-            #print "FINISHED:" , bool(client.is_finished())
+        try:
+            self.ui_.status(b"%b%b:%b\n" % (prefix, str(client.tag).encode("utf-8"), text))
+        except TypeError:
+            print("status:", (prefix, str(client.tag).encode("utf-8"), text))
+            # REDFLAG: re-add full dumping of FCP errors at debug level?
+            if msg[0].find(b'Failed') != -1 or msg[0].find(b'Error') != -1:
+                print ("FINISHED:" , bool(client.is_finished()))
+            raise
 
 # Hmmmm... SUSPECT. Abuse of mercurial ui design intent.
 # ISSUE: I don't just want to suppress/include output.
@@ -404,8 +405,9 @@ def do_key_setup(ui_, update_sm, params, stored_cfg):
 
     if is_usk(insert_uri):
         # Determine the highest known index for the insert uri.
-        max_index = max(stored_cfg.get_index(inverted_uri),
-                        get_version(insert_uri))
+        known_index = stored_cfg.get_index(inverted_uri) or 0
+        uri_index = get_version(insert_uri)
+        max_index = max(known_index, uri_index)
 
         # Update the insert uri to the latest known version.
         params['INSERT_URI'] = get_usk_for_usk_version(insert_uri,
@@ -455,10 +457,10 @@ def handle_updating_config(repo, update_sm, params, stored_cfg,
         inverted_uri = params['INVERTED_INSERT_URI']
 
         # Cache the request_uri - insert_uri mapping.
-        stored_cfg.set_insert_uri(inverted_uri, update_sm.ctx['INSERT_URI'])
+        stored_cfg.set_insert_uri(inverted_uri, update_sm.ctx[b'INSERT_URI'])
 
         # Cache the updated index for the insert.
-        version = get_version(update_sm.ctx['INSERT_URI'])
+        version = get_version(update_sm.ctx[b'INSERT_URI'])
         stored_cfg.update_index(inverted_uri, version)
         stored_cfg.update_dir(repo.root, inverted_uri)
 
@@ -513,19 +515,19 @@ def execute_create(ui_, repo, params, stored_cfg):
         # out of INSERTING_URI instead.
         do_key_setup(ui_, update_sm, params, stored_cfg)
 
-        ui_.debug("%sInsert URI:\n%s\n" % (is_redundant(params['INSERT_URI']),
+        ui_.debug(b"%bInsert URI:\n%b\n" % (is_redundant(params['INSERT_URI']),
                                             params['INSERT_URI']))
         #ui_.status(b"Current tip: %s\n" % hex_version(repo)[:12])
 
         update_sm.start_inserting(UpdateGraph(),
-                                  params.get('TO_VERSIONS', ('tip',)),
+                                  params.get('TO_VERSIONS', (b'tip',)),
                                   params['INSERT_URI'])
 
         run_until_quiescent(update_sm, params['POLL_SECS'])
 
         if update_sm.get_state(QUIESCENT).arrived_from(((FINISHING,))):
             inserted_to = update_sm.get_state(INSERTING_URI).get_request_uris()
-            ui_.status(b"Inserted to:\n%s\n" % '\n'.join(inserted_to))
+            ui_.status(b"Inserted to:\n%b\n" % b'\n'.join(inserted_to))
         else:
             ui_.status(b"Create failed.\n")
 
@@ -960,7 +962,7 @@ def execute_insert_patch(ui_, repo, params, stored_cfg):
         request.tag = 'patch_bundle_insert'
         request.in_params.definition = PUT_FILE_DEF
         request.in_params.fcp_params = update_sm.params.copy()
-        request.in_params.fcp_params['URI'] = 'CHK@'
+        request.in_params.fcp_params['URI'] = b'CHK@'
         request.in_params.file_name = out_file
         request.in_params.send_data = True
 
