@@ -61,8 +61,7 @@ class InsertingBundles(RequestQueueState):
 
         """
         #require_state(from_state, QUIESCENT)
-        print ("parent.ctx", self.parent.ctx)
-        print ("parent.ctx", self.parent.ctx)
+        # print ("parent.ctx", self.parent.ctx)
         assert (self.parent.ctx.get(b'REINSERT', 0) > 0 or
                 (not self.parent.ctx[b'INSERT_URI'] is None))
         assert not self.parent.ctx.graph is None
@@ -206,6 +205,7 @@ class InsertingBundles(RequestQueueState):
         assert client.tag in self.pending
         edge = client.tag
         del self.pending[edge]
+        # print("request_done, msg:", msg)
         if msg[0] == b'AllData':
             self.salting_cache[client.tag] = msg[2]
 
@@ -247,14 +247,17 @@ class InsertingBundles(RequestQueueState):
                 if chk1 != graph.get_chk(edge):
                     self.parent.ctx.ui_.status(b"Bad CHK: %s %b\n" %
                                                (str(edge).encode("utf-8"), chk1))
-                    self.parent.ctx.ui_.warn(b"CHK for reinserted edge doesn't "
-                                             + b"match!\nPossibly inserted with a different version of Mercurial.\n")
+                    self.parent.ctx.ui_.warn(
+                        b"CHK for reinserted edge doesn't "
+                        + b"match!\nPossibly inserted with a different version of Mercurial.\n")
                     self.parent.transition(FAILING)
-                    return 
+                    return
 
         else:
             # REDFLAG: retrying?
             # REDFLAG: More failure information, FAILING state?
+            print(self.name, "failed:")
+            print(msg[0], msg[1][b'ShortCodeDescription'], msg[1][b'CodeDescription'])
             self.parent.transition(FAILING)
             return
 
@@ -283,7 +286,7 @@ class InsertingBundles(RequestQueueState):
                                           self.parent.ctx.ui_,
                                           self.parent.ctx[b'TARGET_VERSIONS'],
                                           self.parent.ctx.bundle_cache)
-        elif level ==  2 or level == 3: # Topkey(s), graphs(s), updates
+        elif level in [2, 3]: # Topkey(s), graphs(s), updates
             # Hmmmm... later support different values of REINSERT?
             self.new_edges = graph.get_top_key_edges()
             if level == 2: # 3 == All top key updates.

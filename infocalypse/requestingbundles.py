@@ -474,7 +474,7 @@ class RequestingBundles(RetryingRequestList):
             try:
                 data = in_file.read()
                 # REDFLAG: log graph?
-                if self.parent.params.get(b'DUMP_GRAPH', False):
+                if self.parent.params.get('DUMP_GRAPH', False):
                     self.parent.ctx.ui_.status(b"--- Raw Graph Data ---\n")
                     self.parent.ctx.ui_.status(data)
                     self.parent.ctx.ui_.status(b"\n---\n")
@@ -610,10 +610,10 @@ class RequestingBundles(RetryingRequestList):
         candidate[5] = msg
         self.finished_candidates.append(candidate)
         #print "_handle_success -- pulling!"
-        name = str(candidate[3])
-        if name == 'None':
-            name = "%s:%s" % (','.join([ver[:12] for ver in candidate[4][1]]),
-                              ','.join([ver[:12] for ver in candidate[4][2]]))
+        name = str(candidate[3]).encode("utf-8")
+        if name == b'None':
+            name = b"%b:%b" % (b','.join([ver[:12] for ver in candidate[4][1]]),
+                              b','.join([ver[:12] for ver in candidate[4][2]]))
 
         #print "Trying to pull: ", name
         self._pull_bundle(client, msg, candidate)

@@ -252,6 +252,7 @@ class CleaningUp(Canceling):
 
     def enter(self, from_state):
         """ Override Cancel implementation to grab all orphaned requests."""
+        # print(from_state.__dict__)
         self.parent.ctx.orphan_requests(from_state)
         self.pending.update(self.parent.ctx.orphaned)
         self.parent.ctx.orphaned.clear()
@@ -300,7 +301,7 @@ class StaticRequestList(RetryingRequestList):
             False otherwise. """
         # REDFLAG: rationalize parameter names
         # ATL == Above the Line
-        max_retries = self.parent.params.get(b'MAX_ATL_RETRIES', 0)
+        max_retries = self.parent.params.get('MAX_ATL_RETRIES', 0)
         return candidate[1] > max_retries + 1
 
     # Override to provide better tags.
@@ -364,7 +365,7 @@ class StaticRequestList(RetryingRequestList):
             request.in_params.definition = GET_DEF
             request.in_params.fcp_params[b'MaxSize'] = FREENET_BLOCK_LEN
             request.in_params.allowed_redirects = (
-                self.parent.params.get(b'ALLOWED_REDIRECTS', 5))
+                self.parent.params.get('ALLOWED_REDIRECTS', 5))
         # Hmmmm...
         self.parent.ctx.set_cancel_time(request)
         candidate[1] += 1
@@ -508,7 +509,7 @@ class InsertingUri(StaticRequestList):
 
         assert not self.parent.ctx[b'INSERT_URI'] is None
 
-        if self.parent.params.get(b'DUMP_TOP_KEY', False):
+        if self.parent.params.get('DUMP_TOP_KEY', False):
             self.topkey_funcs.dump_top_key_tuple(top_key_tuple,
                                                  self.parent.ctx.ui_.status)
 
@@ -517,7 +518,7 @@ class InsertingUri(StaticRequestList):
                                        should_increment(self))
         assert len(insert_uris) < 3
         for index, uri in enumerate(insert_uris):
-            if self.parent.params.get(b'DUMP_URIS', False):
+            if self.parent.params.get('DUMP_URIS', False):
                 self.parent.ctx.ui_.status(b"INSERT_URI: %s\n" % uri)
             self.queue([uri, 0, True,
                         self.topkey_funcs.top_key_tuple_to_bytes(top_key_tuple,
@@ -536,7 +537,7 @@ class InsertingUri(StaticRequestList):
                 self.parent.ctx[b'INSERT_URI'] = (
                     get_usk_for_usk_version(self.parent.ctx[b'INSERT_URI'],
                                             version))
-                if self.parent.params.get(b'DUMP_URIS', False):
+                if self.parent.params.get('DUMP_URIS', False):
                     self.parent.ctx.ui_.status((b"INSERT UPDATED INSERT "
                                                + b"URI:\n%s\n")
                                                % self.parent.ctx[b'INSERT_URI'])
@@ -587,7 +588,7 @@ class RequestingUri(StaticRequestList):
 
         for uri in request_uris:
             #[uri, tries, is_insert, raw_data, mime_type, last_msg]
-            if self.parent.params.get(b'DUMP_URIS', False):
+            if self.parent.params.get('DUMP_URIS', False):
                 self.parent.ctx.ui_.status(b"REQUEST URI: %s\n" % uri)
             self.queue([uri, 0, False, None, None, None])
 
@@ -617,7 +618,7 @@ class RequestingUri(StaticRequestList):
 
             # Allow pending requests to run to completion.
             self.parent.ctx.orphan_requests(self)
-            if self.parent.params.get(b'DUMP_TOP_KEY', False):
+            if self.parent.params.get('DUMP_TOP_KEY', False):
                 self.topkey_funcs.dump_top_key_tuple(self.get_top_key_tuple(),
                                                      self.parent.ctx.ui_.status)
 

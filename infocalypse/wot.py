@@ -1,6 +1,12 @@
 import fcp
-from mercurial import util
+from mercurial import util, error
 from . import config
+from mercurial import demandimport
+# workaround for demandimport failing at defusedxml
+if hasattr(demandimport, 'IGNORES'):
+    demandimport.IGNORES.add("xml.etree.ElementTree")
+elif "xml.etree.ElementTree" not in demandimport.ignore:
+    demandimport.ignore.append("xml.etree.ElementTree")
 import xml.etree.ElementTree as ET
 import defusedxml.ElementTree
 import smtplib
@@ -74,7 +80,7 @@ HG: Subsequent lines are the body of the message.
     source_lines = [line for line in source_lines if not line.startswith('HG:')]
 
     if not ''.join(source_lines).strip():
-        raise util.Abort("Empty pull request message.")
+        raise error.Abort("Empty pull request message.")
 
     # Body is third line and after.
     msg = MIMEText('\n'.join(source_lines[2:]) + footer)
@@ -119,7 +125,7 @@ def check_notifications(ui, local_identity, mailhost=None, imapport=None):
     if not message_numbers:
         # TODO: Is aborting appropriate here? Should this be ui.status and
         # return?
-        raise util.Abort("No notifications found.")
+        raise error.Abort(b"No notifications found.")
 
     # fetch() expects strings for both. Individual message numbers are
     # separated by commas. It seems desirable to peek because it's not yet
@@ -231,7 +237,7 @@ def require_freemail(wot_identity):
     :type wot_identity: WoT_ID
     """
     if not wot_identity.freemail_address:
-        raise util.Abort("{0} is not using Freemail.\n".format(wot_identity))
+        raise error.Abort(b"%b is not using Freemail.\n" % wot_identity)
 
     return wot_identity.freemail_address
 
@@ -251,13 +257,13 @@ def update_repo_listing(ui, for_identity, fcphost=None, fcpport=None):
     # Version number to support possible format changes.
     root = ET.Element('vcs', {'version': '0'})
 
-    ui.status("Updating repo listing for '%s'\n" % for_identity)
+    ui.status(b"Updating repo listing for '%b'\n" % str(for_identity).encode("utf-8"))
 
     for request_uri in build_repo_list(ui, for_identity):
         repo = ET.SubElement(root, 'repository', {
             'vcs': VCS_NAME,
         })
-        repo.text = request_uri
+        repo.text = request_uri.decode("utf-8")
 
     # TODO: Nonstandard IP and port from cfg
     node = fcp.FCPNode(**get_fcpopts(ui,
@@ -267,18 +273,18 @@ def update_repo_listing(ui, for_identity, fcphost=None, fcpport=None):
 
     insert_uri = for_identity.insert_uri.clone()
 
-    insert_uri.name = 'vcs'
+    insert_uri.name = b'vcs'
     insert_uri.edition = cfg.get_repo_list_edition(for_identity)
 
-    ui.status("Inserting with URI:\n{0}\n".format(insert_uri))
+    ui.status(b"Inserting with URI:\n%b\n" % str(insert_uri).encode("utf-8"))
     uri = node.put(uri=str(insert_uri), mimetype='application/xml',
                    data=ET.tostring(root), priority=1)
 
     if uri is None:
-        ui.warn("Failed to update repository listing.")
+        ui.warn(b"Failed to update repository listing.")
     else:
-        ui.status("Updated repository listing:\n{0}\n".format(uri))
-        cfg.set_repo_list_edition(for_identity, USK(uri).edition)
+        ui.status(b"Updated repository listing:\n%b\n" % uri.encode("utf-8"))
+        cfg.set_repo_list_edition(for_identity, USK(uri.encode("utf-8")).edition)
         config.Config.to_file(cfg)
 
 
@@ -312,12 +318,14 @@ def find_repo(ui, identity, repo_name):
     :type identity: WoT_ID
     """
     listing = read_repo_listing(ui, identity)
+    repo_name = repo_name.encode("utf-8")
 
     if repo_name not in listing:
-        raise util.Abort("{0} does not publish a repo named '{1}'\n"
-                         .format(identity, repo_name))
+        print (listing)
+        raise error.Abort(b"%b does not publish a repo named '%b'\n"
+                         % (str(identity).encode("utf-8"), repo_name))
     r = listing[repo_name]
-    ui.status("Using repository {}\n".format(r))
+    ui.status(b"Using repository %b\n" % r.encode("utf-8"))
 
     return r
 
@@ -333,23 +341,23 @@ def read_repo_listing(ui, identity, fcphost=None, fcpport=None):
     """
     cfg = config.Config.from_ui(ui)
     uri = identity.request_uri.clone()
-    uri.name = 'vcs'
+    uri.name = b'vcs'
     uri.edition = cfg.get_repo_list_edition(identity)
 
     # TODO: Set and read vcs edition property.
-    ui.status("Fetching.\n")
+    ui.status(b"Fetching.\n")
     mime_type, repo_xml, msg = fetch_edition(ui, uri, fcphost=fcphost, fcpport=fcpport)
-    ui.status("Fetched {0}.\n".format(uri))
+    ui.status(b"Fetched %b.\n" % str(uri).encode("utf-8"))
 
     cfg.set_repo_list_edition(identity, uri.edition)
     config.Config.to_file(cfg)
 
     repositories = {}
     ambiguous = []
-    root = ElementTree.fromstring(repo_xml)
+    root = defusedxml.ElementTree.fromstring(repo_xml)
     for repository in root.iterfind('repository'):
         if repository.get('vcs') == VCS_NAME:
-            uri = USK(repository.text)
+            uri = USK(repository.text.encode("utf-8"))
             name = uri.get_repo_name()
             if name not in repositories:
                 repositories[name] = uri
@@ -367,8 +375,8 @@ def read_repo_listing(ui, identity, fcphost=None, fcpport=None):
 
     for name in ambiguous:
         # Same repo name but different key or exact name.
-        ui.warn("\"{0}\" refers ambiguously to multiple paths. Ignoring.\n"
-                .format(name))
+        ui.warn(b"\"%b\" refers ambiguously to multiple paths. Ignoring.\n"
+                 % name)
         del repositories[name]
 
     # TODO: Would it make sense to mention those for which multiple editions
@@ -377,7 +385,7 @@ def read_repo_listing(ui, identity, fcphost=None, fcpport=None):
     # lists.
 
     for name in repositories.keys():
-        ui.status("Found repository \"{0}\".\n".format(name))
+        ui.status(b"Found repository \"%b\".\n" % name)
 
     # Convert values from USKs to strings - USKs are not expected elsewhere.
     for key in list(repositories.keys()):
@@ -498,16 +506,16 @@ def resolve_push_uri(ui, path, resolve_edition=True, fcphost=None, fcpport=None)
                                                 fcphost=fcphost,
                                                 fcpport=fcpport))
 
-    print("wot_id, repo_name, local_id", wot_id, repo_name, local_id) # bytes, bytes, string
+    # print("wot_id, repo_name, local_id", wot_id, repo_name, local_id) # bytes, bytes, string
     if resolve_edition:
         # TODO: find_repo should make it clearer that it returns a request URI,
         # and return a USK.
         repo = find_repo(ui, local_id, repo_name)
-        print("repo", repo)
+        # print("repo", repo)
         
         # Request URI
         repo_uri = USK(repo)
-        print("repo_uri", repo_uri)
+        # print("repo_uri", repo_uri)
 
         # Maintains name, edition.
         repo_uri.key = local_id.insert_uri.key
@@ -515,8 +523,8 @@ def resolve_push_uri(ui, path, resolve_edition=True, fcphost=None, fcpport=None)
         return str(repo_uri)
     else:
         repo_uri = local_id.insert_uri.clone()
-        print("local_id.insert_uri", local_id.insert_uri)
-        print("repo_uri", repo_uri)
+        # print("local_id.insert_uri", local_id.insert_uri)
+        # print("repo_uri", repo_uri)
 
         repo_uri.name = repo_name
         repo_uri.edition = 0
@@ -532,7 +540,7 @@ def execute_setup_wot(ui_, local_id):
     """
     cfg = config.Config.from_ui(ui_)
 
-    ui_.status("Setting default truster to {0}.\n".format(local_id))
+    ui_.status(b"Setting default truster to %b.\n" % str(local_id).encode("utf-8"))
 
     cfg.defaults['DEFAULT_TRUSTER'] = local_id.identity_id
     config.Config.to_file(cfg)

@@ -75,7 +75,7 @@ def has_version(repo, version):
         # Is there a faster way?
         repo[version]
     except Exception as err:
-        print("Checking version failed:", err)
+        # print("Checking version failed:", err)
         # REDFLAG: Back to this. Hack for 1.2
         # Mercurial 1.2 can't find RepoError???
         return False

@@ -33,7 +33,7 @@ DEFAULT_NOTIFICATION_GROUP = knownrepos.DEFAULT_NOTIFICATION_GROUP
 
 from .validate import is_hex_string, is_fms_id
 
-from mercurial import util, error
+from mercurial import error
 
 # Similar hack is used in fms.py.
 from . import knownrepos # Just need a module to read __file__ from
@@ -205,7 +205,7 @@ class Config:
                     match = repo_dir
 
         if not match:
-            raise error.Abort(b"No repository matches {0}.".format(request_uri))
+            raise error.Abort(b"No repository matches %b." %request_uri)
 
         # Assuming path has not become un-normalized since being set with
         # update_dir().
@@ -274,9 +274,9 @@ class Config:
         if identity_id in self.freemail_passwords:
             return self.freemail_passwords[identity_id]
         else:
-            raise error.Abort(b"{0} does not have a Freemail password set.\n"
-                             b"Run hg fn-setupfreemail --truster {0}\n"
-                             .format(wot_identity))
+            raise error.Abort((b"%b does not have a Freemail password set.\n"
+                               b"Run hg fn-setupfreemail --truster %b\n")
+                             %(wot_identity, wot_identity))
 
     def set_repo_list_edition(self, wot_identity, edition):
         """
@@ -347,7 +347,7 @@ class Config:
             cfg.defaults['FORMAT_VERSION'] = parser.get('primary',
                                                         'format_version')
         if parser.has_option('primary','host'):
-            cfg.defaults['HOST'] = parser.get('primary','host')
+            cfg.defaults['HOST'] = parser.get('primary','host') # .encode('utf-8')?
         if parser.has_option('primary','port'):
             cfg.defaults['PORT'] = parser.getint('primary','port')
         if parser.has_option('primary','tmp_dir'):
@@ -389,19 +389,19 @@ class Config:
         cfg = Config()
         if parser.has_section('index_values'):
             for repo_id in parser.options('index_values'):
-                cfg.version_table[repo_id] = (
+                cfg.version_table[repo_id.encode("utf-8")] = (
                     parser.getint('index_values', repo_id))
         if parser.has_section('request_usks'):
             for repo_dir in parser.options('request_usks'):
-                cfg.request_usks[repo_dir] = parser.get('request_usks',
-                                                        repo_dir)
+                cfg.request_usks[repo_dir.encode("utf-8")] = parser.get('request_usks',
+                                                                        repo_dir).encode("utf-8")
         if parser.has_section('insert_usks'):
             for repo_id in parser.options('insert_usks'):
-                cfg.insert_usks[repo_id] = parser.get('insert_usks', repo_id)
+                cfg.insert_usks[repo_id.encode("utf-8")] = parser.get('insert_usks', repo_id).encode("utf-8")
 
         if parser.has_section('wot_identities'):
             for repo_id in parser.options('wot_identities'):
-                cfg.wot_identities[repo_id] = parser.get('wot_identities',
+                cfg.wot_identities[repo_id.encode("utf-8")] = parser.get('wot_identities',
                                                          repo_id)
 
         if parser.has_section('freemail_passwords'):
@@ -467,7 +467,7 @@ class Config:
 
         parser.add_section('primary')
         parser.set('primary', 'format_version', FORMAT_VERSION)
-        parser.set('primary', 'host', cfg.defaults['HOST'].decode("utf-8"))
+        parser.set('primary', 'host', cfg.defaults['HOST'])
         parser.set('primary', 'port', str(cfg.defaults['PORT']))
         parser.set('primary', 'tmp_dir', cfg.defaults['TMP_DIR'])
         parser.set('primary', 'default_private_key',
@@ -484,36 +484,34 @@ class Config:
 
         parser.add_section('index_values')
         for repo_id in cfg.version_table:
-            parser.set('index_values', repo_id, cfg.version_table[repo_id])
+            parser.set('index_values', repo_id.decode("utf-8"), str(cfg.version_table[repo_id]))
         parser.add_section('request_usks')
         for repo_dir in cfg.request_usks:
-            parser.set('request_usks', repo_dir, cfg.request_usks[repo_dir])
+            
+            parser.set('request_usks', repo_dir.decode("utf-8"), cfg.request_usks[repo_dir].decode("utf-8"))
         parser.add_section('insert_usks')
         for repo_id in cfg.insert_usks:
-            parser.set('insert_usks', repo_id, cfg.insert_usks[repo_id])
+            parser.set('insert_usks', repo_id.decode("utf-8"), cfg.insert_usks[repo_id].decode("utf-8"))
         parser.add_section('wot_identities')
         for repo_id in cfg.wot_identities:
-            parser.set('wot_identities', repo_id, cfg.wot_identities[repo_id])
+            parser.set('wot_identities', repo_id.decode("utf-8"), cfg.wot_identities[repo_id])
         parser.add_section('freemail_passwords')
         for wot_id in cfg.freemail_passwords:
             parser.set('freemail_passwords', wot_id, cfg.freemail_passwords[
                 wot_id])
         parser.add_section('repo_list_editions')
         for wot_id in cfg.repo_list_editions:
-            parser.set('repo_list_editions', wot_id, cfg.repo_list_editions[
-                wot_id])
+            parser.set('repo_list_editions', wot_id, str(cfg.repo_list_editions[
+                wot_id]))
         parser.add_section('fmsread_trust_map')
         for index, fms_id in enumerate(cfg.fmsread_trust_map):
             entry = cfg.fmsread_trust_map[fms_id]
             assert len(entry) > 0
             parser.set('fmsread_trust_map', str(index),
-                       fms_id + '|' + '|'.join(i.decode("utf-8") for i in entry))
+                       fms_id + '|' + '|'.join(entry))
 
-        out_file = open(file_name, 'w')
-        try:
+        with open(file_name, 'w') as out_file:
             parser.write(out_file)
-        finally:
-            out_file.close()
 
 def set_wiki_params(parser, params):
     """ Helper reads wiki specific parameters from site config files. """
@@ -575,7 +573,7 @@ def read_freesite_cfg(ui_, repo, params, stored_cfg):
         params['SITE_KEY'] = ''
         return # Will use the insert SSK for the repo.
 
-    key_file = parser.get('default', 'site_key_file', 'default')
+    key_file = parser.get('default', 'site_key_file')
     if key_file == 'default':
         ui_.status('Using repo insert key as site key.\n')
         params['SITE_KEY'] = 'default'

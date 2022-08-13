@@ -319,11 +319,11 @@ def _get_local_identity(wot_identifier, fcpopts={}):
 
     if len(matches) > 1:
         raise error.Abort(b"'%b' matches more than one local identity."
-                         % wot_identifier)
+                          % wot_identifier.encode("utf-8"))
 
     if len(matches) == 0:
         raise error.Abort(b"No local identities match '%b'."
-                         % wot_identifier)
+                         % wot_identifier.encode("utf-8"))
 
     assert len(matches) == 1
 

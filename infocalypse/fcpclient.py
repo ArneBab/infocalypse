@@ -31,7 +31,7 @@ from .fcpmessage import GETNODE_DEF, GENERATE_SSK_DEF, \
 
 # Defaults for commonly used FCP parameters.
 FCP_PARAM_DEFAULTS = {
-    'ReturnType':'direct',
+    'ReturnType':'direct', # causes the default PriorityClass to be 2
     'RealTimeFlag':'true',
     'IgnoreDS':False,
     'MaxRetries':3,
@@ -615,7 +615,7 @@ class FCPClient(MinimalClient):
         return self.conn.start_request(self)
 
 
-    def put(self, uri, bytes, mime_type=None):
+    def put(self, uri, bytes_, mime_type=None):
         """ Insert a string into Freenet.
 
             Returns a PutSuccessful message on success.
@@ -627,7 +627,7 @@ class FCPClient(MinimalClient):
         if mime_type:
             self.in_params.fcp_params['Metadata.ContentType'] = mime_type
 
-        self.in_params.send_data = bytes
+        self.in_params.send_data = bytes_
         return self.conn.start_request(self)
 
     def put_file(self, uri, path, mime_type=None):

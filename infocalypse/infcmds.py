@@ -214,8 +214,9 @@ def get_config_info(ui_, opts):
         config.Config.to_file(cfg)
         ui_.warn('Converted OK.\n')
 
-    if opts.get('fcphost') != '':
-        cfg.defaults['HOST'] = opts['fcphost']
+    if opts.get('fcphost') != b'':
+        # print(opts.get('fcphost'))
+        cfg.defaults['HOST'] = opts['fcphost'].decode('utf-8')
     if opts.get('fcpport') != 0:
         cfg.defaults['PORT'] = opts['fcpport']
 
@@ -529,6 +530,7 @@ def execute_create(ui_, repo, params, stored_cfg):
             inserted_to = update_sm.get_state(INSERTING_URI).get_request_uris()
             ui_.status(b"Inserted to:\n%b\n" % b'\n'.join(inserted_to))
         else:
+            # print(update_sm.__dict__)
             ui_.status(b"Create failed.\n")
 
         handle_updating_config(repo, update_sm, params, stored_cfg)
@@ -686,7 +688,7 @@ def execute_pull(ui_, repo, params, stored_cfg):
 
         if update_sm.get_state(QUIESCENT).arrived_from(((FINISHING,))):
             ui_.status(b"Pulled from:\n%s\n" %
-                       update_sm.get_state('REQUESTING_URI').
+                       update_sm.get_state(b'REQUESTING_URI').
                        get_latest_uri())
             #ui_.status(b"New tip: %s\n" % hex_version(repo)[:12])
         else:

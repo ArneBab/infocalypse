@@ -631,8 +631,8 @@ def freenetpathtouri(ui, path, operation, repo=None, truster_identifier=None, fc
     if not path.startswith(b"USK"):
         from . import wot
         if operation == b"pull":
-            truster = fncommands.get_truster(ui, repo, truster_identifier)
-            return wot.resolve_pull_uri(ui, path, truster, repo, fcphost=fcphost, fcpport=fcpport)
+            truster = fncommands.get_truster(ui, repo, truster_identifier, fcphost=fcphost, fcpport=fcpport)
+            return wot.resolve_pull_uri(ui, path.decode("utf-8"), truster, repo, fcphost=fcphost, fcpport=fcpport)
         elif operation == b"push":
             return wot.resolve_push_uri(ui, path, fcphost=fcphost, fcpport=fcpport)
         elif operation == b"clone-push":
@@ -664,7 +664,7 @@ def freenetpull(orig, *args, **opts):
     uri = freenetpathtouri(ui, path, b"pull", repo, opts.get(b'truster'), fcphost = opts['fcphost'], fcpport = opts['fcpport'])
     opts["uri"] = uri
     opts["aggressive"] = True # always search for the latest revision.
-    return infocalypse_pull(ui, repo, **opts)
+    return fncommands.infocalypse_pull(ui, repo, **opts)
 
 def fixnamepart(namepart):
     """use redundant keys by default, except if explicitely
@@ -833,7 +833,6 @@ def freenetclone(orig, *args, **opts):
                                                       fcpport=opts["fcpport"]))
         except Exception as err:
             ui.warn(b"Could not load WoT ID: " + str(err).encode("utf-8"))
-            raise
             local_identity = None
 
         fncommands.infocalypse_create(ui, repo, local_identity, **opts)
@@ -874,8 +873,8 @@ commit = !$HG clt --date "$(date -u "+%Y-%m-%d %H:%M:%S +0000")" "$@"
         # second alternative: commit done at local time but with
         # timezone +0000 (could be correlated against forum entries
         # and such to find the real timezone): Leave out the -u
-        with destrepo.opener(b"hgrc", "a", text=True) as f:
-            f.write(_hgrc_template.format(pulluri=pulluri.decode("utf-8")).encode("utf-8"))
+        with open(ui.expandpath(dest) + b"/.hg/hgrc", "a") as f:
+            f.write(_hgrc_template.format(pulluri=pulluri.decode("utf-8")))
         
         ui.warn(b"As basic protection, infocalypse automatically \n"
                 b"  set the username 'anonymous' for commits in this repo, \n"
@@ -885,7 +884,7 @@ commit = !$HG clt --date "$(date -u "+%Y-%m-%d %H:%M:%S +0000")" "$@"
                 + os.path.join(destrepo.root, b".hg", b"hgrc")
                 + b"\n")
         # and update the repo
-        return hg.update(destrepo, None)
+        return hg.update(destrepo, b'tip')
 
 
 # really wrap the command

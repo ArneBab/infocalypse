@@ -561,7 +561,7 @@ def infocalypse_setupwot(ui_, **opts):
     from . import wot
     from .wot_id import Local_WoT_ID
     fcpopts = wot.get_fcpopts(ui_, fcphost=opts["fcphost"], fcpport=opts["fcpport"])
-    wot.execute_setup_wot(ui_, Local_WoT_ID(opts['truster'], fcpopts=fcpopts))
+    wot.execute_setup_wot(ui_, Local_WoT_ID(opts['truster'].decode("utf-8"), fcpopts=fcpopts))
 
 
 def infocalypse_setupfreemail(ui, repo, **opts):
@@ -593,11 +593,12 @@ def get_truster(ui, repo=None, truster_identifier=None, fcpport=None, fcphost=No
     """
     from . import wot
     from . import wot_id
-    fcpopts = wot.get_fcpopts(ui, fcphost=fcphost, fcpport=fcpport)
+    cfg = config.Config.from_ui(ui)
+    
+    fcpopts = wot.get_fcpopts(ui, fcphost=fcphost or cfg.defaults['HOST'], fcpport=fcpport or cfg.defaults['PORT'])
     if truster_identifier:
         return wot_id.Local_WoT_ID(truster_identifier, fcpopts=fcpopts)
     else:
-        cfg = config.Config.from_ui(ui)
 
         # Value is identity ID, so '@' prefix makes it an identifier with an
         # empty nickname.
@@ -612,21 +613,21 @@ def get_truster(ui, repo=None, truster_identifier=None, fcpport=None, fcphost=No
             default = True
 
         try:
-            return wot_id.Local_WoT_ID('@' + identity)
-        except util.Abort:
+            return wot_id.Local_WoT_ID('@' + identity, fcpopts=fcpopts)
+        except error.Abort:
             if default:
-                raise util.Abort("Cannot resolve the default truster with "
-                                 "public key hash '{0}'. Set it with hg"
-                                 " fn-setupwot --truster".format(identity))
+                raise error.Abort((b"Cannot resolve the default truster with "
+                                   b"public key hash '%b'. Set it with hg"
+                                   b" fn-setupwot --truster") % identity.encode("utf-8"))
             else:
                 # TODO: Is this suggestion appropriate?
                 # TODO: Ensure that fn-create on an existing repo does not
                 # leave isolated insert_usks or wot_identities entries in the
                 # config file.
-                raise util.Abort("Cannot resolve the identity with public key "
-                                 "hash '{0}' that published this repository. "
+                raise error.Abort(("Cannot resolve the identity with public key "
+                                 "hash '%b' that published this repository. "
                                  "To create this repository under a different "
-                                 "identity run hg fn-create".format(identity))
+                                 "identity run hg fn-create") % identity.encode("utf-8"))
 
 #----------------------------------------------------------"
 

@@ -67,10 +67,10 @@ def parse_graph(text):
     """
 
     graph = UpdateGraph()
-    lines = text.split('\n')
+    lines = text.split(b'\n')
     for line in lines:
-        fields = line.split(':')
-        if fields[0] == 'I':
+        fields = line.split(b':')
+        if fields[0] == b'I':
             fields.pop(0)
             try:
                 if len(fields) == 0:
@@ -79,7 +79,7 @@ def parse_graph(text):
             except ValueError:
                 raise ValueError("Syntax error reading index")
             try:
-                divider = fields.index('|')
+                divider = fields.index(b'|')
             except ValueError:
                 raise ValueError("Syntax error reading index %i" % index)
             parents = fields[:divider]
@@ -93,7 +93,7 @@ def parse_graph(text):
                 raise ValueError("index %i has no head revs" % index)
 
             graph.index_table[index] = (tuple(parents), tuple(heads))
-        elif fields[0] == 'E':
+        elif fields[0] == b'E':
             #print fields
             if len(fields) < 5:
                 raise ValueError("Exception parsing edge values.")
