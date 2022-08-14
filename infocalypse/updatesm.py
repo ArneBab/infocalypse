@@ -174,7 +174,7 @@ class UpdateContext(UpdateContextBase):
 
             salted_pos = pos + len(METADATA_MARKER)
             old_salt = raw_bytes[salted_pos]
-            if old_salt != b'0':
+            if old_salt != b'0'[0]:
                 raise Exception("Unexpected salt byte: %s" % old_salt)
 
             twiddled_bytes = raw_bytes[:salted_pos] + b'1' \

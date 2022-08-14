@@ -759,7 +759,7 @@ def dir_data_source(file_infos, in_params, default_mime_type):
 # Saw here:
 # http://sage.math.washington.edu/home/robertwb/trac-bundle/test \
 #       /sage_trac/log/trac.log
-HG_MIME_TYPE = 'application/mercurial-bundle'
+HG_MIME_TYPE = b'application/mercurial-bundle'
 
 def package_metadata(metadata):
     """ Package the bundle contents metadata into a string which

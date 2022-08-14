@@ -227,12 +227,12 @@ class InsertingBundles(RequestQueueState):
                 # to enable metadata handling.
                 # REDFLAG: Do better?
                 chk0 = graph.get_chk((edge[0], edge[1], 0))
-                chk0_fields = chk0.split(',')
-                chk1_fields = chk1.split(',')
+                chk0_fields = chk0.split(b',')
+                chk1_fields = chk1.split(b',')
                 #print "FIELDS: ", chk0_fields, chk1_fields
                 # Hmmm... also no file names.
                 assert len(chk0_fields) == len(chk1_fields)
-                chk1 = ','.join(chk1_fields[:-1] + chk0_fields[-1:])
+                chk1 = b','.join(chk1_fields[:-1] + chk0_fields[-1:])
             if self.parent.ctx.get(b'REINSERT', 0) < 1:
                 graph.set_chk(edge[:2], edge[2],
                               graph.get_length(edge),
