@@ -721,7 +721,7 @@ def freenetpush(orig, *args, **opts):
         return infocalypse_create(ui, repo, **opts)
     opts["uri"] = uri
     opts["aggressive"] = True # always search for the latest revision.
-    return infocalypse_push(ui, repo, **opts)
+    return fncommands.infocalypse_push(ui, repo, **opts)
 
 def freenetclone(orig, *args, **opts):
     def parsepushargs(ui, repo, path=None):
