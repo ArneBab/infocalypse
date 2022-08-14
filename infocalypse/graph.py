@@ -223,8 +223,8 @@ def get_changes(repo, version_map, versions):
     if len(new_heads) == 0:
         if len(versions) > 0:
             versions.sort()
-            raise UpToDate("Already in repo: " + ' '.join([ver[:12] for
-                                                           ver in versions]))
+            raise UpToDate("Already in repo: " + b' '.join([ver[:12] for
+                                                            ver in versions]).decode("utf-8"))
         else:
             raise UpToDate("Empty repository. Nothing to add.")
 

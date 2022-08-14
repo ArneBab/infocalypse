@@ -646,12 +646,12 @@ def execute_push(ui_, repo, params, stored_cfg):
         if update_sm.get_state(QUIESCENT).arrived_from(((FINISHING,))):
             inserted_to = update_sm.get_state(INSERTING_URI).get_request_uris()
             ui_.status(b"Inserted to:\n%s\n" %
-                       '\n'.join(inserted_to))
+                       b'\n'.join(inserted_to))
         else:
-            extra = ''
+            extra = b''
             if update_sm.ctx.get('UP_TO_DATE', False):
-                extra = '. Local changes already in Freenet'
-            ui_.status(b"Push failed%s.\n" % extra)
+                extra = b'. Local changes already in Freenet'
+            ui_.status(b"Push failed%b.\n" % extra)
 
         handle_updating_config(repo, update_sm, params, stored_cfg)
     finally:
