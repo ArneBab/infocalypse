@@ -828,8 +828,8 @@ def execute_setup(ui_, host, port, tmp, cfg_file = None):
         raise error.Abort(b"Connection to FCP server failed.")
 
     # Fix defaults.
-    if host == '':
-        host = '127.0.0.1'
+    if host == b'':
+        host = b'127.0.0.1'
     if port == 0:
         port = 9481
 
@@ -867,7 +867,7 @@ def execute_setup(ui_, host, port, tmp, cfg_file = None):
             time.sleep(.25)
 
         if not connection.is_connected():
-            connection_failure(("\nGave up after waiting %i secs for an "
+            connection_failure((b"\nGave up after waiting %i secs for an "
                                + "FCP NodeHello.\n") % timeout_secs)
 
         ui_.status(b"Looks good.\nGenerating a default private key...\n")
@@ -880,15 +880,15 @@ def execute_setup(ui_, host, port, tmp, cfg_file = None):
 
     except FCPError:
         # Protocol error.
-        connection_failure("\nMaybe that's not an FCP server?\n")
+        connection_failure(b"\nMaybe that's not an FCP server?\n")
 
     except socket.error: # Not an IOError until 2.6.
         # Horked.
-        connection_failure("\nSocket level error.\n")
+        connection_failure(b"\nSocket level error.\n")
 
     except IOError:
         # Horked.
-        connection_failure("\nSocket level error.\n")
+        connection_failure(b"\nSocket level error.\n")
 
     cfg = config.Config()
     cfg.defaults['HOST'] = host

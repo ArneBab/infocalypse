@@ -47,8 +47,8 @@ def handled_list(ui_, params, stored_cfg):
         trust_map = stored_cfg.fmsread_trust_map.copy() # paranoid copy
         fms_ids = list(trust_map.keys())
         fms_ids.sort()
-        ui_.status(("Only listing repo USKs from trusted "
-                    + "FMS IDs:\n   %s\n\n") % '\n   '.join(fms_ids))
+        ui_.status((("Only listing repo USKs from trusted "
+                     + "FMS IDs:\n   %s\n\n") % '\n   '.join(fms_ids)).encode())
 
     parser = USKNotificationParser(trust_map)
     parser.add_default_repos(KNOWN_REPOS)
@@ -67,15 +67,15 @@ def dump_trust_map(ui_, params, trust_map, force=False):
         return
 
     if not force and not params['REQUEST_URI'] is None:
-        ui_.status("USK hash for local repository: %s\n" %
-                   get_usk_hash(params['REQUEST_URI']))
+        ui_.status(("USK hash for local repository: %s\n" %
+                    get_usk_hash(params['REQUEST_URI'])).encode())
     fms_ids = list(trust_map.keys())
     fms_ids.sort()
-    ui_.status("Update Trust Map:\n")
+    ui_.status(b"Update Trust Map:\n")
     for fms_id in fms_ids:
-        ui_.status("   %s\n      %s\n" % (fms_id,
-                                         '\n      '.join(trust_map[fms_id])))
-    ui_.status("\n")
+        ui_.status(("   %s\n      %s\n" % (fms_id,
+                                           '\n      '.join(trust_map[fms_id]))).encode())
+    ui_.status(b"\n")
 
 def handled_trust_cmd(ui_, params, stored_cfg):
     """ INTERNAL: Handle --trust, --untrust and --showtrust. """
@@ -83,14 +83,14 @@ def handled_trust_cmd(ui_, params, stored_cfg):
         if config.trust_id_for_repo(stored_cfg.fmsread_trust_map,
                              params['FMSREAD_FMSID'],
                              params['FMSREAD_HASH']):
-            ui_.status("Updated the trust map.\n")
+            ui_.status(b"Updated the trust map.\n")
             config.Config.to_file(stored_cfg)
         return True
     elif params['FMSREAD'] == 'untrust':
         if config.untrust_id_for_repo(stored_cfg.fmsread_trust_map,
                                params['FMSREAD_FMSID'],
                                params['FMSREAD_HASH']):
-            ui_.status("Updated the trust map.\n")
+            ui_.status(b"Updated the trust map.\n")
             config.Config.to_file(stored_cfg)
         return True
 
@@ -108,15 +108,15 @@ def show_fms_info(ui_, params, stored_cfg, show_groups=True):
         return
 
     if show_groups:
-        ui_.status(('Connecting to fms on %s:%i\n'
-                    + 'Searching groups: %s\n') %
-                   (stored_cfg.defaults['FMS_HOST'],
-                    stored_cfg.defaults['FMS_PORT'],
-                    ' '.join(stored_cfg.fmsread_groups)))
+        ui_.status((('Connecting to fms on %s:%i\n'
+                     + 'Searching groups: %s\n') %
+                    (stored_cfg.defaults['FMS_HOST'],
+                     stored_cfg.defaults['FMS_PORT'],
+                     ' '.join(stored_cfg.fmsread_groups))).encode())
     else:
-        ui_.status(('Connecting to fms on %s:%i\n') %
-                   (stored_cfg.defaults['FMS_HOST'],
-                    stored_cfg.defaults['FMS_PORT']))
+        ui_.status((('Connecting to fms on %s:%i\n') %
+                    (stored_cfg.defaults['FMS_HOST'],
+                     stored_cfg.defaults['FMS_PORT'])).encode())
 
 def execute_fmsread(ui_, params, stored_cfg):
     """ Run the fmsread command. """
@@ -137,7 +137,7 @@ def execute_fmsread(ui_, params, stored_cfg):
 
     dump_trust_map(ui_, params, trust_map)
 
-    ui_.status("Raking through fms messages. This may take a while...\n")
+    ui_.status(b"Raking through fms messages. This may take a while...\n")
     parser = USKNotificationParser()
     recv_msgs(get_connection(stored_cfg.defaults['FMS_HOST'],
                              stored_cfg.defaults['FMS_PORT'],
@@ -159,10 +159,10 @@ def execute_fmsread(ui_, params, stored_cfg):
         for usk_hash in untrusted:
             text += "   %i:%s\n" % (untrusted[usk_hash][0], usk_hash)
         text += '\n'
-        ui_.status(text)
+        ui_.status(text.encode())
 
     if len(changed) == 0:
-        ui_.status('No updates found.\n')
+        ui_.status(b'No updates found.\n')
         return
 
     # Back map to uris ? Can't always do it.
@@ -170,21 +170,21 @@ def execute_fmsread(ui_, params, stored_cfg):
         text = 'Updates:\n'
         for usk_hash in changed:
             text += '%s:%i\n' % (usk_hash, changed[usk_hash])
-        ui_.status(text)
+        ui_.status(text.encode())
         if ((not params['REQUEST_URI'] is None) and
             get_usk_hash(params['REQUEST_URI']) in changed):
-            ui_.status("Current repo has update to index %s.\n" %
-                       changed[get_usk_hash(params['REQUEST_URI'])])
+            ui_.status(("Current repo has update to index %s.\n" %
+                        changed[get_usk_hash(params['REQUEST_URI'])]).encode())
 
     if params['DRYRUN']:
-        ui_.status('Exiting without saving because --dryrun was set.\n')
+        ui_.status(b'Exiting without saving because --dryrun was set.\n')
         return
 
     for usk_hash in changed:
         stored_cfg.update_index(usk_hash, changed[usk_hash])
 
     config.Config.to_file(stored_cfg)
-    ui_.status('Saved updated indices.\n')
+    ui_.status(b'Saved updated indices.\n')
 
 
 # REDFLAG: Catch this in config when depersisting?
@@ -196,22 +196,22 @@ def check_fms_cfg(ui_, params, stored_cfg):
     """ INTERNAL: Helper aborts on bad fms configuration. """
     if (is_none(stored_cfg.defaults['FMS_ID']) or
         stored_cfg.defaults['FMS_ID'].strip() == ''):
-        ui_.warn("Can't notify because the fms ID isn't set in the "
-                 + "config file.\n")
+        ui_.warn(b"Can't notify because the fms ID isn't set in the "
+                 + b"config file.\n")
         raise util.Abort("Fix the fms_id = line in the config file and " +
                          "and try again.\n")
 
     if stored_cfg.defaults['FMS_ID'].find('@') != -1:
-        ui_.warn("The fms_id line should only "
-                 + "contain the part before the '@'.\n")
+        ui_.warn(b"The fms_id line should only "
+                 + b"contain the part before the '@'.\n")
         raise util.Abort("Fix the fms_id = line in the config file and " +
                          "and try again.\n")
 
     if (is_none(stored_cfg.defaults['FMSNOTIFY_GROUP']) or
         (stored_cfg.defaults['FMSNOTIFY_GROUP'].strip() == '') and
         not params.get('SUBMIT_WIKI', False)):
-        ui_.warn("Can't notify because fms group isn't set in the "
-                 + "config file.\n")
+        ui_.warn(b"Can't notify because fms group isn't set in the "
+                 + b"config file.\n")
         raise util.Abort("Update the fmsnotify_group = line and try again.\n")
 
 
@@ -225,7 +225,7 @@ def execute_fmsnotify(ui_, repo, params, stored_cfg):
                                           params, stored_cfg)
 
         if request_uri is None: # Just assert?
-            ui_.warn("Only works for USK file URIs.\n")
+            ui_.warn(b"Only works for USK file URIs.\n")
             return
 
         check_fms_cfg(ui_, params, stored_cfg)
@@ -234,8 +234,8 @@ def execute_fmsnotify(ui_, repo, params, stored_cfg):
         index = stored_cfg.get_index(usk_hash)
         if index is None and not (params.get('SUBMIT_BUNDLE', False) or
                                   params.get('SUBMIT_WIKI', False)):
-            ui_.warn("Can't notify because there's no stored index "
-                     + "for %s.\n" % usk_hash)
+            ui_.warn(("Can't notify because there's no stored index "
+                      + "for %s.\n" % usk_hash).encode())
             return
 
         group = stored_cfg.defaults.get('FMSNOTIFY_GROUP', None)
@@ -260,18 +260,18 @@ def execute_fmsnotify(ui_, repo, params, stored_cfg):
 
         show_fms_info(ui_, params, stored_cfg, False)
 
-        ui_.status('Sender : %s\nGroup  : %s\nSubject: %s\n%s\n' %
-                   (stored_cfg.defaults['FMS_ID'],
-                    group,
-                    subject, text))
+        ui_.status(('Sender : %s\nGroup  : %s\nSubject: %s\n%s\n' %
+                    (stored_cfg.defaults['FMS_ID'],
+                     group,
+                     subject, text)).encode())
 
         if params['VERBOSITY'] >= 5:
-            ui_.status('--- Raw Message ---\n%s\n---\n' % (
+            ui_.status(b'--- Raw Message ---\n%s\n---\n' % (
                 MSG_TEMPLATE % (msg_tuple[0], msg_tuple[1],
                                 msg_tuple[2], msg_tuple[3])))
 
         if params['DRYRUN']:
-            ui_.status('Exiting without sending because --dryrun was set.\n')
+            ui_.status(b'Exiting without sending because --dryrun was set.\n')
             return
 
         # REDFLAG: for testing!
@@ -295,8 +295,8 @@ def execute_fmsnotify(ui_, repo, params, stored_cfg):
                                      None),
                                      (msg_tuple, ), True)
 
-        ui_.status('Notification message sent.\n'
-                   'Be patient.  It may take up to a day to show up.\n')
+        ui_.status(b'Notification message sent.\n'
+                   b'Be patient.  It may take up to a day to show up.\n')
     finally:
         cleanup(update_sm)
 
@@ -304,8 +304,8 @@ def check_trust_map(ui_, stored_cfg, repo_hash, notifiers, trusted_notifiers):
     """ INTERNAL: Function to interactively update the trust map. """
     if len(trusted_notifiers) > 0:
         return
-    ui_.warn("\nYou MUST trust at least one FMS Id to "
-             + "provide update notifications.\n\n")
+    ui_.warn(b"\nYou MUST trust at least one FMS Id to "
+             + b"provide update notifications.\n\n")
 
     added = False
     fms_ids = list(notifiers.keys())
@@ -315,7 +315,7 @@ def check_trust_map(ui_, stored_cfg, repo_hash, notifiers, trusted_notifiers):
     for fms_id in fms_ids:
         if done:
             break
-        ui_.status("Trust notifications from %s\n" % fms_id)
+        ui_.status(("Trust notifications from %s\n" % fms_id).encode())
         while not done:
             result = ui_.prompt("(y)es, (n)o, (d)one, (a)bort?").lower()
             if result is None:
@@ -337,7 +337,7 @@ def check_trust_map(ui_, stored_cfg, repo_hash, notifiers, trusted_notifiers):
         raise util.Abort("No trusted notifiers!")
 
     config.Config.to_file(stored_cfg)
-    ui_.status("Saved updated config file.\n\n")
+    ui_.status(b"Saved updated config file.\n\n")
 
 # Broke into a separate function to appease pylint.
 def get_trust_map(ui_, params, stored_cfg):
@@ -348,8 +348,8 @@ def get_trust_map(ui_, params, stored_cfg):
         trust_map = stored_cfg.fmsread_trust_map.copy() # paranoid copy
         fms_ids = list(trust_map.keys())
         fms_ids.sort()
-        ui_.status(("Only using announcements from trusted "
-                    + "FMS IDs:\n   %s\n\n") % '\n   '.join(fms_ids))
+        ui_.status((("Only using announcements from trusted "
+                     + "FMS IDs:\n   %s\n\n") % '\n   '.join(fms_ids)).encode())
 
     return trust_map
 
@@ -361,7 +361,7 @@ def get_uri_from_hash(ui_, dummy, params, stored_cfg):
     parser = USKNotificationParser(get_trust_map(ui_, params, stored_cfg))
     parser.add_default_repos(KNOWN_REPOS)
 
-    ui_.status("Raking through fms messages. This may take a while...\n")
+    ui_.status(b"Raking through fms messages. This may take a while...\n")
     recv_msgs(get_connection(stored_cfg.defaults['FMS_HOST'],
                              stored_cfg.defaults['FMS_PORT'],
                              None),
@@ -386,7 +386,7 @@ def get_uri_from_hash(ui_, dummy, params, stored_cfg):
                          params['FMSREAD_HASH'])
 
     if params['VERBOSITY'] >= 2:
-        ui_.status("Found URI announcement:\n%s\n" % target_usk)
+        ui_.status(("Found URI announcement:\n%s\n" % target_usk).encode())
 
     trusted_notifiers = stored_cfg.trusted_notifiers(params['FMSREAD_HASH'])
 
@@ -398,12 +398,12 @@ def get_uri_from_hash(ui_, dummy, params, stored_cfg):
     fms_ids = list(notifiers.keys())
     fms_ids.sort()
 
-    ui_.status("Found Updates:\n")
+    ui_.status(b"Found Updates:\n")
     for fms_id in fms_ids:
         if fms_id in trusted_notifiers:
-            ui_.status("   [trusted]:%i:%s\n" % (notifiers[fms_id], fms_id))
+            ui_.status(("   [trusted]:%i:%s\n" % (notifiers[fms_id], fms_id)).encode())
         else:
-            ui_.status("   [untrusted]:%i:%s\n" % (notifiers[fms_id], fms_id))
+            ui_.status(("   [untrusted]:%i:%s\n" % (notifiers[fms_id], fms_id)).encode())
 
     check_trust_map(ui_, stored_cfg, params['FMSREAD_HASH'],
                     notifiers, trusted_notifiers)
@@ -422,7 +422,7 @@ def get_uri_from_hash(ui_, dummy, params, stored_cfg):
 
 CRLF = '\x0d\x0a'
 FMS_TIMEOUT_SECS = 30
-FMS_SOCKET_ERR_MSG = """
+FMS_SOCKET_ERR_MSG = b"""
 Socket level error.
 It looks like your FMS host or port might be wrong.
 Set them with --fmshost and/or --fmsport.
@@ -430,7 +430,7 @@ Set them with --fmshost and/or --fmsport.
 
 def connect_to_fms(ui_, fms_host, fms_port, timeout):
     """ INTERNAL: Helper, connects to fms and reads the login msg. """
-    ui_.status("Testing FMS connection [%s:%i]...\n" % (fms_host, fms_port))
+    ui_.status(("Testing FMS connection [%s:%i]...\n" % (fms_host, fms_port)).encode())
     try:
         old_timeout = socket.getdefaulttimeout()
         socket.setdefaulttimeout(timeout)
@@ -495,41 +495,41 @@ def setup_fms_config(ui_, cfg, opts):
 
     fms_id, fms_host, fms_port, timeout = get_fms_args(cfg, opts)
 
-    ui_.status("Running FMS checks...\nChecking fms_id...\n")
+    ui_.status(b"Running FMS checks...\nChecking fms_id...\n")
     if fms_id.find('@') != -1:
-        ui_.warn("\n")
-        ui_.warn("""   The FMS id should only contain the part before the '@'!
+        ui_.warn(b"\n")
+        ui_.warn(b"""   The FMS id should only contain the part before the '@'!
    You won't be able to use fn-fmsnotify until this is fixed.
    Run: hg fn-setupfms with the --fmsid argument.
 
 """)
     elif fms_id.lower() == 'none':
-        ui_.warn("""   FMS id isn't set!
+        ui_.warn(b"""   FMS id isn't set!
    You won't be able to use fn-fmsnotify until this is fixed.
    Run: hg fn-setupfms with the --fmsid argument.
 
 """)
     else:
-        ui_.status("OK.\n\n") # hmmm... what if they manually edited the config?
+        ui_.status(b"OK.\n\n") # hmmm... what if they manually edited the config?
 
     bytes = connect_to_fms(ui_, fms_host, fms_port, timeout)
     if not bytes:
         if not bytes is None:
-            ui_.warn("Connected but no response. Are you sure that's "
-                     "an FMS server?\n")
+            ui_.warn(b"Connected but no response. Are you sure that's "
+                     b"an FMS server?\n")
         return None
 
     fields = bytes.split(' ')
     if fields[0] != '200':
-        ui_.warn("Didn't get expected response from FMS server!\n")
+        ui_.warn(b"Didn't get expected response from FMS server!\n")
         return None
 
     if not bytes.lower().find("posting allowed"):
-        ui_.warn("Didn't see expected 'posting allowed' message.\n")
-        ui_.warn("Check that FMS is setup to allow outgoing message.\n")
+        ui_.warn(b"Didn't see expected 'posting allowed' message.\n")
+        ui_.warn(b"Check that FMS is setup to allow outgoing message.\n")
         return None # Hmmm.. feeble, relying on message text.
     else:
-        ui_.status("Got expected response from FMS. Looks good.\n")
+        ui_.status(b"Got expected response from FMS. Looks good.\n")
 
     return (fms_host, fms_port, fms_id)
 
@@ -541,14 +541,14 @@ def execute_setupfms(ui_, opts):
         cfg.defaults['FMS_ID'] = result[2]
         cfg.defaults['FMS_HOST'] = result[0]
         cfg.defaults['FMS_PORT'] = result[1]
-        ui_.status("""Updating config file:
+        ui_.status(b"""Updating config file:
 fms_id = %s
 fms_host = %s
 fms_port = %i
 """ % (result[2], result[0], result[1]))
         config.Config.to_file(cfg)
     else:
-        ui_.warn("""
+        ui_.warn(b"""
 Run:
    hg fn-setupfms
 with the appropriate arguments to try to fix the problem.
