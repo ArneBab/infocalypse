@@ -196,8 +196,8 @@ def get_params(base_dir):
         'BOT_STORAGE_DIR':bot_storage_dir,
 
         # WikiBot
-        'FMS_NOTIFY_GROUP': ('infocalypse.notify' if POST_TO_INFOCALYPSE_NOTIFY
-                             else ''),  # extra group to notify.
+        'FMS_NOTIFY_GROUP': (b'infocalypse.notify' if POST_TO_INFOCALYPSE_NOTIFY
+                             else b''),  # extra group to notify.
         'LATEST_INDEX':INDEX_HINT, # Just a hint, it is also stored in shelve db
         'SITE_KEY':insert_ssk,
         'INSERT_URI':insert_uri,

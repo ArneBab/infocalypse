@@ -190,12 +190,12 @@ def execute_fmsread(ui_, params, stored_cfg):
 # REDFLAG: Catch this in config when depersisting?
 def is_none(value):
     """ Return True if value is None or 'None',  False otherwise. """
-    return value is None or value == 'None'
+    return value is None or value == 'None' or value == b'None'
 
 def check_fms_cfg(ui_, params, stored_cfg):
     """ INTERNAL: Helper aborts on bad fms configuration. """
     if (is_none(stored_cfg.defaults['FMS_ID']) or
-        stored_cfg.defaults['FMS_ID'].strip() == ''):
+        stored_cfg.defaults['FMS_ID'].strip() == b''):
         ui_.warn(b"Can't notify because the fms ID isn't set in the "
                  + b"config file.\n")
         raise util.Abort("Fix the fms_id = line in the config file and " +

@@ -53,5 +53,5 @@ def build_trust_list(id_usk_list):
 # fms_id -> (usk_hash0, ..., usk_hashn) map
 DEFAULT_TRUST = build_trust_list(KNOWN_REPOS)
 
-DEFAULT_GROUPS = ('infocalypse.notify', )
-DEFAULT_NOTIFICATION_GROUP = 'infocalypse.notify'
+DEFAULT_GROUPS = (b'infocalypse.notify', )
+DEFAULT_NOTIFICATION_GROUP = b'infocalypse.notify'

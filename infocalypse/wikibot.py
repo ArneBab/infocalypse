@@ -606,8 +606,8 @@ class WikiBot(FMSBot, RequestQueue):
         text = to_msg_string(((self.params['USK_HASH'],
                               self.ctx.store_info['LATEST_INDEX']), )) + '\n'
         groups = self.params['FMS_GROUP']
-        if self.params.get('FMS_NOTIFY_GROUP', ''):
-            groups = "%s, %s" % (groups, self.params['FMS_NOTIFY_GROUP'])
+        if self.params.get('FMS_NOTIFY_GROUP', b'') != b'':
+            groups = "%s, %b" % (groups, self.params['FMS_NOTIFY_GROUP'])
             self.trace("send_update_notification -- groups: %s" % groups)
 
         self.parent.queue_msg((self.params['FMS_ID'],

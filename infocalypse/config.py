@@ -158,7 +158,7 @@ class Config:
         self.defaults['PORT'] = 9481
         self.defaults['TMP_DIR'] = None
         self.defaults['DEFAULT_PRIVATE_KEY'] = None
-        self.defaults['DEFAULT_TRUSTER'] = ''
+        self.defaults['DEFAULT_TRUSTER'] = b''
 
         self.defaults['FMS_HOST'] = b'127.0.0.1'
         self.defaults['FMS_PORT'] = 1119
@@ -361,17 +361,18 @@ class Config:
         if parser.has_option('primary','fms_port'):
             cfg.defaults['FMS_PORT'] = parser.getint('primary','fms_port')
         if parser.has_option('primary','fms_id'):
-            cfg.defaults['FMS_ID'] = parser.get('primary','fms_id')
+            cfg.defaults['FMS_ID'] = parser.get('primary','fms_id').encode('utf-8')
         if parser.has_option('primary','fmsnotify_group'):
             cfg.defaults['FMSNOTIFY_GROUP'] = parser.get('primary',
-                                                         'fmsnotify_group')
+                                                         'fmsnotify_group').encode('utf-8')
         if parser.has_option('primary','fmsread_groups'):
-            cfg.fmsread_groups = (parser.get('primary','fmsread_groups').
+            cfg.fmsread_groups = (g.encode('utf-8')
+                                  for g in parser.get('primary','fmsread_groups').
                                   strip().split('|'))
 
         if parser.has_option('primary', 'default_truster'):
             cfg.defaults['DEFAULT_TRUSTER'] = parser.get('primary',
-                                                         'default_truster')
+                                                         'default_truster').encode('utf-8')
 
 
     # Hmmm... would be better to detect_and_fix_default_bug()
@@ -478,11 +479,10 @@ class Config:
         parser.set('primary', 'fms_port', str(cfg.defaults['FMS_PORT']))
         parser.set('primary', 'fms_id', (cfg.defaults['FMS_ID'].decode('utf-8') if cfg.defaults['FMS_ID'] is not None else 'None'))
         parser.set('primary', 'fmsnotify_group',
-                   cfg.defaults['FMSNOTIFY_GROUP'])
-        parser.set('primary', 'fmsread_groups', '|'.join(cfg.fmsread_groups))
+                   cfg.defaults['FMSNOTIFY_GROUP'].decode('utf-8'))
+        parser.set('primary', 'fmsread_groups', b'|'.join(cfg.fmsread_groups).decode('utf-8'))
         parser.set('primary', 'default_truster',
-                   cfg.defaults['DEFAULT_TRUSTER'])
-
+                   cfg.defaults['DEFAULT_TRUSTER'].decode('utf-8'))
         parser.add_section('index_values')
         for repo_id in cfg.version_table:
             parser.set('index_values', repo_id.decode("utf-8"), str(cfg.version_table[repo_id]))
