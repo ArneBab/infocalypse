@@ -286,7 +286,7 @@ def setup(ui_, repo, params, stored_cfg):
     check_uri(ui_, params.get('INSERT_URI'))
     check_uri(ui_, params.get('REQUEST_URI'))
 
-    if not is_writable(os.path.expanduser(stored_cfg.defaults['TMP_DIR'].encode("utf-8"))):
+    if not is_writable(os.path.expanduser(stored_cfg.defaults['TMP_DIR'])):
         raise error.Abort(b"Can't write to temp dir: %s\n"
                          % stored_cfg.defaults['TMP_DIR'])
 
@@ -298,7 +298,7 @@ def setup(ui_, repo, params, stored_cfg):
 
     if not repo is None:
         # BUG:? shouldn't this be reading TMP_DIR from stored_cfg
-        cache = BundleCache(repo, ui_, params['TMP_DIR'].encode("utf-8"))
+        cache = BundleCache(repo, ui_, params['TMP_DIR'])
 
     try:
         async_socket = PolledSocket(params['FCP_HOST'], params['FCP_PORT'])
@@ -389,7 +389,7 @@ def do_key_setup(ui_, update_sm, params, stored_cfg):
     insert_uri = params.get('INSERT_URI')
     if not insert_uri is None and insert_uri.startswith(b'USK@/'):
         insert_uri = (b'USK'
-                      + stored_cfg.defaults['DEFAULT_PRIVATE_KEY'][3:].encode("utf-8")
+                      + stored_cfg.defaults['DEFAULT_PRIVATE_KEY'][3:]
                       + insert_uri[5:])
         ui_.status(b"Filled in the insert URI using the default private key.\n")
 

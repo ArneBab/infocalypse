@@ -354,7 +354,7 @@ class Config:
             cfg.defaults['TMP_DIR'] = parser.get('primary', 'tmp_dir').encode("utf-8")
         if parser.has_option('primary','default_private_key'):
             cfg.defaults['DEFAULT_PRIVATE_KEY'] = (
-                parser.get('primary','default_private_key'))
+                parser.get('primary','default_private_key').encode('utf-8'))
 
         if parser.has_option('primary','fms_host'):
             cfg.defaults['FMS_HOST'] = parser.get('primary','fms_host')
