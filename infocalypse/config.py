@@ -328,7 +328,7 @@ class Config:
             raise ValueError(b"No USK hashes for fms id: %s?" %
                                      fields[0])
         for value in fields[1:]:
-            if not is_hex_string(value):
+            if not is_hex_string(value.decode('utf-8')):
                 raise ValueError(b"%s doesn't look like a repo hash." %
                                          value)
 
@@ -418,8 +418,9 @@ class Config:
         if parser.has_section('fmsread_trust_map'):
             cfg.fmsread_trust_map.clear() # Wipe defaults.
             for ordinal in parser.options('fmsread_trust_map'):
-                fields = parser.get('fmsread_trust_map',
-                                    ordinal).strip().split('|')
+                fields = [f.encode('utf-8')
+                          for f in parser.get('fmsread_trust_map',
+                                    ordinal).strip().split('|')]
                 Config.validate_trust_map_entry(cfg, fields)
                 cfg.fmsread_trust_map[fields[0]] = tuple(fields[1:])
 
@@ -508,7 +509,7 @@ class Config:
             entry = cfg.fmsread_trust_map[fms_id]
             assert len(entry) > 0
             parser.set('fmsread_trust_map', str(index),
-                       fms_id + '|' + '|'.join(e.decode("utf-8") for e in entry))
+                       fms_id.decode('utf-8') + '|' + '|'.join(e.decode("utf-8") for e in entry))
 
         with open(file_name, 'w') as out_file:
             parser.write(out_file)

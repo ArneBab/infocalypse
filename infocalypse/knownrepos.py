@@ -29,10 +29,10 @@ from .fcpclient import get_usk_hash
 INFOCALYPSE_INDEX = 20
 
 KNOWN_REPOS = (
-    ('djk@isFiaD04zgAgnrEC5XJt1i4IE7AkNPqhBG5bONi6Yks',
-     'USK@kRM~jJVREwnN2qnA8R0Vt8HmpfRzBZ0j4rHC2cQ-0hw,'
-     + '2xcoQVdQLyqfTpF2DpkdUIbHFCeL4W~2X1phUYymnhM,AQACAAE/'
-     + 'wiki_hacking.R1/%i' % INFOCALYPSE_INDEX), # This code.
+    (b'djk@isFiaD04zgAgnrEC5XJt1i4IE7AkNPqhBG5bONi6Yks',
+     b'USK@kRM~jJVREwnN2qnA8R0Vt8HmpfRzBZ0j4rHC2cQ-0hw,'
+     + b'2xcoQVdQLyqfTpF2DpkdUIbHFCeL4W~2X1phUYymnhM,AQACAAE/'
+     + b'wiki_hacking.R1/%i' % INFOCALYPSE_INDEX), # This code.
     )
 
 
@@ -42,7 +42,7 @@ def build_trust_list(id_usk_list):
     table = {}
     for fms_id, usk in id_usk_list:
         hashes = table.get(fms_id, [])
-        usk_hash = get_usk_hash(usk.encode("utf-8"))
+        usk_hash = get_usk_hash(usk)
         if not usk_hash in hashes:
             hashes.append(usk_hash)
         table[fms_id] = hashes

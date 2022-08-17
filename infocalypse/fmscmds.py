@@ -420,7 +420,7 @@ def get_uri_from_hash(ui_, dummy, params, stored_cfg):
     return target_usk
 
 
-CRLF = '\x0d\x0a'
+CRLF = b'\x0d\x0a'
 FMS_TIMEOUT_SECS = 30
 FMS_SOCKET_ERR_MSG = b"""
 Socket level error.
@@ -438,7 +438,7 @@ def connect_to_fms(ui_, fms_host, fms_port, timeout):
         try:
             connected_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             connected_socket.connect((fms_host, fms_port))
-            bytes =  ''
+            bytes =  b''
             while bytes.find(CRLF) == -1:
                 bytes = bytes + connected_socket.recv(4096)
         finally:
@@ -475,15 +475,17 @@ def get_fms_args(cfg, opts):
     if not cfg is None:
         if fms_id is None:
             fms_id = cfg.defaults.get('FMS_ID', None)
+            if fms_id == 'None': # ??
+                fms_id = None
         if fms_host is None:
             fms_host = cfg.defaults.get('FMS_HOST', None)
         if fms_port is None:
             fms_port = cfg.defaults.get('FMS_PORT', None)
 
     if fms_id is None:
-        fms_id = 'None' # hmmm
+        fms_id = b'None' # hmmm
     if fms_host is None:
-        fms_host = '127.0.0.1'
+        fms_host = b'127.0.0.1'
     if fms_port is None:
         fms_port = 1119
 
@@ -496,14 +498,14 @@ def setup_fms_config(ui_, cfg, opts):
     fms_id, fms_host, fms_port, timeout = get_fms_args(cfg, opts)
 
     ui_.status(b"Running FMS checks...\nChecking fms_id...\n")
-    if fms_id.find('@') != -1:
+    if fms_id.find(b'@') != -1:
         ui_.warn(b"\n")
         ui_.warn(b"""   The FMS id should only contain the part before the '@'!
    You won't be able to use fn-fmsnotify until this is fixed.
    Run: hg fn-setupfms with the --fmsid argument.
 
 """)
-    elif fms_id.lower() == 'none':
+    elif fms_id.lower() == b'none':
         ui_.warn(b"""   FMS id isn't set!
    You won't be able to use fn-fmsnotify until this is fixed.
    Run: hg fn-setupfms with the --fmsid argument.
@@ -519,12 +521,12 @@ def setup_fms_config(ui_, cfg, opts):
                      b"an FMS server?\n")
         return None
 
-    fields = bytes.split(' ')
-    if fields[0] != '200':
+    fields = bytes.split(b' ')
+    if fields[0] != b'200':
         ui_.warn(b"Didn't get expected response from FMS server!\n")
         return None
 
-    if not bytes.lower().find("posting allowed"):
+    if not bytes.lower().find(b"posting allowed"):
         ui_.warn(b"Didn't see expected 'posting allowed' message.\n")
         ui_.warn(b"Check that FMS is setup to allow outgoing message.\n")
         return None # Hmmm.. feeble, relying on message text.
@@ -542,8 +544,8 @@ def execute_setupfms(ui_, opts):
         cfg.defaults['FMS_HOST'] = result[0]
         cfg.defaults['FMS_PORT'] = result[1]
         ui_.status(b"""Updating config file:
-fms_id = %s
-fms_host = %s
+fms_id = %b
+fms_host = %b
 fms_port = %i
 """ % (result[2], result[0], result[1]))
         config.Config.to_file(cfg)

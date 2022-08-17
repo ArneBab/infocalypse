@@ -47,12 +47,12 @@ FREENET_BASE64_CHARS = frozenset(
 
 def is_fms_id(value):
     """ Returns True if value looks like a plausible FMS id."""
-    fields = value.split('@')
+    fields = value.split(b'@')
     if len(fields) != 2:
         return False
 
     # REDFLAG: Faster way? Does it matter?
-    for character in fields[1]:
+    for character in fields[1].decode('utf-8'):
         if not character in FREENET_BASE64_CHARS:
             return False
 
