@@ -357,7 +357,7 @@ class Config:
                 parser.get('primary','default_private_key').encode('utf-8'))
 
         if parser.has_option('primary','fms_host'):
-            cfg.defaults['FMS_HOST'] = parser.get('primary','fms_host')
+            cfg.defaults['FMS_HOST'] = parser.get('primary','fms_host').encode("utf-8")
         if parser.has_option('primary','fms_port'):
             cfg.defaults['FMS_PORT'] = parser.getint('primary','fms_port')
         if parser.has_option('primary','fms_id'):
