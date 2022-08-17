@@ -1,3 +1,4 @@
+import os.path
 import fcp
 from mercurial import util, error
 from . import config
@@ -473,10 +474,10 @@ def resolve_pull_uri(ui, path, truster, repo=None, fcphost=None, fcpport=None):
             # TODO: Writing paths in this way preserves comments,
             # but does not allow dealing intelligently with paths of the same
             # name. Also it's duplicated in the clone support.
-            ui.status("Adding this repository as path '{0}'. To pull from the "
-                      "same repository in the future use this path.\n"
-                      .format(identity.nickname))
-            with repo.opener("hgrc", "a", text=True) as f:
+            ui.status((b"Adding this repository as path '%b'. To pull from the "
+                      b"same repository in the future use this path.\n")
+                       % identity.nickname.encode('utf-8'))
+            with open(os.path.join(repo.root, b".hg", b"hgrc"), "a") as f:
                 f.write("""
 [paths]
 {0} = freenet:{1}

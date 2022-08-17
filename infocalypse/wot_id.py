@@ -237,8 +237,8 @@ def _get_identity(wot_identifier, truster, exact=False, fcpopts={}):
                 response = all_responses[0]
         
         if matches == 0:
-            raise error.Abort("No identities match '{0}'."
-                             .format(wot_identifier))
+            raise error.Abort(b"No identities match '%b'."
+                              % wot_identifier.encode('utf-8'))
         elif matches == 1:
             return response
         else:
