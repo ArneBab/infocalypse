@@ -154,7 +154,7 @@ def infocalypse_create(ui_, repo, local_identity=None, **opts):
                 'Replies.Message' not in vcs_response or\
                 vcs_response['Replies.Message'] != 'ContextAdded':
             raise error.Abort(("Failed to add context. Got {0}\n.".format(
-                vcs_response)).encode())
+                vcs_response)).encode("utf-8"))
 
     set_target_version(ui_, repo, opts, params,
                        b"Only inserting to version(s): %s\n")
@@ -320,7 +320,7 @@ def infocalypse_push(ui_, repo, **opts):
     #    ui_.status((("Copying from:\n%s\nTo:\n%s\n\nThis is an "
     #                 + "advanced feature. "
     #                 + "I hope you know what you're doing.\n") %
-    #                (opts['requesturi'], insert_uri).encode())
+    #                (opts['requesturi'], insert_uri).encode("utf-8"))
     #    params['REQUEST_URI'] = opts['requesturi']
 
     inserted_to = execute_push(ui_, repo, params, stored_cfg)
@@ -364,7 +364,7 @@ def parse_trust_args(params, opts):
         raise error.Abort(b"Only one --hash value is allowed.")
     if not is_hex_string(opts['hash'][0]):
         raise error.Abort(("[%s] doesn't look like a USK hash." %
-                           opts['hash'][0]).encode())
+                           opts['hash'][0]).encode("utf-8"))
 
     if not opts.get('fmsid', []):
         raise error.Abort(b"Use --fmsid to set the FMS id.")
@@ -372,7 +372,7 @@ def parse_trust_args(params, opts):
         raise error.Abort(b"Only one --fmsid value is allowed.")
     if not is_fms_id(opts['fmsid'][0]):
         raise error.Abort(("[%s] doesn't look like an FMS id."
-                           % opts['fmsid'][0]).encode())
+                           % opts['fmsid'][0]).encode("utf-8"))
 
     params['FMSREAD_HASH'] = opts['hash'][0]
     params['FMSREAD_FMSID'] = opts['fmsid'][0]
@@ -721,7 +721,7 @@ def infocalypse_archive(ui_, **opts):
     params['ARCHIVE_CACHE_DIR'] = os.path.join(os.getcwd(), ARCHIVE_CACHE_DIR)
 
     if not subcmd in ARCHIVE_SUBCMDS:
-        raise error.Abort(("Unhandled subcommand: " + subcmd).encode())
+        raise error.Abort(("Unhandled subcommand: " + subcmd).encode("utf-8"))
 
     # 2 qt?
     ARCHIVE_SUBCMDS[subcmd](ui_, opts, params, stored_cfg)

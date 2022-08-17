@@ -48,7 +48,7 @@ def handled_list(ui_, params, stored_cfg):
         fms_ids = list(trust_map.keys())
         fms_ids.sort()
         ui_.status((("Only listing repo USKs from trusted "
-                     + "FMS IDs:\n   %s\n\n") % '\n   '.join(fms_ids)).encode())
+                     + "FMS IDs:\n   %s\n\n") % '\n   '.join(fms_ids)).encode("utf-8"))
 
     parser = USKNotificationParser(trust_map)
     parser.add_default_repos(KNOWN_REPOS)
@@ -68,13 +68,13 @@ def dump_trust_map(ui_, params, trust_map, force=False):
 
     if not force and not params['REQUEST_URI'] is None:
         ui_.status(("USK hash for local repository: %s\n" %
-                    get_usk_hash(params['REQUEST_URI'])).encode())
+                    get_usk_hash(params['REQUEST_URI'])).encode("utf-8"))
     fms_ids = list(trust_map.keys())
     fms_ids.sort()
     ui_.status(b"Update Trust Map:\n")
     for fms_id in fms_ids:
         ui_.status(("   %s\n      %s\n" % (fms_id,
-                                           '\n      '.join(trust_map[fms_id]))).encode())
+                                           '\n      '.join(trust_map[fms_id]))).encode("utf-8"))
     ui_.status(b"\n")
 
 def handled_trust_cmd(ui_, params, stored_cfg):
@@ -112,11 +112,11 @@ def show_fms_info(ui_, params, stored_cfg, show_groups=True):
                      + 'Searching groups: %s\n') %
                     (stored_cfg.defaults['FMS_HOST'],
                      stored_cfg.defaults['FMS_PORT'],
-                     ' '.join(stored_cfg.fmsread_groups))).encode())
+                     ' '.join(stored_cfg.fmsread_groups))).encode("utf-8"))
     else:
         ui_.status((('Connecting to fms on %s:%i\n') %
                     (stored_cfg.defaults['FMS_HOST'],
-                     stored_cfg.defaults['FMS_PORT'])).encode())
+                     stored_cfg.defaults['FMS_PORT'])).encode("utf-8"))
 
 def execute_fmsread(ui_, params, stored_cfg):
     """ Run the fmsread command. """
@@ -159,7 +159,7 @@ def execute_fmsread(ui_, params, stored_cfg):
         for usk_hash in untrusted:
             text += "   %i:%s\n" % (untrusted[usk_hash][0], usk_hash)
         text += '\n'
-        ui_.status(text.encode())
+        ui_.status(text.encode("utf-8"))
 
     if len(changed) == 0:
         ui_.status(b'No updates found.\n')
@@ -170,11 +170,11 @@ def execute_fmsread(ui_, params, stored_cfg):
         text = 'Updates:\n'
         for usk_hash in changed:
             text += '%s:%i\n' % (usk_hash, changed[usk_hash])
-        ui_.status(text.encode())
+        ui_.status(text.encode("utf-8"))
         if ((not params['REQUEST_URI'] is None) and
             get_usk_hash(params['REQUEST_URI']) in changed):
             ui_.status(("Current repo has update to index %s.\n" %
-                        changed[get_usk_hash(params['REQUEST_URI'])]).encode())
+                        changed[get_usk_hash(params['REQUEST_URI'])]).encode("utf-8"))
 
     if params['DRYRUN']:
         ui_.status(b'Exiting without saving because --dryrun was set.\n')
@@ -235,7 +235,7 @@ def execute_fmsnotify(ui_, repo, params, stored_cfg):
         if index is None and not (params.get('SUBMIT_BUNDLE', False) or
                                   params.get('SUBMIT_WIKI', False)):
             ui_.warn(("Can't notify because there's no stored index "
-                      + "for %s.\n" % usk_hash).encode())
+                      + "for %s.\n" % usk_hash).encode("utf-8"))
             return
 
         group = stored_cfg.defaults.get('FMSNOTIFY_GROUP', None)
@@ -263,7 +263,7 @@ def execute_fmsnotify(ui_, repo, params, stored_cfg):
         ui_.status(('Sender : %s\nGroup  : %s\nSubject: %s\n%s\n' %
                     (stored_cfg.defaults['FMS_ID'],
                      group,
-                     subject, text)).encode())
+                     subject, text)).encode("utf-8"))
 
         if params['VERBOSITY'] >= 5:
             ui_.status(b'--- Raw Message ---\n%s\n---\n' % (
@@ -315,7 +315,7 @@ def check_trust_map(ui_, stored_cfg, repo_hash, notifiers, trusted_notifiers):
     for fms_id in fms_ids:
         if done:
             break
-        ui_.status(("Trust notifications from %s\n" % fms_id).encode())
+        ui_.status(("Trust notifications from %s\n" % fms_id).encode("utf-8"))
         while not done:
             result = ui_.prompt("(y)es, (n)o, (d)one, (a)bort?").lower()
             if result is None:
@@ -349,7 +349,7 @@ def get_trust_map(ui_, params, stored_cfg):
         fms_ids = list(trust_map.keys())
         fms_ids.sort()
         ui_.status((("Only using announcements from trusted "
-                     + "FMS IDs:\n   %s\n\n") % '\n   '.join(fms_ids)).encode())
+                     + "FMS IDs:\n   %s\n\n") % '\n   '.join(fms_ids)).encode("utf-8"))
 
     return trust_map
 
@@ -386,7 +386,7 @@ def get_uri_from_hash(ui_, dummy, params, stored_cfg):
                          params['FMSREAD_HASH'])
 
     if params['VERBOSITY'] >= 2:
-        ui_.status(("Found URI announcement:\n%s\n" % target_usk).encode())
+        ui_.status(("Found URI announcement:\n%s\n" % target_usk).encode("utf-8"))
 
     trusted_notifiers = stored_cfg.trusted_notifiers(params['FMSREAD_HASH'])
 
@@ -401,9 +401,9 @@ def get_uri_from_hash(ui_, dummy, params, stored_cfg):
     ui_.status(b"Found Updates:\n")
     for fms_id in fms_ids:
         if fms_id in trusted_notifiers:
-            ui_.status(("   [trusted]:%i:%s\n" % (notifiers[fms_id], fms_id)).encode())
+            ui_.status(("   [trusted]:%i:%s\n" % (notifiers[fms_id], fms_id)).encode("utf-8"))
         else:
-            ui_.status(("   [untrusted]:%i:%s\n" % (notifiers[fms_id], fms_id)).encode())
+            ui_.status(("   [untrusted]:%i:%s\n" % (notifiers[fms_id], fms_id)).encode("utf-8"))
 
     check_trust_map(ui_, stored_cfg, params['FMSREAD_HASH'],
                     notifiers, trusted_notifiers)
@@ -430,7 +430,7 @@ Set them with --fmshost and/or --fmsport.
 
 def connect_to_fms(ui_, fms_host, fms_port, timeout):
     """ INTERNAL: Helper, connects to fms and reads the login msg. """
-    ui_.status(("Testing FMS connection [%s:%i]...\n" % (fms_host, fms_port)).encode())
+    ui_.status(("Testing FMS connection [%s:%i]...\n" % (fms_host, fms_port)).encode("utf-8"))
     try:
         old_timeout = socket.getdefaulttimeout()
         socket.setdefaulttimeout(timeout)

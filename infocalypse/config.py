@@ -351,7 +351,7 @@ class Config:
         if parser.has_option('primary','port'):
             cfg.defaults['PORT'] = parser.getint('primary','port')
         if parser.has_option('primary','tmp_dir'):
-            cfg.defaults['TMP_DIR'] = parser.get('primary', 'tmp_dir')
+            cfg.defaults['TMP_DIR'] = parser.get('primary', 'tmp_dir').encode("utf-8")
         if parser.has_option('primary','default_private_key'):
             cfg.defaults['DEFAULT_PRIVATE_KEY'] = (
                 parser.get('primary','default_private_key'))
@@ -467,13 +467,13 @@ class Config:
 
         parser.add_section('primary')
         parser.set('primary', 'format_version', FORMAT_VERSION)
-        parser.set('primary', 'host', cfg.defaults['HOST'].decode())
+        parser.set('primary', 'host', cfg.defaults['HOST'].decode("utf-8"))
         parser.set('primary', 'port', str(cfg.defaults['PORT']))
-        parser.set('primary', 'tmp_dir', cfg.defaults['TMP_DIR'].decode())
+        parser.set('primary', 'tmp_dir', cfg.defaults['TMP_DIR'].decode("utf-8"))
         parser.set('primary', 'default_private_key',
-                   cfg.defaults['DEFAULT_PRIVATE_KEY'].decode())
+                   cfg.defaults['DEFAULT_PRIVATE_KEY'].decode("utf-8"))
 
-        parser.set('primary', 'fms_host', cfg.defaults['FMS_HOST'].decode())
+        parser.set('primary', 'fms_host', cfg.defaults['FMS_HOST'].decode("utf-8"))
         parser.set('primary', 'fms_port', str(cfg.defaults['FMS_PORT']))
         parser.set('primary', 'fms_id', str(cfg.defaults['FMS_ID']))
         parser.set('primary', 'fmsnotify_group',
@@ -508,7 +508,7 @@ class Config:
             entry = cfg.fmsread_trust_map[fms_id]
             assert len(entry) > 0
             parser.set('fmsread_trust_map', str(index),
-                       fms_id + '|' + '|'.join(e.decode() for e in entry))
+                       fms_id + '|' + '|'.join(e.decode("utf-8") for e in entry))
 
         with open(file_name, 'w') as out_file:
             parser.write(out_file)
