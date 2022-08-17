@@ -347,7 +347,7 @@ class Config:
             cfg.defaults['FORMAT_VERSION'] = parser.get('primary',
                                                         'format_version')
         if parser.has_option('primary','host'):
-            cfg.defaults['HOST'] = parser.get('primary','host') # .encode('utf-8')?
+            cfg.defaults['HOST'] = parser.get('primary','host').encode('utf-8')
         if parser.has_option('primary','port'):
             cfg.defaults['PORT'] = parser.getint('primary','port')
         if parser.has_option('primary','tmp_dir'):
