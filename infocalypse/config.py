@@ -154,13 +154,13 @@ class Config:
         # done at other places, IIRC, so it should not be too
         # surprising).
         self.defaults = {}
-        self.defaults['HOST'] = '127.0.0.1'
+        self.defaults['HOST'] = b'127.0.0.1'
         self.defaults['PORT'] = 9481
         self.defaults['TMP_DIR'] = None
         self.defaults['DEFAULT_PRIVATE_KEY'] = None
         self.defaults['DEFAULT_TRUSTER'] = ''
 
-        self.defaults['FMS_HOST'] = '127.0.0.1'
+        self.defaults['FMS_HOST'] = b'127.0.0.1'
         self.defaults['FMS_PORT'] = 1119
         self.defaults['FMS_ID'] = None # User must set this in config.
         self.defaults['FMSNOTIFY_GROUP'] = DEFAULT_NOTIFICATION_GROUP
@@ -443,7 +443,7 @@ class Config:
         if file_name is None:
             file_name = os.path.expanduser(DEFAULT_CFG_PATH)
         if not os.path.exists(file_name):
-            ui_.warn(b"Couldn't read config file: %s\n" % file_name.encode("utf8"))
+            ui_.warn(b"Couldn't read config file: %s\n" % file_name)
             raise error.Abort(b"Run fn-setup.\n")
 
         detect_and_fix_default_bug(ui_, file_name)
@@ -467,13 +467,13 @@ class Config:
 
         parser.add_section('primary')
         parser.set('primary', 'format_version', FORMAT_VERSION)
-        parser.set('primary', 'host', cfg.defaults['HOST'])
+        parser.set('primary', 'host', cfg.defaults['HOST'].decode())
         parser.set('primary', 'port', str(cfg.defaults['PORT']))
-        parser.set('primary', 'tmp_dir', cfg.defaults['TMP_DIR'])
+        parser.set('primary', 'tmp_dir', cfg.defaults['TMP_DIR'].decode())
         parser.set('primary', 'default_private_key',
-                   cfg.defaults['DEFAULT_PRIVATE_KEY'])
+                   cfg.defaults['DEFAULT_PRIVATE_KEY'].decode())
 
-        parser.set('primary', 'fms_host', cfg.defaults['FMS_HOST'])
+        parser.set('primary', 'fms_host', cfg.defaults['FMS_HOST'].decode())
         parser.set('primary', 'fms_port', str(cfg.defaults['FMS_PORT']))
         parser.set('primary', 'fms_id', str(cfg.defaults['FMS_ID']))
         parser.set('primary', 'fmsnotify_group',
@@ -508,7 +508,7 @@ class Config:
             entry = cfg.fmsread_trust_map[fms_id]
             assert len(entry) > 0
             parser.set('fmsread_trust_map', str(index),
-                       fms_id + '|' + '|'.join(entry))
+                       fms_id + '|' + '|'.join(e.decode() for e in entry))
 
         with open(file_name, 'w') as out_file:
             parser.write(out_file)

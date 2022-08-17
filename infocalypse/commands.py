@@ -50,7 +50,7 @@ def set_target_version(ui_, repo, opts, params, msg_fmt):
 
 def infocalypse_update_repo_list(ui, **opts):
     if not opts['wot']:
-        raise util.Abort("Update which repository list? Use --wot")
+        raise error.Abort(b"Update which repository list? Use --wot")
 
     from . import wot
     from .wot_id import Local_WoT_ID
@@ -112,7 +112,7 @@ def infocalypse_create(ui_, repo, local_identity=None, **opts):
                                  default='n')
 
             if replace.lower() != 'y':
-                raise util.Abort("A repository with this name already exists.")
+                raise error.Abort(b"A repository with this name already exists.")
 
             # Remove the existing repository from each configuration section.
             existing_usk = request_usks[names.index(new_name)]
@@ -121,8 +121,8 @@ def infocalypse_create(ui_, repo, local_identity=None, **opts):
             for directory, request_usk in stored_cfg.request_usks.items():
                 if request_usk == existing_usk:
                     if existing_dir:
-                        raise error.Abort("config.Configuration lists the same "
-                                         "request USK multiple times.")
+                        raise error.Abort(b"config.Configuration lists the same "
+                                          b"request USK multiple times.")
                     existing_dir = directory
 
             assert existing_dir
@@ -153,11 +153,11 @@ def infocalypse_create(ui_, repo, local_identity=None, **opts):
         if vcs_response['header'] != 'FCPPluginReply' or\
                 'Replies.Message' not in vcs_response or\
                 vcs_response['Replies.Message'] != 'ContextAdded':
-            raise util.Abort("Failed to add context. Got {0}\n.".format(
-                             vcs_response))
+            raise error.Abort(("Failed to add context. Got {0}\n.".format(
+                vcs_response)).encode())
 
     set_target_version(ui_, repo, opts, params,
-                       "Only inserting to version(s): %s\n")
+                       b"Only inserting to version(s): %s\n")
     params['INSERT_URI'] = insert_uri
     inserted_to = execute_create(ui_, repo, params, stored_cfg)
 
@@ -222,7 +222,7 @@ def infocalypse_reinsert(ui_, repo, **opts):
                      + "insert URI.\n") % level)
             return
 
-        ui_.status("No insert URI. Will skip re-insert of top key.\n")
+        ui_.status(b"No insert URI. Will skip re-insert of top key.\n")
         insert_uri = None
 
     params['INSERT_URI'] = insert_uri
@@ -243,7 +243,7 @@ def infocalypse_pull(ui_, repo, **opts):
         if opts['uri']:
             ui_.warn("Ignoring --uri because --hash is set!\n")
         if len(opts['hash']) != 1:
-            raise util.Abort("Only one --hash value is allowed.")
+            raise error.Abort(b"Only one --hash value is allowed.")
         params['FMSREAD_HASH'] = opts['hash'][0]
         params['FMSREAD_ONLYTRUSTED'] = bool(opts['onlytrusted'])
         request_uri = get_uri_from_hash(ui_, repo, params, stored_cfg)
@@ -272,8 +272,8 @@ def infocalypse_pull_request(ui, repo, **opts):
     from . import wot
     from .wot_id import WoT_ID
     if not opts['wot']:
-        raise util.Abort("Who do you want to send the pull request to? Set "
-                         "--wot.\n")
+        raise error.Abort(b"Who do you want to send the pull request to? Set "
+                          b"--wot.\n")
 
     wot_id, repo_name = opts['wot'].split('/', 1)
     from_identity = get_truster(ui, repo, opts['truster'],
@@ -287,8 +287,8 @@ def infocalypse_check_notifications(ui, repo, **opts):
     from . import wot
     from .wot_id import Local_WoT_ID
     if not opts['wot']:
-        raise util.Abort("What ID do you want to check for notifications? Set"
-                         " --wot.\n")
+        raise error.Abort(b"What ID do you want to check for notifications? Set"
+                          b" --wot.\n")
 
     fcpopts = wot.get_fcpopts(ui, fcpport=opts["fcpport"], fcphost=opts["fcphost"])
     wot.check_notifications(ui, Local_WoT_ID(opts['wot'], fcpopts=fcpopts))
@@ -313,14 +313,14 @@ def infocalypse_push(ui_, repo, **opts):
         insert_uri = parse_repo_path(opts['uri'])
 
     set_target_version(ui_, repo, opts, params,
-                       "Only pushing to version(s): %s\n")
+                       b"Only pushing to version(s): %s\n")
     params['INSERT_URI'] = insert_uri
     #if opts['requesturi'] != '':
     #    # DOESN'T search the insert uri index.
-    #    ui_.status(("Copying from:\n%s\nTo:\n%s\n\nThis is an "
-    #                + "advanced feature. "
-    #                + "I hope you know what you're doing.\n") %
-    #               (opts['requesturi'], insert_uri))
+    #    ui_.status((("Copying from:\n%s\nTo:\n%s\n\nThis is an "
+    #                 + "advanced feature. "
+    #                 + "I hope you know what you're doing.\n") %
+    #                (opts['requesturi'], insert_uri).encode())
     #    params['REQUEST_URI'] = opts['requesturi']
 
     inserted_to = execute_push(ui_, repo, params, stored_cfg)
@@ -359,20 +359,20 @@ def infocalypse_info(ui_, repo, **opts):
 def parse_trust_args(params, opts):
     """ INTERNAL: Helper function to parse  --hash and --fmsid. """
     if not opts.get('hash', []):
-        raise util.Abort("Use --hash to set the USK hash.")
+        raise error.Abort(b"Use --hash to set the USK hash.")
     if len(opts['hash']) != 1:
-        raise util.Abort("Only one --hash value is allowed.")
+        raise error.Abort(b"Only one --hash value is allowed.")
     if not is_hex_string(opts['hash'][0]):
-        raise util.Abort("[%s] doesn't look like a USK hash." %
-                         opts['hash'][0])
+        raise error.Abort(("[%s] doesn't look like a USK hash." %
+                           opts['hash'][0]).encode())
 
     if not opts.get('fmsid', []):
-        raise util.Abort("Use --fmsid to set the FMS id.")
+        raise error.Abort(b"Use --fmsid to set the FMS id.")
     if len(opts['fmsid']) != 1:
-        raise util.Abort("Only one --fmsid value is allowed.")
+        raise error.Abort(b"Only one --fmsid value is allowed.")
     if not is_fms_id(opts['fmsid'][0]):
-        raise util.Abort("[%s] doesn't look like an FMS id."
-                         % opts['fmsid'][0])
+        raise error.Abort(("[%s] doesn't look like an FMS id."
+                           % opts['fmsid'][0]).encode())
 
     params['FMSREAD_HASH'] = opts['hash'][0]
     params['FMSREAD_FMSID'] = opts['fmsid'][0]
@@ -407,7 +407,7 @@ def infocalypse_fmsread(ui_, repo, **opts):
     if not request_uri:
         request_uri = stored_cfg.get_request_uri(repo.root)
         if not request_uri:
-            ui_.status("There is no stored request URI for this repo.\n")
+            ui_.status(b"There is no stored request URI for this repo.\n")
             request_uri = None
     parse_fmsread_subcmd(params, opts)
     params['DRYRUN'] = opts['dryrun']
@@ -434,14 +434,14 @@ def infocalypse_fmsnotify(ui_, repo, **opts):
         request_uri = stored_cfg.get_request_uri(repo.root)
         if not request_uri:
             ui_.warn("There is no stored request URI for this repo.\n")
-            raise util.Abort("No request URI.")
+            raise error.Abort(b"No request URI.")
         params['REQUEST_URI'] = request_uri
 
     params['DRYRUN'] = opts['dryrun']
     params['INSERT_URI'] = insert_uri
     execute_fmsnotify(ui_, repo, params, stored_cfg)
 
-MSG_BAD_INDEX = 'You must set --index to a value >= 0.'
+MSG_BAD_INDEX = b'You must set --index to a value >= 0.'
 
 
 def infocalypse_putsite(ui_, repo, **opts):
@@ -450,7 +450,7 @@ def infocalypse_putsite(ui_, repo, **opts):
 
     if opts['createconfig']:
         if opts['wiki']:
-            raise util.Abort("Use fn-wiki --createconfig.")
+            raise error.Abort(b"Use fn-wiki --createconfig.")
         params = {'SITE_CREATE_CONFIG': True}
         execute_putsite(ui_, repo, params)
         return
@@ -460,8 +460,8 @@ def infocalypse_putsite(ui_, repo, **opts):
         params['SITE_KEY'] = opts['key']
         if not (params['SITE_KEY'].startswith('SSK') or
                 params['SITE_KEY'] == 'CHK@'):
-            raise util.Abort("--key must be a valid SSK "
-                             + "insert key or CHK@.")
+            raise error.Abort(b"--key must be a valid SSK "
+                              + b"insert key or CHK@.")
 
     params['ISWIKI'] = opts['wiki']
     config.read_freesite_cfg(ui_, repo, params, stored_cfg)
@@ -475,9 +475,9 @@ def infocalypse_putsite(ui_, repo, **opts):
         else:
             params['SITE_INDEX'] = -1
     except ValueError:
-        raise util.Abort(MSG_BAD_INDEX)
+        raise error.Abort(MSG_BAD_INDEX)
     except TypeError:
-        raise util.Abort(MSG_BAD_INDEX)
+        raise error.Abort(MSG_BAD_INDEX)
 
     params['DRYRUN'] = opts['dryrun']
 
@@ -496,15 +496,15 @@ def infocalypse_putsite(ui_, repo, **opts):
 def infocalypse_wiki(ui_, repo, **opts):
     """ View and edit the current repository as a wiki. """
     if os.getcwd() != repo.root:
-        raise util.Abort("You must be in the repository root directory.")
+        raise error.Abort(b"You must be in the repository root directory.")
 
     subcmds = ('run', 'createconfig', 'apply')
     required = sum([bool(opts[cmd]) for cmd in subcmds])
     if required == 0:
-        raise util.Abort("You must specify either --run, " +
-                         "--createconfig, --apply")
+        raise error.Abort(b"You must specify either --run, " +
+                          b"--createconfig, --apply")
     if required > 1:
-        raise util.Abort("Use either --run, --createconfig, or --apply")
+        raise error.Abort(b"Use either --run, --createconfig, or --apply")
 
     if opts['apply']:
         params, stored_cfg = get_config_info(ui_, opts)
@@ -513,7 +513,7 @@ def infocalypse_wiki(ui_, repo, **opts):
         return
 
     if opts['fcphost'] or opts['fcpport']:
-        raise util.Abort("--fcphost, --fcpport only for --apply")
+        raise error.Abort(b"--fcphost, --fcpport only for --apply")
 
     # hmmmm.... useless copy?
     params = {'WIKI': [cmd for cmd in subcmds if opts[cmd]][0],
@@ -539,12 +539,12 @@ def infocalypse_setup(ui_, **opts):
     if not opts['nofms']:
         execute_setupfms(ui_, opts)
     else:
-        ui_.status("Skipped FMS configuration because --nofms was set.\n")
+        ui_.status(b"Skipped FMS configuration because --nofms was set.\n")
 
     if not opts['nowot']:
         infocalypse_setupwot(ui_, **opts)
     else:
-        ui_.status("Skipped WoT configuration because --nowot was set.\n")
+        ui_.status(b"Skipped WoT configuration because --nowot was set.\n")
 
 
 def infocalypse_setupfms(ui_, **opts):
@@ -556,7 +556,7 @@ def infocalypse_setupfms(ui_, **opts):
 # TODO: Why ui with trailing underscore? Is there a global "ui" somewhere?
 def infocalypse_setupwot(ui_, **opts):
     if not opts['truster']:
-        raise util.Abort("Specify default truster with --truster")
+        raise error.Abort(b"Specify default truster with --truster")
 
     from . import wot
     from .wot_id import Local_WoT_ID
@@ -624,10 +624,10 @@ def get_truster(ui, repo=None, truster_identifier=None, fcpport=None, fcphost=No
                 # TODO: Ensure that fn-create on an existing repo does not
                 # leave isolated insert_usks or wot_identities entries in the
                 # config file.
-                raise error.Abort(("Cannot resolve the identity with public key "
-                                 "hash '%b' that published this repository. "
-                                 "To create this repository under a different "
-                                 "identity run hg fn-create") % identity.encode("utf-8"))
+                raise error.Abort((("Cannot resolve the identity with public key "
+                                    "hash '%b' that published this repository. "
+                                    "To create this repository under a different "
+                                    "identity run hg fn-create") % identity).encode("utf-8"))
 
 #----------------------------------------------------------"
 
@@ -636,7 +636,7 @@ def do_archive_create(ui_, opts, params, stored_cfg):
     """ fn-archive --create."""
     insert_uri = opts['uri']
     if not insert_uri:
-        raise util.Abort("Please set the insert URI with --uri.")
+        raise error.Abort(b"Please set the insert URI with --uri.")
 
     params['INSERT_URI'] = insert_uri
     params['FROM_DIR'] = os.getcwd()
@@ -652,7 +652,7 @@ def do_archive_push(ui_, opts, params, stored_cfg):
         if not insert_uri:
             ui_.warn("There is no stored insert URI for this archive.\n"
                      "Please set one with the --uri option.\n")
-            raise util.Abort("No Insert URI.")
+            raise error.Abort(b"No Insert URI.")
 
     params['INSERT_URI'] = insert_uri
     params['FROM_DIR'] = os.getcwd()
@@ -670,7 +670,7 @@ def do_archive_pull(ui_, opts, params, stored_cfg):
         if not request_uri:
             ui_.warn("There is no stored request URI for this archive.\n"
                      "Please set one with the --uri option.\n")
-            raise util.Abort("No request URI.")
+            raise error.Abort(b"No request URI.")
 
     params['REQUEST_URI'] = request_uri
     params['TO_DIR'] = os.getcwd()
@@ -684,13 +684,13 @@ def do_archive_reinsert(ui_, opts, params, stored_cfg):
     illegal = [value for value in ILLEGAL_FOR_REINSERT
                if value in opts and opts[value]]
     if illegal:
-        raise util.Abort("--uri, --aggressive, --nosearch illegal " +
-                         "for reinsert.")
+        raise error.Abort(b"--uri, --aggressive, --nosearch illegal " +
+                          b"for reinsert.")
     request_uri = stored_cfg.get_request_uri(params['ARCHIVE_CACHE_DIR'])
     if request_uri is None:
         ui_.warn("There is no stored request URI for this archive.\n" +
                  "Run fn-archive --pull first!.\n")
-        raise util.Abort(" No request URI, can't re-insert")
+        raise error.Abort(b" No request URI, can't re-insert")
 
     insert_uri = stored_cfg.get_dir_insert_uri(params['ARCHIVE_CACHE_DIR'])
     params['REQUEST_URI'] = request_uri
@@ -710,8 +710,8 @@ def infocalypse_archive(ui_, **opts):
     """ Commands to maintain a non-hg incremental archive."""
     subcmd = [value for value in ARCHIVE_SUBCMDS if opts[value]]
     if len(subcmd) > 1:
-        raise util.Abort("--create, --pull, --push are mutally exclusive. " +
-                         "Only specify one.")
+        raise error.Abort(b"--create, --pull, --push are mutally exclusive. " +
+                          b"Only specify one.")
     if len(subcmd) > 0:
         subcmd = subcmd[0]
     else:
@@ -721,7 +721,7 @@ def infocalypse_archive(ui_, **opts):
     params['ARCHIVE_CACHE_DIR'] = os.path.join(os.getcwd(), ARCHIVE_CACHE_DIR)
 
     if not subcmd in ARCHIVE_SUBCMDS:
-        raise util.Abort("Unhandled subcommand: " + subcmd)
+        raise error.Abort(("Unhandled subcommand: " + subcmd).encode())
 
     # 2 qt?
     ARCHIVE_SUBCMDS[subcmd](ui_, opts, params, stored_cfg)
