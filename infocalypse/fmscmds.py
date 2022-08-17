@@ -201,7 +201,7 @@ def check_fms_cfg(ui_, params, stored_cfg):
         raise util.Abort("Fix the fms_id = line in the config file and " +
                          "and try again.\n")
 
-    if stored_cfg.defaults['FMS_ID'].find('@') != -1:
+    if stored_cfg.defaults['FMS_ID'].find(b'@') != -1:
         ui_.warn(b"The fms_id line should only "
                  + b"contain the part before the '@'.\n")
         raise util.Abort("Fix the fms_id = line in the config file and " +

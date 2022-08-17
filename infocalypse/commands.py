@@ -54,7 +54,7 @@ def infocalypse_update_repo_list(ui, **opts):
 
     from . import wot
     from .wot_id import Local_WoT_ID
-    wot.update_repo_listing(ui, Local_WoT_ID(opts['wot'], fcpopts=wot.get_fcpopts(ui,
+    wot.update_repo_listing(ui, Local_WoT_ID(opts['wot'].decode('utf-8'), fcpopts=wot.get_fcpopts(ui,
         fcphost=opts["fcphost"],
         fcpport=opts["fcpport"])), 
                             fcphost=opts["fcphost"],
@@ -291,7 +291,7 @@ def infocalypse_check_notifications(ui, repo, **opts):
                           b" --wot.\n")
 
     fcpopts = wot.get_fcpopts(ui, fcpport=opts["fcpport"], fcphost=opts["fcphost"])
-    wot.check_notifications(ui, Local_WoT_ID(opts['wot'], fcpopts=fcpopts))
+    wot.check_notifications(ui, Local_WoT_ID(opts['wot'].decode('utf-8'), fcpopts=fcpopts))
 
 
 def infocalypse_connect(ui, repo, **opts):
@@ -330,7 +330,7 @@ def infocalypse_push(ui_, repo, **opts):
     if inserted_to and associated_wot_id:
         from . import wot
         from .wot_id import Local_WoT_ID
-        local_id = Local_WoT_ID('@' + associated_wot_id)
+        local_id = Local_WoT_ID('@' + associated_wot_id) # need .decode('uft-8')?
         wot.update_repo_listing(ui_, local_id, 
                                 fcphost=opts["fcphost"],
                                 fcpport=opts["fcpport"])
@@ -597,7 +597,7 @@ def get_truster(ui, repo=None, truster_identifier=None, fcpport=None, fcphost=No
     
     fcpopts = wot.get_fcpopts(ui, fcphost=fcphost or cfg.defaults['HOST'], fcpport=fcpport or cfg.defaults['PORT'])
     if truster_identifier:
-        return wot_id.Local_WoT_ID(truster_identifier, fcpopts=fcpopts)
+        return wot_id.Local_WoT_ID(truster_identifier.decode('utf-8'), fcpopts=fcpopts)
     else:
 
         # Value is identity ID, so '@' prefix makes it an identifier with an
@@ -613,7 +613,7 @@ def get_truster(ui, repo=None, truster_identifier=None, fcpport=None, fcphost=No
             default = True
 
         try:
-            return wot_id.Local_WoT_ID('@' + identity, fcpopts=fcpopts)
+            return wot_id.Local_WoT_ID('@' + identity.decode('utf-8'), fcpopts=fcpopts)
         except error.Abort:
             if default:
                 raise error.Abort((b"Cannot resolve the default truster with "
