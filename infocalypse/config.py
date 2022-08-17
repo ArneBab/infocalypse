@@ -476,7 +476,7 @@ class Config:
 
         parser.set('primary', 'fms_host', cfg.defaults['FMS_HOST'].decode("utf-8"))
         parser.set('primary', 'fms_port', str(cfg.defaults['FMS_PORT']))
-        parser.set('primary', 'fms_id', str(cfg.defaults['FMS_ID']))
+        parser.set('primary', 'fms_id', str(cfg.defaults['FMS_ID']).decode('utf-8'))
         parser.set('primary', 'fmsnotify_group',
                    cfg.defaults['FMSNOTIFY_GROUP'])
         parser.set('primary', 'fmsread_groups', '|'.join(cfg.fmsread_groups))
