@@ -301,7 +301,7 @@ def get_usk_for_usk_version(usk_uri, version, negative = False):
         version = -1 * version
     version_str = str(version).encode("utf-8")
     if version == 0 and negative:
-        version_str = '-0'
+        version_str = b'-0'
         # BITCH:
         # They should have picked some other symbol ('*'?) which doesn't
         # encourage implementers to jam the version into an integer.
