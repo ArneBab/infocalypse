@@ -319,7 +319,9 @@ def find_repo(ui, identity, repo_name):
     :type identity: WoT_ID
     """
     listing = read_repo_listing(ui, identity)
-    repo_name = repo_name.encode("utf-8")
+    repo_name = (repo_name.encode("utf-8")
+                 if repo_name.__class__ == str
+                 else repo_name)
 
     if repo_name not in listing:
         print (listing)
