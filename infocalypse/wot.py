@@ -517,7 +517,7 @@ def resolve_push_uri(ui, path, resolve_edition=True, fcphost=None, fcpport=None)
         # print("repo", repo)
         
         # Request URI
-        repo_uri = USK(repo)
+        repo_uri = USK(repo.encode("utf-8"))
         # print("repo_uri", repo_uri)
 
         # Maintains name, edition.
