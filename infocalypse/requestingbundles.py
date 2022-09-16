@@ -541,9 +541,9 @@ class RequestingBundles(RetryingRequestList):
             assert not candidate[4] is None
             update = candidate[4]
             # Compare without control bytes, which were cleared.
-            target = candidate[0].split(',')[:-1]
+            target = candidate[0].split(b',')[:-1]
             for chk in update[3]:
-                if chk.split(',')[:-1] == target:
+                if chk.split(b',')[:-1] == target:
                     # Reset the CHK because the control bytes were zorched.
                     candidate[0] = chk
                     candidate[2] = False

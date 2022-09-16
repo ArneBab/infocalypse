@@ -299,18 +299,18 @@ def get_usk_for_usk_version(usk_uri, version, negative = False):
         raise Exception("Couldn't parse version from USK: %s" % usk_uri)
     if negative and version > 0:
         version = -1 * version
-    version_str = str(version).encode("utf-8")
+    version_bytes = str(version).encode("utf-8")
     if version == 0 and negative:
-        version_str = '-0'
+        version_bytes = b'-0'
         # BITCH:
         # They should have picked some other symbol ('*'?) which doesn't
         # encourage implementers to jam the version into an integer.
         # i.e. because you can't represent the version with an integer
         # because -0 == 0.
-    assert not negative or version_str.find(b'-') > -1
+    assert not negative or version_bytes.find(b'-') > -1
 
     return usk_uri[0 : match.start('version')] \
-           + version_str + usk_uri[match.end('version'):]
+           + version_bytes + usk_uri[match.end('version'):]
 
 def is_negative_usk(usk_uri):
     """ Returns True if usk_uri has a negative version index,
