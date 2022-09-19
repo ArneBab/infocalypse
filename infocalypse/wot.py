@@ -1,5 +1,5 @@
 import os.path
-import fcp
+import fcp3
 from mercurial import util, error
 from . import config
 from mercurial import demandimport
@@ -267,9 +267,9 @@ def update_repo_listing(ui, for_identity, fcphost=None, fcpport=None):
         repo.text = request_uri.decode("utf-8")
 
     # TODO: Nonstandard IP and port from cfg
-    node = fcp.FCPNode(**get_fcpopts(ui,
-                                     fcphost=fcphost,
-                                     fcpport=fcpport))
+    node = fcp3.FCPNode(**get_fcpopts(ui,
+                                      fcphost=fcphost,
+                                      fcpport=fcpport))
     atexit.register(node.shutdown)
 
     insert_uri = for_identity.insert_uri.clone()
@@ -403,16 +403,16 @@ def fetch_edition(ui, uri, fcphost=None, fcpport=None):
     fetched.
     :type uri: USK
     """
-    node = fcp.FCPNode(**get_fcpopts(ui,
-                                     fcphost=fcphost,
-                                     fcpport=fcpport))
+    node = fcp3.FCPNode(**get_fcpopts(ui,
+                                      fcphost=fcphost,
+                                      fcpport=fcpport))
     atexit.register(node.shutdown)
     # Following a redirect automatically does not provide the edition used,
     # so manually following redirects is required.
     # TODO: Is there ever legitimately more than one redirect?
     try:
         return node.get(str(uri), priority=1)
-    except fcp.FCPGetFailed as e:
+    except fcp3.FCPGetFailed as e:
         # Error code 27 is permanent redirect: there's a newer edition of
         # the USK.
         # https://wiki.freenetproject.org/FCPv2/GetFailed#Fetch_Error_Codes
@@ -545,7 +545,7 @@ def execute_setup_wot(ui_, local_id):
 
     ui_.status(b"Setting default truster to %b.\n" % str(local_id).encode("utf-8"))
 
-    cfg.defaults['DEFAULT_TRUSTER'] = local_id.identity_id
+    cfg.defaults['DEFAULT_TRUSTER'] = local_id.identity_id.encode()
     config.Config.to_file(cfg)
 
 

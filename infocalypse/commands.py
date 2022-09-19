@@ -141,10 +141,10 @@ def infocalypse_create(ui_, repo, local_identity=None, **opts):
                       'Identity': local_identity.identity_id,
                       'Context': 'vcs'}
 
-        import fcp
+        import fcp3
         from . import wot
-        node = fcp.FCPNode(**wot.get_fcpopts(ui_, fcphost=opts["fcphost"],
-                                             fcpport=opts["fcpport"]))
+        node = fcp3.FCPNode(**wot.get_fcpopts(ui_, fcphost=opts["fcphost"],
+                                              fcpport=opts["fcpport"]))
         atexit.register(node.shutdown)
         vcs_response =\
             node.fcpPluginMessage(plugin_name="plugins.WebOfTrust.WebOfTrust",

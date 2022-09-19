@@ -657,7 +657,7 @@ def freenetpull(orig, *args, **opts):
     if not path:
         path = ui.expandpath(b'default', b'default-push')
     else:
-        path = ui.expandpath(path)
+        path = util.expandpath(path)
     # only act differently, if the target is an infocalypse repo.
     if not isfreenetpath(path):
         return orig(*args, **opts)
@@ -694,7 +694,7 @@ def freenetpush(orig, *args, **opts):
     if not path:
         path = ui.expandpath(b'default-push', b'default')
     else:
-        path = ui.expandpath(path)
+        path = util.expandpath(path)
     # only act differently, if the target is an infocalypse repo.
     if not isfreenetpath(path):
         return orig(*args, **opts)
@@ -851,7 +851,7 @@ default-push = freenet:{0}
         req = dispatch.request([b"init", dest], ui=ui)
         dispatch.dispatch(req)
         # pull the data from freenet
-        origdest = ui.expandpath(dest)
+        origdest = util.expandpath(dest)
         dest, branch = hg.parseurl(origdest)
         destrepo = hg.repository(ui, dest)
         fncommands.infocalypse_pull(ui, destrepo, aggressive=True, hash=None, uri=pulluri, **opts)
@@ -873,7 +873,7 @@ commit = !$HG clt --date "$(date -u "+%Y-%m-%d %H:%M:%S +0000")" "$@"
         # second alternative: commit done at local time but with
         # timezone +0000 (could be correlated against forum entries
         # and such to find the real timezone): Leave out the -u
-        with open(ui.expandpath(dest) + b"/.hg/hgrc", "a") as f:
+        with open(util.expandpath(dest) + b"/.hg/hgrc", "a") as f:
             f.write(_hgrc_template.format(pulluri=pulluri.decode("utf-8")))
         
         ui.warn(b"As basic protection, infocalypse automatically \n"
