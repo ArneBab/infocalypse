@@ -164,7 +164,7 @@ def execute_putsite(ui_, repo, params):
             # i.e. untrusted unencrypted data on your disk
             shutil.rmtree(tmp_dump)
 
-MSG_FMT = """InsertURI:
+MSG_FMT = b"""InsertURI:
 %s
 RequestURI:
 %s
@@ -186,9 +186,10 @@ def genkeypair(fcphost, fcpport):
     resp = client.generate_ssk()
     return resp[1][b'InsertURI'], resp[1][b'RequestURI']
 
+
 def execute_genkey(ui_, params):
     """ Run the genkey command. """
-    insert, request = genkeypair(params[b'FCP_HOST'], params[b'FCP_PORT'])
+    insert, request = genkeypair(params['FCP_HOST'], params['FCP_PORT'])
     ui_.status(MSG_FMT % (insert, request,
                           insert.split(b'/')[0] +b'/',
                           b"U" + insert.split(b'/')[0][1:] +b'/NAME.R1/0'))
