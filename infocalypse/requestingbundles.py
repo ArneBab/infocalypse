@@ -42,7 +42,8 @@ def fixup(edges, candidate_list):
     for candidate in candidate_list:
         if candidate[6]:
             continue # Skip graph requests!
-        edge = edges[candidate[0]]
+        # remove padding symbols
+        edge = edges[candidate[0].replace(b'=', b'')]
         candidate[3] = edge
         candidate[4] = None
 
@@ -412,7 +413,7 @@ class RequestingBundles(RetryingRequestList):
                 continue
             edge = candidate[3]
             assert not edge is None
-            if graph.get_chk(edge).find("badrouting") != -1:
+            if graph.get_chk(edge).find(b"badrouting") != -1:
                 candidate[0] = graph.get_chk(edge)
 
         #self.dump()
@@ -590,11 +591,11 @@ class RequestingBundles(RetryingRequestList):
                         #print "_handle_success -- already another running."
                         self.parent.ctx.ui_.status((b"Other salted key is "
                                                     + b"running. Didn't "
-                                                    + b"requeue: %s\n")
-                                                   % candidate[3])
+                                                    + b"requeue: %b\n")
+                                                   % str(candidate[3]).encode("utf-8"))
                         return
-            self.parent.ctx.ui_.status(b"Requeuing full download for: %s\n"
-                              % str(candidate[3]))
+            self.parent.ctx.ui_.status(b"Requeuing full download for: %b\n"
+                              % str(candidate[3]).encode("utf-8"))
             # Reset the CHK because the control bytes were zorched.
             candidate[0] = self.parent.ctx.graph.get_chk(candidate[3])
             #candidate[1] += 1

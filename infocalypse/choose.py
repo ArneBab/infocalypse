@@ -20,6 +20,7 @@
 """
 
 import random
+import functools
 
 from .graph import MAX_PATH_LEN, block_cost, print_list, canonical_path_itr, \
      build_version_table
@@ -151,7 +152,7 @@ def low_block_cost_edges(graph, known_edges, from_index, allowed):
     first_steps = [[value[1][0], ] for value in with_cost if value[0]
                    <= allowed_cost]
     #print "FIRST_STEPS: ", first_steps
-    first_steps.sort(graph.cmp_recency)
+    first_steps.sort(key=functools.cmp_to_key(graph.cmp_recency))
     for path in first_steps:
         assert len(path) == 1
         step = path[0]
@@ -185,7 +186,7 @@ def canonical_path_edges(graph, known_edges, from_index, allowed):
                 not step in known_edges):
                 tmp.append([step, ])
 
-        tmp.sort(graph.cmp_recency)
+        tmp.sort(key=functools.cmp_to_key(graph.cmp_recency))
         for tmp_path in tmp:
             assert len(tmp_path) == 1
             assert not tmp_path[0] is None
@@ -245,7 +246,7 @@ def get_update_edges(graph, from_index, redundancy, shuffle_redundancy=False,
 
         # Resort by recency.
         second_paths = [[edge, ] for edge in second]
-        second_paths.sort(graph.cmp_recency)
+        second_paths.sort(key=functools.cmp_to_key(graph.cmp_recency))
         second = [path[0] for path in second_paths]
 
         allowed -= len(second)
@@ -257,7 +258,7 @@ def get_update_edges(graph, from_index, redundancy, shuffle_redundancy=False,
                             graph.contain(from_index + 1)
                             if edge not in known_edges]
 
-        containing_paths.sort(graph.cmp_recency)
+        containing_paths.sort(key=functools.cmp_to_key(graph.cmp_recency))
 
         for path in containing_paths:
             second.insert(0, path[0])
