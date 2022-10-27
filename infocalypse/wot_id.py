@@ -133,8 +133,6 @@ def _request_matching_identities_lcwot(truster, context="vcs", prefix=None, fcpo
     """
     nickname_prefix, key_prefix = _parse_name(prefix)
     # TODO: Support different FCP IP / port.
-    node = fcp3.FCPNode(**fcpopts)
-    atexit.register(node.shutdown)
 
     # Test for GetIdentitiesByPartialNickname support. currently LCWoT-only.
     # src/main/java/plugins/WebOfTrust/fcp/GetIdentitiesByPartialNickname
@@ -155,6 +153,8 @@ def _request_matching_identities_lcwot(truster, context="vcs", prefix=None, fcpo
               'MaxIdentities': 2,
               'Context': 'vcs'}
 
+    node = fcp3.FCPNode(**fcpopts)
+    atexit.register(node.shutdown)
     response = \
         node.fcpPluginMessage(plugin_name="plugins.WebOfTrust.WebOfTrust",
                               plugin_params=params)[0]
@@ -213,28 +213,27 @@ def _get_identity(wot_identifier, truster, exact=False, fcpopts={}):
     """
     nickname_prefix, key_prefix = _parse_name(wot_identifier)
     # TODO: Support different FCP IP / port.
-    node = fcp3.FCPNode(**fcpopts)
-    atexit.register(node.shutdown)
 
     if not exact:
-        # Test for GetIdentitiesByPartialNickname support. currently LCWoT-only.
-        # src/main/java/plugins/WebOfTrust/fcp/GetIdentitiesByPartialNickname
-        # TODO: LCWoT allows limiting by context; should we make sure otherwise?
-        # Feature request for WoT: https://bugs.freenetproject.org/view.php?id=6184
-    
-        # GetIdentitiesByPartialNickname does not support empty nicknames.
-        try:
-            response = _request_matching_identities_lcwot(
-                truster, context="vcs", prefix=wot_identifier, fcpopts=fcpopts)
-            if response['Replies.Message'] == 'Identities':
-                matches = response['Replies.IdentitiesMatched']
-            else:
-                raise error.Abort("WoT does not support partial matching.")
-        except error.Abort:
-            all_responses = _request_matching_identities(truster, prefix=wot_identifier, fcpopts=fcpopts)
-            matches = len(all_responses)
-            if matches:
-                response = all_responses[0]
+        # removed LCWoT support. It's been unmaintained for ages.
+        # # Test for GetIdentitiesByPartialNickname support. currently LCWoT-only.
+        # # src/main/java/plugins/WebOfTrust/fcp/GetIdentitiesByPartialNickname
+        # # TODO: LCWoT allows limiting by context; should we make sure otherwise?
+        # # Feature request for WoT: https://bugs.freenetproject.org/view.php?id=6184
+        # 
+        # # GetIdentitiesByPartialNickname does not support empty nicknames.
+        # try:
+        #     response = _request_matching_identities_lcwot(
+        #         truster, context="vcs", prefix=wot_identifier, fcpopts=fcpopts)
+        #     if response['Replies.Message'] == 'Identities':
+        #         matches = response['Replies.IdentitiesMatched']
+        #     else:
+        #         raise error.Abort("WoT does not support partial matching.")
+        # except error.Abort:
+        all_responses = _request_matching_identities(truster, prefix=wot_identifier, fcpopts=fcpopts)
+        matches = len(all_responses)
+        if matches:
+            response = all_responses[0]
         
         if matches == 0:
             raise error.Abort(b"No identities match '%b'."
@@ -251,6 +250,8 @@ def _get_identity(wot_identifier, truster, exact=False, fcpopts={}):
     params = {'Message': 'GetIdentity',
               'Truster': truster.identity_id,
               'Identity': key_prefix}
+    node = fcp3.FCPNode(**fcpopts)
+    atexit.register(node.shutdown)
     response = \
         node.fcpPluginMessage(plugin_name="plugins.WebOfTrust.WebOfTrust",
                               plugin_params=params)[0]
@@ -277,13 +278,13 @@ def _get_local_identity(wot_identifier, fcpopts={}):
     """
     nickname_prefix, key_prefix = _parse_name(wot_identifier)
 
-    node = fcp3.FCPNode(**fcpopts)
-    atexit.register(node.shutdown)
     # print("get local identity for", wot_identifier, fcpopts)
     plugin_name = "plugins.WebOfTrust.WebOfTrust"
     plugin_params = {'Message':
                      'GetOwnIdentities'}
     # print(plugin_name, plugin_params)
+    node = fcp3.FCPNode(**fcpopts)
+    atexit.register(node.shutdown)
     response = \
         node.fcpPluginMessage(plugin_name=plugin_name,
                               plugin_params=plugin_params)[0]
