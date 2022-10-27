@@ -628,6 +628,7 @@ def freenetpathtouri(ui, path, operation, repo=None, truster_identifier=None, fc
     # print("path", path, "operation", operation)
     # Guess whether it's WoT. This won't work if someone has chosen their WoT
     # nick to be "USK", but this is a corner case. Using --wot will still work.
+    
     if not path.startswith(b"USK"):
         from . import wot
         if operation == b"pull":
@@ -714,11 +715,10 @@ def freenetpush(orig, *args, **opts):
         # use redundant keys by default, except if explicitely requested otherwise.
         namepart = uri[5:]
         namepart = fixnamepart(namepart)
-        insert, request = genkeypair(fcphost, fcpport)
         uri = b"USK"+insert[3:]+namepart
         opts["uri"] = uri
         opts["aggressive"] = True # always search for the latest revision.
-        return infocalypse_create(ui, repo, **opts)
+        return fncommands.infocalypse_create(ui, repo, **opts)
     opts["uri"] = uri
     opts["aggressive"] = True # always search for the latest revision.
     return fncommands.infocalypse_push(ui, repo, **opts)
@@ -816,7 +816,11 @@ def freenetclone(orig, *args, **opts):
             # ui.status(b"changed the repo name to " + namepart2 + " to have more redundancy and longer lifetime. This is a small tweak on infocalypse to avoid the frequent error of forgetting to add .R1 to the name. If you really want no additional redundancy for your repo, use NAME.R0 or call hg fn-create directly.\n")
             #pushuri = pushuri[:namepartpos] + namepart
         opts["uri"] = pushuri
-        repo = hg.repository(ui, ui.expandpath(source))
+        if not source:
+            ui.error(b'no source repository given. Please re-run the command with --traceback and report the problem')
+            raise util.Abort(b'no source repository given. Please re-run the command with --traceback and report the problem')
+        else:
+            repo = hg.repository(ui, util.expandpath(source))
         # TODO: A local identity is looked up for the push URI,
         # but not returned, yet it is required to update configuration.
         # Expecting dest to be something like freenet://name@key/reponame
@@ -839,7 +843,7 @@ def freenetclone(orig, *args, **opts):
 
         # TODO: Function for adding paths? It's currently here, for pull,
         # and in WoT pull URI resolution.
-        with open(ui.expandpath(source) + b"/.hg/hgrc", "a") as f:
+        with open(util.expandpath(source) + b"/.hg/hgrc", "a") as f:
             f.write("""[paths]
 default-push = freenet:{0}
 """.format(pushuri.decode("utf-8")))
