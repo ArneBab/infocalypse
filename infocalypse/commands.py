@@ -277,6 +277,7 @@ def infocalypse_pull_request(ui, repo, **opts):
     wot_id, repo_name = opts['wot'].split(b'/', 1)
     from_identity = get_truster(ui, repo, opts['truster'],
                                 fcpport=opts["fcpport"], fcphost=opts["fcphost"])
+    # TODO: cfg still needs defaults for mailhost, smtpport and imapport.
     cfg = config.Config.from_ui(ui)
     fcpopts = wot.get_fcpopts(ui, fcphost=opts["fcphost"] or cfg.defaults['HOST'], fcpport=opts["fcpport"] or cfg.defaults['PORT'])
     to_identity = WoT_ID(wot_id, from_identity, fcpopts=fcpopts)
