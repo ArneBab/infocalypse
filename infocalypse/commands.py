@@ -70,7 +70,7 @@ def infocalypse_create(ui_, repo, local_identity=None, **opts):
     params, stored_cfg = get_config_info(ui_, opts)
 
     if opts['uri'] and opts['wot']:
-        ui_.warn("Please specify only one of --uri or --wot.\n")
+        ui_.warn(b"Please specify only one of --uri or --wot.\n")
         return
     elif opts['uri']:
         insert_uri = parse_repo_path(opts['uri'])
@@ -79,8 +79,8 @@ def infocalypse_create(ui_, repo, local_identity=None, **opts):
         nick_prefix, repo_name, repo_edition = opts['wot'].split('/', 2)
 
         if not repo_name.endswith('.R1') and not repo_name.endswith('.R0'):
-            ui_.warn("Warning: Creating repository without redundancy. (R0 or"
-                     " R1)\n")
+            ui_.warn(b"Warning: Creating repository without redundancy. (R0 or"
+                     b" R1)\n")
 
         from .wot_id import Local_WoT_ID
 
@@ -93,7 +93,7 @@ def infocalypse_create(ui_, repo, local_identity=None, **opts):
         # Before passing along into execute_create().
         insert_uri = str(insert_uri)
     else:
-        ui_.warn("Please set the insert key with either --uri or --wot.\n")
+        ui_.warn(b"Please set the insert key with either --uri or --wot.\n")
         return
 
     # This is a WoT repository.
@@ -178,7 +178,7 @@ def infocalypse_copy(ui_, repo, **opts):
 
     if not opts['inserturi']:
         # REDFLAG: fix parameter definition so that it is required?
-        ui_.warn("Please set the insert URI with --inserturi.\n")
+        ui_.warn(b"Please set the insert URI with --inserturi.\n")
         return
     else:
         insert_uri = parse_repo_path(opts['inserturi'])
@@ -186,8 +186,8 @@ def infocalypse_copy(ui_, repo, **opts):
     if not opts['requesturi']:
         request_uri = stored_cfg.get_request_uri(repo.root)
         if not request_uri:
-            ui_.warn("There is no stored request URI for this repo.\n"
-                     "Please set one with the --requesturi option.\n")
+            ui_.warn(b"There is no stored request URI for this repo.\n"
+                     b"Please set one with the --requesturi option.\n")
             return
     else:
         request_uri = parse_repo_path(opts['requesturi'])
@@ -204,22 +204,22 @@ def infocalypse_reinsert(ui_, repo, **opts):
     if not opts['uri']:
         request_uri = stored_cfg.get_request_uri(repo.root)
         if not request_uri:
-            ui_.warn("There is no stored request URI for this repo.\n"
-                     "Do a fn-pull from a repository USK and try again.\n")
+            ui_.warn(b"There is no stored request URI for this repo.\n"
+                     b"Do a fn-pull from a repository USK and try again.\n")
             return
     else:
         request_uri = parse_repo_path(opts['uri'])
 
     level = opts['level']
     if level < 1 or level > 5:
-        ui_.warn("level must be 1,2,3,4 or 5.\n")
+        ui_.warn(b"level must be 1,2,3,4 or 5.\n")
         return
 
     insert_uri = stored_cfg.get_dir_insert_uri(repo.root)
     if not insert_uri:
         if level == 1 or level == 4:
-            ui_.warn(("You can't re-insert at level %i without the "
-                     + "insert URI.\n") % level)
+            ui_.warn((b"You can't re-insert at level %i without the "
+                     + b"insert URI.\n") % level)
             return
 
         ui_.status(b"No insert URI. Will skip re-insert of top key.\n")
@@ -241,7 +241,7 @@ def infocalypse_pull(ui_, repo, **opts):
     if opts['hash']:
         # Use FMS to lookup the uri from the repo hash.
         if opts['uri']:
-            ui_.warn("Ignoring --uri because --hash is set!\n")
+            ui_.warn(b"Ignoring --uri because --hash is set!\n")
         if len(opts['hash']) != 1:
             raise error.Abort(b"Only one --hash value is allowed.")
         params['FMSREAD_HASH'] = opts['hash'][0]
@@ -259,8 +259,8 @@ def infocalypse_pull(ui_, repo, **opts):
     if not request_uri:
         request_uri = stored_cfg.get_request_uri(repo.root)
         if not request_uri:
-            ui_.warn("There is no stored request URI for this repo.\n"
-                     "Please set one with the --uri option.\n")
+            ui_.warn(b"There is no stored request URI for this repo.\n"
+                     b"Please set one with the --uri option.\n")
             return
 
     params['REQUEST_URI'] = request_uri
@@ -306,8 +306,8 @@ def infocalypse_push(ui_, repo, **opts):
     if not opts['uri']:
         insert_uri = stored_cfg.get_dir_insert_uri(repo.root)
         if not insert_uri:
-            ui_.warn("There is no stored insert URI for this repo.\n"
-                     "Please set one with the --uri option.\n")
+            ui_.warn(b"There is no stored insert URI for this repo.\n"
+                     b"Please set one with the --uri option.\n")
             return
     else:
         insert_uri = parse_repo_path(opts['uri'])
@@ -348,8 +348,8 @@ def infocalypse_info(ui_, repo, **opts):
     if not request_uri:
         request_uri = stored_cfg.get_request_uri(repo.root)
         if not request_uri:
-            ui_.warn("There is no stored request URI for this repo.\n"
-                     "Please set one with the --uri option.\n")
+            ui_.warn(b"There is no stored request URI for this repo.\n"
+                     b"Please set one with the --uri option.\n")
             return
 
     params['REQUEST_URI'] = request_uri
@@ -422,9 +422,9 @@ def infocalypse_fmsnotify(ui_, repo, **opts):
     insert_uri = stored_cfg.get_dir_insert_uri(repo.root)
     if not insert_uri and not (opts['submitbundle'] or
                                opts['submitwiki']):
-        ui_.warn("You can't notify because there's no stored "
-                 + "insert URI for this repo.\n"
-                 + "Run from the directory you inserted from.\n")
+        ui_.warn(b"You can't notify because there's no stored "
+                 + b"insert URI for this repo.\n"
+                 + b"Run from the directory you inserted from.\n")
         return
 
     params['ANNOUNCE'] = opts['announce']
@@ -433,7 +433,7 @@ def infocalypse_fmsnotify(ui_, repo, **opts):
     if params['SUBMIT_WIKI'] or params['SUBMIT_BUNDLE']:
         request_uri = stored_cfg.get_request_uri(repo.root)
         if not request_uri:
-            ui_.warn("There is no stored request URI for this repo.\n")
+            ui_.warn(b"There is no stored request URI for this repo.\n")
             raise error.Abort(b"No request URI.")
         params['REQUEST_URI'] = request_uri
 
@@ -484,9 +484,9 @@ def infocalypse_putsite(ui_, repo, **opts):
     if not params.get('SITE_KEY', None):
         insert_uri = stored_cfg.get_dir_insert_uri(repo.root)
         if not insert_uri:
-            ui_.warn("You don't have the insert URI for this repo.\n"
-                     + "Supply a private key with --key or fn-push "
-                     + "the repo.\n")
+            ui_.warn(b"You don't have the insert URI for this repo.\n"
+                     + b"Supply a private key with --key or fn-push "
+                     + b"the repo.\n")
             return  # REDFLAG: hmmm... abort?
         params['SITE_KEY'] = 'SSK' + insert_uri.split('/')[0][3:]
 
@@ -650,8 +650,8 @@ def do_archive_push(ui_, opts, params, stored_cfg):
         insert_uri = (
             stored_cfg.get_dir_insert_uri(params['ARCHIVE_CACHE_DIR']))
         if not insert_uri:
-            ui_.warn("There is no stored insert URI for this archive.\n"
-                     "Please set one with the --uri option.\n")
+            ui_.warn(b"There is no stored insert URI for this archive.\n"
+                     b"Please set one with the --uri option.\n")
             raise error.Abort(b"No Insert URI.")
 
     params['INSERT_URI'] = insert_uri
@@ -668,8 +668,8 @@ def do_archive_pull(ui_, opts, params, stored_cfg):
         request_uri = (
             stored_cfg.get_request_uri(params['ARCHIVE_CACHE_DIR']))
         if not request_uri:
-            ui_.warn("There is no stored request URI for this archive.\n"
-                     "Please set one with the --uri option.\n")
+            ui_.warn(b"There is no stored request URI for this archive.\n"
+                     b"Please set one with the --uri option.\n")
             raise error.Abort(b"No request URI.")
 
     params['REQUEST_URI'] = request_uri
@@ -688,8 +688,8 @@ def do_archive_reinsert(ui_, opts, params, stored_cfg):
                           b"for reinsert.")
     request_uri = stored_cfg.get_request_uri(params['ARCHIVE_CACHE_DIR'])
     if request_uri is None:
-        ui_.warn("There is no stored request URI for this archive.\n" +
-                 "Run fn-archive --pull first!.\n")
+        ui_.warn(b"There is no stored request URI for this archive.\n" +
+                 b"Run fn-archive --pull first!.\n")
         raise error.Abort(b" No request URI, can't re-insert")
 
     insert_uri = stored_cfg.get_dir_insert_uri(params['ARCHIVE_CACHE_DIR'])
