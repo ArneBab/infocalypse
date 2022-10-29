@@ -1,0 +1,221 @@
+#+title: Real Life Infocalypse
+#+options: toc:nil num:nil ^:nil
+
+#+BEGIN_QUOTE
+/DVCS in the Darknet. The decentralized p2p code repository/
+#+END_QUOTE
+
+In this guide I show by example how you can use the Infocalypse plugin
+for decentralized development without central point of failure or
+reliance on unfree tools.[fn:1]
+
+#+BEGIN_SRC sh
+# freenet -> local
+hg clone freenet://ArneBab/life-repo
+# local -> freenet
+hg clone life-repo real-life
+hg clone real-life freenet://ArneBab/real-life
+# send pull request
+cd real-life
+hg fn-pull-request --wot ArneBab/life-repo
+(enter message)
+# check for pull-requests
+cd ../life-repo
+sleep 1800 # (wait for confidential delivery)
+hg fn-check-notifications --wot ArneBab
+#+END_SRC
+
+#+TOC: headlines 2
+
+* Setup
+
+/(I only explain the setup for GNU/Linux because that’s what I use. If you want Infocalypse for other platforms, come to the [[https://webchat.freenode.net/?randomnick=1][#freenet IRC channel]] so we can find the best way to do it)/
+
+** Freenet Setup
+
+Install and start [[https://freenetproject.org][Freenet]]. This should just take 5 minutes.
+
+Then activate the Web of Trust plugin and the Freemail plugin. As soon as your Freenet is running, you’ll find the Web of Trust and Freemail plugins on the [[http://127.0.0.1:8888/plugins][Plugins-Page]] /(this link will work once you have a running Freenet)/. 
+
+Now create a new Pseudonym on the [[http://127.0.0.1:8889/WebOfTrust/OwnIdentities][OwnIdentities-page]].
+
+** Infocalypse Setup
+
+Install [[http://mercurial.selenic.com][Mercurial]], [[https://pypi.python.org/pypi/defusedxml][defusedxml]], [[https://pypi.python.org/pypi/PyYAML][PyYAML]] for Python2. The easiest way of doing so is using easy_install from [[https://pypi.python.org/pypi/setuptools][setuptools]]:
+
+#+BEGIN_SRC sh
+cd ~/
+wget https://bootstrap.pypa.io/ez_setup.py -O - | python - --user
+easy_install --user Mercurial defusedxml PyYAML
+#+END_SRC
+
+Then get and activate the [[https://bitbucket.org/ArneBab/infocalypse][Infocalypse]] extension:
+
+#+BEGIN_SRC sh
+hg clone https://bitbucket.org/ArneBab/infocalypse
+echo '[extensions]' >> ~/.hgrc
+echo 'infocalypse=~/infocalypse/infocalypse' >> ~/.hgrc
+#+END_SRC
+
+** Infocalypse with Pseudonym
+
+Finally setup infocalypse for the Pseudonym you just created. You can use Infocalypse without Pseudonym. The pseudonym is needed for pull-requests and for shorter repository URLs.
+
+#+BEGIN_SRC sh
+hg fn-setup --truster <Nickname of your Web of Trust Pseudonym>
+hg fn-setupfreemail --truster <Nickname of your Web of Trust Pseudonym>
+#+END_SRC
+
+That’s it. You’re good to go. You can now share your code over
+Freenet (using your name instead of ArneBab).
+
+Welcome to the Infocalypse!
+
+* Example
+
+#+BEGIN_SRC sh
+# Create the repo
+hg init life-repo
+cd life-repo
+echo "my" > life.txt
+hg commit -Am "first steps"
+cd ..
+
+# Share the repo
+hg clone life-repo freenet://ArneBab/life-repo
+
+# Get a repo and add changes
+hg clone freenet://ArneBab/life-repo real-life
+cd real-life
+echo "real" > life.txt
+hg commit -m "getting serious"
+
+# Share the repo and file a pull-request
+hg clone . freenet://ArneBab/real-life
+# the . stands for "the current folder"
+hg fn-pull-request --wot ArneBab/life-repo # enter a message
+cd ..
+
+# Check for pull-requests and share the changes
+cd life-repo
+hg fn-check-notifications --wot ArneBab
+hg pull -u freenet://ArneBab/real-life
+hg push freenet://ArneBab/life-repo
+#+END_SRC
+
+* Privacy Protections
+
+Infocalypse takes your privacy seriously. When you clone a repository
+from freenet, your username for that repository is automatically set
+to “anonymous” and when you commit, the timezone is faked as UTC to
+avoid leaking your home country.
+
+If you want to add more security to your commits, consider also using
+a fake time-of-day:
+
+#+BEGIN_SRC sh
+hg commit -m "Commit this sometime today" --date \
+   "$(date -u "+%Y-%m-%d $(($RANDOM % 24)):$(($RANDOM % 60)):$(($RANDOM % 60)) +0000")"
+#+END_SRC
+
+Open =path/to/repo-from-freenet/.hg/hgrc= to set this permanently via
+an alias (just adapt the alias for rewriting the commit-date to UTC -
+these are already in the file if you cloned from Freenet).
+
+* Background Information
+
+Let’s look at a few interesting steps in the example to highlight the strengths of Infocalypse, and provide an outlook with steps we already took to prepare Infocalypse for future development.
+
+** Efficient storage in Freenet
+
+#+BEGIN_SRC sh
+hg clone life-repo freenet://ArneBab/life-repo
+#+END_SRC
+
+Here we clone the local repository into Freenet. Infocalypse looks up the private key from the identity =ArneBab=. Then it creates two repositories in Freenet: =<private key>/life-repo.R1/0= and =<private key>/life-repo.R0/0=. The URLS only differ in the =R1= / =R0=: They both contain the same pointers to the actual data, and if one becomes inaccessible, the chances are good that the other still exists. These pointers are the only part of the repository which only you can insert. As long as they stay available, others can reinsert the actual data to keep your repository accessible.
+
+To make that easy, you can run the command =hg fn-reinsert= in a cloned repository. It provides different levels. To insert on all levels you can use, just run a tiny bash-loop:
+
+#+BEGIN_SRC sh
+for i in {1..5}; do hg fn-reinsert --level $i; done
+#+END_SRC
+
+Let’s get to that “actual data”. When uploading your data into Freenet, Infocalypse creates a bundle with all your changes and uploads it as a single file with a content-dependent key (a =CHK=). Others who know which data is in that bundle can always recreate it exactly from the repository.
+
+When someone else uploads additional changes into Freenet, Infocalypse calculates the bundle for only the additional changes. This happens when you push:
+
+#+BEGIN_SRC sh
+hg push freenet://ArneBab/life-repo
+#+END_SRC
+
+To clone a repository, Infocalypse first downloads the file with pointers to the data, then downloads the bundles it needs (it walks the graph of available bundles and only gets the ones it needs) and reassembles the whole history by pulling it from the downloaded bundles.
+
+#+BEGIN_SRC sh
+hg clone freenet://ArneBab/life-repo real-life
+#+END_SRC
+
+By reusing the old bundles and only inserting the new data, Infocalypse minimizes the amount of data it has to transfer in and out of Freenet, and more importantly: Many repositories can share the same bundles, which provides automatic deduplication of content in Freenet. When you take into account that in Freenet often accessed content is faster and more reliable than seldomly accessed content, this gives Infocalypse a high degree of robustness and uses the capabilities of Freenet in an optimal way.
+
+If you want to go into Infocalypse-specific commands, you can also clone a repository directly to your own keyspace without having to insert any actual data yourself:
+
+#+BEGIN_SRC sh
+hg fn-copy --requesturi USK@<other key>/<other reponame>.R1/N \
+   --inserturi USK@<your key>/<your reponame>.R1/N
+#+END_SRC
+
+** Pull requests via anonymous Freemail
+
+Since the Google Summer of Code project from Steve Dougherty in 2013, Infocalypse supports sending pull-requests via Freemail, anonymous E-Mail over Freenet.
+
+#+BEGIN_SRC sh
+hg fn-pull-request --wot ArneBab/life-repo # enter a message
+hg fn-check-notifications --wot ArneBab
+#+END_SRC
+
+This works by sending a Freemail to the owner of that repository which contains a YAML-encoded footer with the data about the repository to use.
+
+You have to trust the owner of the other repository to send the pull-request, and the owner of the other repository has to trust you to receive the message. If the other does not trust you when you send the pull-request, you can change this by introducing your Pseudonym in the Web of Trust plugin (this means solving CAPTCHAs).
+
+** Convenience
+To make key management easier, you can add the following into =path/to/repo/.hg/hgrc=
+
+#+BEGIN_SRC ini
+[paths]
+default = freenet://ArneBab/life-repo
+real-life = freenet://ArneBab/real-life
+#+END_SRC
+
+Now pull and push will by default go to =freenet://ArneBab/life-repo= and you can pull from the other repo via =hg pull real-life=.
+
+Your keys are managed by the Web of Trust plugin in Freenet, so you can use the same freenet-uri for push and pull, and you can share the paths without having to take care that you don’t spill your private key.
+
+** DVCS WebUI
+
+When looking for repositories with the command line interface, you are reliant on finding the addresses of repositories somewhere else. To ease that, Steve also implemented the DVCS WebUI for Freenet during his GSoC project. It provides a web interface via a Freenet plugin. In addition to providing a more colorful user interface, it adds 24/7 monitoring and pre-fetching of relevant data to minimize delays in the command line interface.
+
+All the heavy lifting is done within the Infocalypse Mercurial plugin, though: Instead of implementing DVCS parsing itself, The DVCS WebUI asks you to connect Infocalypse so it can defer processing to that:
+
+#+BEGIN_SRC sh
+hg fn-connect
+#+END_SRC
+
+The longterm goal of the DVCS WebUI is to use provide a full-featured web interface for repository exploration. The current version provides the communication with the Mercurial plugin and lists the paths of locally known repositories.
+
+You can get the DVCS WebUI from http://github.com/Thynix/plugin-Infocalypse-WebUI
+
+** Gitocalypse
+
+If you prefer working with git, you can use =gitocalypse= written by SeekingFor to seamlessly use Infocalypse repositories as git remotes. Gitocalypse is available from https://github.com/SeekingFor/gitocalypse
+
+The setup is explained in the [[https://github.com/SeekingFor/gitocalypse/blob/master/README][README]].
+
+* Conclusion
+
+Infocalypse provides hosting of repositories in Freenet with a level of convenience similar to GitHub or Bitbucket, but decentralized, anonymous and entirely built of Free Software.
+
+You can leverage it to become independent from centralized hosting platforms for sharing your work and collaborating with other hackers.
+
+* Footnotes
+
+[fn:1] This guide shows the convenient way of working which has a higher barrier of entry. It uses WoT Pseudonyms to allow you to insert repositories by Pseudonym and repository name. If you can cope with inserting by private key and sending pull-requests manually, you can use it without the WoT, too, which reduces the setup effort quite a bit. Just skip the setup of the Web of Trust and Freemail and plugins. You can then clone the life repo via =hg clone freenet://USK@6~ZDYdvAgMoUfG6M5Kwi7SQqyS-gTcyFeaNN1Pf3FvY,OSOT4OEeg4xyYnwcGECZUX6~lnmYrZsz05Km7G7bvOQ,AQACAAE/life-repo.R1/4 life-repo=. See =hg fn-genkey= and =hg help infocalypse= for details.
+
