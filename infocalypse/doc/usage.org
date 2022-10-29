@@ -104,6 +104,12 @@ hg pull -u freenet://ArneBab/real-life-${N}
 hg push freenet://ArneBab/life-repo-${N}
 #+END_SRC
 
+For a non-interactive speed test, use
+
+#+begin_src bash
+time (ID=ArneBab; N=$RANDOM; cd /tmp; hg init life-repo-${N}; cd life-repo-${N}; echo "my" > life.txt; hg commit -Am "first steps"; cd ..; hg clone life-repo-${N} freenet://${ID}/life-repo-${N}; hg clone freenet://${ID}/life-repo-${N} real-life-${N}; cd real-life-${N}; echo "real" > life.txt; hg commit -m "getting serious"; hg clone . freenet://${ID}/real-life-${N}; hg pull -u freenet://${ID}/real-life-${N}; hg push freenet://${ID}/life-repo-${N}); echo without realtime
+#+end_src
+
 * Privacy Protections
 
 Infocalypse takes your privacy seriously. When you clone a repository
