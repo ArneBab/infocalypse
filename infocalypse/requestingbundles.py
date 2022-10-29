@@ -363,7 +363,10 @@ class RequestingBundles(RetryingRequestList):
             candidate = request.candidate
             if candidate[6]:
                 continue
-            edge = edges[candidate[0]]
+            try:
+                edge = edges[candidate[0]]
+            except KeyError: # padding issues, see fixup(edges, candidate_list)
+                edge = edges[candidate[0].replace(b'=', b'')]
             candidate[3] = edge
             candidate[4] = None
             #print "_set_graph -- fixed up: ", request.tag, edge

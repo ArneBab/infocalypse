@@ -699,7 +699,8 @@ def freenetpush(orig, *args, **opts):
     # only act differently, if the target is an infocalypse repo.
     if not isfreenetpath(path):
         return orig(*args, **opts)
-    uri = parse_repo_path(freenetpathtouri(ui, path, b"push", repo, fcphost = opts['fcphost'], fcpport = opts['fcpport']))
+    uri = parse_repo_path(
+        freenetpathtouri(ui, path, b"push", repo, fcphost = opts['fcphost'], fcpport = opts['fcpport']))
     if uri is None:
         return
     # if the uri is the short form (USK@/name/#), generate the key and preprocess the uri.

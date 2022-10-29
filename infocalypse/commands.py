@@ -280,7 +280,7 @@ def infocalypse_pull_request(ui, repo, **opts):
     # TODO: cfg still needs defaults for mailhost, smtpport and imapport.
     cfg = config.Config.from_ui(ui)
     fcpopts = wot.get_fcpopts(ui, fcphost=opts["fcphost"] or cfg.defaults['HOST'], fcpport=opts["fcpport"] or cfg.defaults['PORT'])
-    to_identity = WoT_ID(wot_id, from_identity, fcpopts=fcpopts)
+    to_identity = WoT_ID(wot_id.decode("utf-8"), from_identity, fcpopts=fcpopts)
     wot.send_pull_request(ui, repo, from_identity, to_identity, repo_name,
                           mailhost=opts["mailhost"], smtpport=opts["smtpport"])
 
@@ -610,7 +610,7 @@ def get_truster(ui, repo=None, truster_identifier=None, fcpport=None, fcphost=No
 
         # Either repo is not given or there is no associated identity.
         if not identity:
-            identity = cfg.defaults['DEFAULT_TRUSTER']
+            identity = cfg.defaults['DEFAULT_TRUSTER'].decode("utf-8")
             default = True
 
         try:

@@ -524,7 +524,7 @@ def resolve_push_uri(ui, path, resolve_edition=True, fcphost=None, fcpport=None)
         # Maintains name, edition.
         repo_uri.key = local_id.insert_uri.key
 
-        return str(repo_uri)
+        return str(repo_uri).encode("utf-8")
     else:
         repo_uri = local_id.insert_uri.clone()
         # print("local_id.insert_uri", local_id.insert_uri)
