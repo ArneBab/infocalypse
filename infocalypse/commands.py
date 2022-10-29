@@ -340,9 +340,8 @@ def infocalypse_info(ui_, repo, **opts):
     """ Display information about an Infocalypse repository.
      """
     # FCP not required. Hmmm... Hack
-    opts['fcphost'] = ''
+    opts['fcphost'] = b''
     opts['fcpport'] = 0
-    print(get_config_info(ui_, opts))
     params, stored_cfg = get_config_info(ui_, opts)
     request_uri = opts['uri']
     if not request_uri:

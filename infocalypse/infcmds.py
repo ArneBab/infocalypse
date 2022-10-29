@@ -720,11 +720,11 @@ def read_freenet_heads(params, update_sm, request_uri):
     raise error.Abort(b"Couldn't read heads from Freenet.")
 
 
-NO_INFO_FMT = """There's no stored information about this USK.
+NO_INFO_FMT = b"""There's no stored information about this USK.
 USK hash: %s
 """
 
-INFO_FMT = """USK hash: %s
+INFO_FMT = b"""USK hash: %s
 Index   : %i
 
 Trusted Notifiers:
@@ -751,24 +751,26 @@ def execute_info(ui_, repo, params, stored_cfg):
         ui_.status(NO_INFO_FMT % usk_hash)
         return
 
-    insert_uri = str(stored_cfg.get_insert_uri(usk_hash))
+    insert_uri = stored_cfg.get_insert_uri(usk_hash) or b'None'
 
     # fix index
     request_uri = get_usk_for_usk_version(request_uri, max_index)
 
     trusted = stored_cfg.trusted_notifiers(usk_hash)
     if not trusted:
-        trusted = '   None'
+        trusted = b'   None'
     else:
-        trusted = '   ' + '\n   '.join(trusted)
+        trusted = b'   ' + b'\n   '.join(trusted)
+
+    print ((usk_hash, max_index or -1, trusted, request_uri, insert_uri))
 
     ui_.status(INFO_FMT %
                (usk_hash, max_index or -1, trusted, request_uri, insert_uri))
 
     update_sm = setup(ui_, repo, params, stored_cfg)
     try:
-        ui_.status('Freenet head(s): %s\n' %
-                   ' '.join([ver[:12] for ver in
+        ui_.status(b'Freenet head(s): %s\n' %
+                   b' '.join([ver[:12] for ver in
                              read_freenet_heads(params, update_sm,
                                                 request_uri)]))
     finally:
