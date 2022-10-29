@@ -108,10 +108,10 @@ def infocalypse_create(ui_, repo, local_identity=None, **opts):
         if new_name in names:
             replace = ui_.prompt("A repository with the name '{0}' is already"
                                  " published by {1}. Replace it? [y/N]"
-                                 .format(new_name, local_identity),
+                                 .format(new_name.decode("utf-8"), local_identity).encode("utf-8"),
                                  default='n')
 
-            if replace.lower() != 'y':
+            if not replace.lower() in ['y', b'y']:
                 raise error.Abort(b"A repository with this name already exists.")
 
             # Remove the existing repository from each configuration section.
