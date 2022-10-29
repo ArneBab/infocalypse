@@ -571,11 +571,11 @@ def usks_equal(usk_a, usk_b):
             == get_usk_for_usk_version(usk_b, 0))
 
 LEVEL_MSGS = {
-    1:"Re-inserting top key(s) and graph(s).",
-    2:"Re-inserting top key(s) if possible, graph(s), latest update.",
-    3:"Re-inserting top key(s) if possible, graph(s), all bootstrap CHKs.",
-    4:"Inserting redundant keys for > 7Mb updates.",
-    5:"Re-inserting redundant updates > 7Mb.",
+    1:b"Re-inserting top key(s) and graph(s).",
+    2:b"Re-inserting top key(s) if possible, graph(s), latest update.",
+    3:b"Re-inserting top key(s) if possible, graph(s), all bootstrap CHKs.",
+    4:b"Inserting redundant keys for > 7Mb updates.",
+    5:b"Re-inserting redundant updates > 7Mb.",
     }
 
 def execute_reinsert(ui_, repo, params, stored_cfg):
@@ -594,14 +594,14 @@ def execute_reinsert(ui_, repo, params, stored_cfg):
                                 params['INVERTED_INSERT_URI']))):
                 raise error.Abort(b"Request URI doesn't match insert URI.")
 
-            ui_.debug("%sInsert URI:\n%s\n" % (is_redundant(params[
+            ui_.debug(b"%sInsert URI:\n%s\n" % (is_redundant(params[
                 'INSERT_URI']),
                                                 params['INSERT_URI']))
         ui_.status(b"%sRequest URI:\n%s\n" % (is_redundant(params[
             'REQUEST_URI']),
                                              params['REQUEST_URI']))
 
-        ui_.status(LEVEL_MSGS[params['REINSERT_LEVEL']] + '\n')
+        ui_.status(LEVEL_MSGS[params['REINSERT_LEVEL']] + b'\n')
         update_sm.start_reinserting(params['REQUEST_URI'],
                                     params['INSERT_URI'],
                                     is_keypair,
