@@ -411,7 +411,7 @@ def fetch_edition(ui, uri, fcphost=None, fcpport=None):
     # so manually following redirects is required.
     # TODO: Is there ever legitimately more than one redirect?
     try:
-        return node.get(str(uri), priority=1)
+        return node.get(str(uri), priority=1, realtime=True)
     except fcp3.FCPGetFailed as e:
         # Error code 27 is permanent redirect: there's a newer edition of
         # the USK.
