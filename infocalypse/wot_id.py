@@ -170,17 +170,16 @@ def _request_matching_identities(truster, context="vcs", prefix=None, fcpopts={}
     """
     Return a list of responses for all matching identities.
     """
-    node = fcp3.FCPNode(**fcpopts)
-    atexit.register(node.shutdown)
     params = {'Message': 'GetIdentities', # GetIdentitiesByScore is much slower
               'Truster': truster.identity_id}
 
     if context:
         params['Context'] = context
-    
-    response = node.fcpPluginMessage(
-        plugin_name="plugins.WebOfTrust.WebOfTrust",
-        plugin_params=params)[0]
+
+    with fcp3.FCPNode(**fcpopts) as node:
+        response = node.fcpPluginMessage(
+            plugin_name="plugins.WebOfTrust.WebOfTrust",
+            plugin_params=params)[0]
     
     if response['header'] != 'FCPPluginReply' or \
        'Replies.Message' not in response:
@@ -250,10 +249,9 @@ def _get_identity(wot_identifier, truster, exact=False, fcpopts={}):
     params = {'Message': 'GetIdentity',
               'Truster': truster.identity_id,
               'Identity': key_prefix}
-    node = fcp3.FCPNode(**fcpopts)
-    atexit.register(node.shutdown)
-    response = \
-        node.fcpPluginMessage(plugin_name="plugins.WebOfTrust.WebOfTrust",
+    with fcp3.FCPNode(**fcpopts) as node:
+        response = \
+            node.fcpPluginMessage(plugin_name="plugins.WebOfTrust.WebOfTrust",
                               plugin_params=params)[0]
 
     if response['Replies.Message'] == 'Error':
@@ -283,11 +281,10 @@ def _get_local_identity(wot_identifier, fcpopts={}):
     plugin_params = {'Message':
                      'GetOwnIdentities'}
     # print(plugin_name, plugin_params)
-    node = fcp3.FCPNode(**fcpopts)
-    atexit.register(node.shutdown)
-    response = \
-        node.fcpPluginMessage(plugin_name=plugin_name,
-                              plugin_params=plugin_params)[0]
+    with fcp3.FCPNode(**fcpopts) as node:
+        response = \
+            node.fcpPluginMessage(plugin_name=plugin_name,
+                                  plugin_params=plugin_params)[0]
     # print(response)
     if response['header'] != 'FCPPluginReply' or \
             'Replies.Message' not in response or \

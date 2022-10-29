@@ -143,12 +143,11 @@ def infocalypse_create(ui_, repo, local_identity=None, **opts):
 
         import fcp3
         from . import wot
-        node = fcp3.FCPNode(**wot.get_fcpopts(ui_, fcphost=opts["fcphost"],
-                                              fcpport=opts["fcpport"]))
-        atexit.register(node.shutdown)
-        vcs_response =\
-            node.fcpPluginMessage(plugin_name="plugins.WebOfTrust.WebOfTrust",
-                                  plugin_params=msg_params)[0]
+        with fcp3.FCPNode(**wot.get_fcpopts(ui_, fcphost=opts["fcphost"],
+                                              fcpport=opts["fcpport"])) as node:
+            vcs_response =\
+                node.fcpPluginMessage(plugin_name="plugins.WebOfTrust.WebOfTrust",
+                                      plugin_params=msg_params)[0]
 
         if vcs_response['header'] != 'FCPPluginReply' or\
                 'Replies.Message' not in vcs_response or\
