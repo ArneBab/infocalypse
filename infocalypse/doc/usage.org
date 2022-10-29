@@ -75,32 +75,33 @@ Welcome to the Infocalypse!
 
 #+BEGIN_SRC sh
 # Create the repo
-hg init life-repo
-cd life-repo
+N=$RANDOM
+hg init life-repo-${N}
+cd life-repo-${N}
 echo "my" > life.txt
 hg commit -Am "first steps"
 cd ..
 
 # Share the repo
-hg clone life-repo freenet://ArneBab/life-repo
+hg clone life-repo-${N} freenet://ArneBab/life-repo-${N}
 
 # Get a repo and add changes
-hg clone freenet://ArneBab/life-repo real-life
-cd real-life
+hg clone freenet://ArneBab/life-repo-${N} real-life-${N}
+cd real-life-${N}
 echo "real" > life.txt
 hg commit -m "getting serious"
 
 # Share the repo and file a pull-request
-hg clone . freenet://ArneBab/real-life
+hg clone . freenet://ArneBab/real-life-${N}
 # the . stands for "the current folder"
-hg fn-pull-request --wot ArneBab/life-repo # enter a message
+hg fn-pull-request --wot ArneBab/life-repo-${N} --mailhost 127.0.0.1 # enter a message
 cd ..
 
 # Check for pull-requests and share the changes
-cd life-repo
-hg fn-check-notifications --wot ArneBab
-hg pull -u freenet://ArneBab/real-life
-hg push freenet://ArneBab/life-repo
+cd life-repo-${N}
+hg fn-check-notifications --wot ArneBab --mailhost 127.0.0.1
+hg pull -u freenet://ArneBab/real-life-${N}
+hg push freenet://ArneBab/life-repo-${N}
 #+END_SRC
 
 * Privacy Protections

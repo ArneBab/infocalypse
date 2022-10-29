@@ -576,7 +576,7 @@ class FCPClient(MinimalClient):
                                      'MaxRetries': 1,
                                      'PriorityClass':1,
                                      'UploadFrom':'direct',
-                                                'DataLength':9,
+                                     'DataLength':9,
                                      'GetCHKOnly':True}
         self.in_params.send_data = '012345678' # 9 bytes of data
         inverted = self.conn.start_request(self)[1]['URI']
