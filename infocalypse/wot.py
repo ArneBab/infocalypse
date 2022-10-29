@@ -279,7 +279,7 @@ def update_repo_listing(ui, for_identity, fcphost=None, fcpport=None):
 
     ui.status(b"Inserting with URI:\n%b\n" % str(insert_uri).encode("utf-8"))
     uri = node.put(uri=str(insert_uri), mimetype='application/xml',
-                   data=ET.tostring(root), priority=1)
+                   data=ET.tostring(root), priority=1, realtime=True)
 
     if uri is None:
         ui.warn(b"Failed to update repository listing.")
@@ -420,8 +420,9 @@ def fetch_edition(ui, uri, fcphost=None, fcpport=None):
             raise
 
         uri.edition = USK(e.info['RedirectURI']).edition
+        ui.debug(b'Newer edition of uri found. Following redirect.')
 
-        return node.get(str(uri), priority=1)
+        return fetch_edition(ui, uri, fcphost=fcphost, fcpport=fcpport)
 
 
 def get_fcpopts(ui, fcphost=None, fcpport=None):
