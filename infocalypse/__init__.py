@@ -856,7 +856,11 @@ default-push = freenet:{0}
         dispatch.dispatch(req)
         # pull the data from freenet
         origdest = util.expandpath(dest)
-        dest, branch = hg.parseurl(origdest)
+        try: # api compat
+            from mercurial.utils import urlutil
+            dest, branch = urlutil.parseurl(origdest)
+        except:
+            dest, branch = hg.parseurl(origdest)
         destrepo = hg.repository(ui, dest)
         fncommands.infocalypse_pull(ui, destrepo, aggressive=True, hash=None, uri=pulluri, **opts)
         # store the request uri for future updates
