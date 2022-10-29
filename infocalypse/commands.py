@@ -292,7 +292,7 @@ def infocalypse_check_notifications(ui, repo, **opts):
                           b" --wot.\n")
 
     fcpopts = wot.get_fcpopts(ui, fcpport=opts["fcpport"], fcphost=opts["fcphost"])
-    wot.check_notifications(ui, Local_WoT_ID(opts['wot'].decode('utf-8'), fcpopts=fcpopts))
+    wot.check_notifications(ui, Local_WoT_ID(opts['wot'].decode('utf-8'), fcpopts=fcpopts), mailhost=opts["mailhost"], imapport=opts["imapport"])
 
 
 def infocalypse_connect(ui, repo, **opts):
