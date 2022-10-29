@@ -130,6 +130,7 @@ class RequestingBundles(RetryingRequestList):
         request.in_params.fcp_params['URI'] = uri
 
         request.in_params.definition = GET_DEF
+        request.in_params.fcp_params['RealTimeFlag'] = True
         request.in_params.file_name = (
             make_temp_file(self.parent.ctx.bundle_cache.base_dir))
         self.parent.ctx.set_cancel_time(request)

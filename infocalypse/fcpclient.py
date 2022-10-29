@@ -442,6 +442,7 @@ def set_insert_uri(params, uri):
             params['TargetFilename'] = filename
     else:
         params['URI'] = uri
+        params['RealTimeFlag'] = True
 
 def get_usk_hash(usk):
     """ Returns a 12 hex digit hash for a USK which is independant
@@ -575,6 +576,7 @@ class FCPClient(MinimalClient):
         self.in_params.fcp_params = {'URI': target,
                                      'MaxRetries': 1,
                                      'PriorityClass':1,
+                                     'RealTimeFlag':True,
                                      'UploadFrom':'direct',
                                      'DataLength':9,
                                      'GetCHKOnly':True}
@@ -668,6 +670,7 @@ class FCPClient(MinimalClient):
         self.in_params.definition = PUT_REDIRECT_DEF
         self.in_params.fcp_params = {'URI':uri,
                                      'TargetURI':target_uri,
+                                     'RealTimeFlag':True,
                                      'UploadFrom':'redirect'}
         if mime_type:
             self.in_params.fcp_params['Metadata.ContentType'] = mime_type
