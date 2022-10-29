@@ -59,7 +59,7 @@ def send_pull_request(ui, repo, from_identity, to_identity, to_repo_name, mailho
     # Use double-quoted scalars so that Unicode can be included. (Nicknames.)
     footer = yaml.dump({'request': 'pull',
                         'vcs': VCS_NAME,
-                        'source': "freenet://" + from_uri, # + '#' + from_branch, # TODO: pulling from branch currently not supported with a freenet:// uri
+                        'source': "freenet://" + from_uri.decode("utf-8"), # + '#' + from_branch, # TODO: pulling from branch currently not supported with a freenet:// uri
                         'target': to_repo}, default_style='"',
                        explicit_start=True, explicit_end=True,
                        allow_unicode=True)
@@ -73,19 +73,19 @@ HG: Enter pull request message here. Lines beginning with 'HG:' are removed.
 HG: The first line has "{0}" added before it in transit and is the subject.
 HG: The second line is ignored.
 HG: Subsequent lines are the body of the message.
-""".format(VCS_TOKEN), str(from_identity))
+""".format(VCS_TOKEN).encode("utf-8"), str(from_identity))
     # TODO: Save message and load later in case sending fails.
 
     source_lines = source_text.splitlines()
 
-    source_lines = [line for line in source_lines if not line.startswith('HG:')]
+    source_lines = [line for line in source_lines if not line.startswith(b'HG:')]
 
-    if not ''.join(source_lines).strip():
+    if not b''.join(source_lines).strip():
         raise error.Abort("Empty pull request message.")
 
     # Body is third line and after.
     msg = MIMEText('\n'.join(source_lines[2:]) + footer)
-    msg['Subject'] = VCS_TOKEN + ' ' + source_lines[0]
+    msg['Subject'] = VCS_TOKEN + ' ' + source_lines[0].decode("utf-8")
     msg['To'] = to_address
     msg['From'] = from_address
 
@@ -96,7 +96,7 @@ HG: Subsequent lines are the body of the message.
     # TODO: Catch exceptions and give nice error messages.
     smtp.sendmail(from_address, to_address, msg.as_string())
 
-    ui.status("Pull request sent.\n")
+    ui.status(b"Pull request sent.\n")
 
 
 def check_notifications(ui, local_identity, mailhost=None, imapport=None):
@@ -560,10 +560,11 @@ def execute_setup_freemail(ui, local_id, mailhost=None, smtpport=None):
 
     password = ui.getpass()
     if password is None:
-        raise util.Abort("Cannot prompt for a password in a non-interactive "
-                         "context.\n")
+        raise util.Abort(b"Cannot prompt for a password in a non-interactive "
+                         b"context.\n")
+    password = password.decode("utf-8")
 
-    ui.status("Checking password for {0}.\n".format(local_id))
+    ui.status("Checking password for {0}.\n".format(local_id).encode("utf-8"))
 
     cfg = config.Config.from_ui(ui)
     host = mailhost or cfg.defaults['HOST']
@@ -575,12 +576,12 @@ def execute_setup_freemail(ui, local_id, mailhost=None, smtpport=None):
         smtp = smtplib.SMTP(host, port)
         smtp.login(address, password)
     except smtplib.SMTPAuthenticationError as e:
-        raise util.Abort("Could not log in with the given password.\nGot '{0}'\n"
+        raise util.Abort(b"Could not log in with the given password.\nGot '{0}'\n"
                          .format(e.smtp_error))
     except smtplib.SMTPConnectError as e:
-        raise util.Abort("Could not connect to server.\nGot '{0}'\n"
+        raise util.Abort(b"Could not connect to server.\nGot '{0}'\n"
                          .format(e.smtp_error))
 
     cfg.set_freemail_password(local_id, password)
     config.Config.to_file(cfg)
-    ui.status("Password set.\n")
+    ui.status(b"Password set.\n")

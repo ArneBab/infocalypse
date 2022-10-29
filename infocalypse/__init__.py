@@ -524,8 +524,8 @@ cmdtable = {
                     b"[options]"),
 
     b"fn-setupwot": (fncommands.infocalypse_setupwot,
-                    FCP_OPTS +
-                    WOT_OPTS,
+                    WOT_OPTS
+                    + FCP_OPTS,
                     b"[options]"),
 
     b"fn-setupfreemail": (fncommands.infocalypse_setupfreemail,

@@ -39,7 +39,7 @@ class WoT_ID(object):
         # it queries WoT to produce one.
         is_local_identity = message is not None
         if not message:
-            message = _get_identity(wot_identifier, truster, fcpopts=fcpopts)
+            message = _get_identity(wot_identifier.decode("utf-8"), truster, fcpopts=fcpopts)
 
         def get_attribute(attribute):
             return message['Replies.{0}{1}'.format(attribute, id_num)]
@@ -100,6 +100,9 @@ class WoT_ID(object):
 
     def __str__(self):
         return self.nickname + '@' + self.identity_id
+
+    def __bytes__(self):
+        return self.__str__().encode("utf-8")
 
 
 class Local_WoT_ID(WoT_ID):

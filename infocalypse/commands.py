@@ -274,10 +274,12 @@ def infocalypse_pull_request(ui, repo, **opts):
         raise error.Abort(b"Who do you want to send the pull request to? Set "
                           b"--wot.\n")
 
-    wot_id, repo_name = opts['wot'].split('/', 1)
+    wot_id, repo_name = opts['wot'].split(b'/', 1)
     from_identity = get_truster(ui, repo, opts['truster'],
                                 fcpport=opts["fcpport"], fcphost=opts["fcphost"])
-    to_identity = WoT_ID(wot_id, from_identity)
+    cfg = config.Config.from_ui(ui)
+    fcpopts = wot.get_fcpopts(ui, fcphost=opts["fcphost"] or cfg.defaults['HOST'], fcpport=opts["fcpport"] or cfg.defaults['PORT'])
+    to_identity = WoT_ID(wot_id, from_identity, fcpopts=fcpopts)
     wot.send_pull_request(ui, repo, from_identity, to_identity, repo_name,
                           mailhost=opts["mailhost"], smtpport=opts["smtpport"])
 
@@ -562,7 +564,7 @@ def infocalypse_setupwot(ui_, **opts):
     wot.execute_setup_wot(ui_, Local_WoT_ID(opts['truster'].decode("utf-8"), fcpopts=fcpopts))
 
 
-def infocalypse_setupfreemail(ui, repo, **opts):
+def infocalypse_setupfreemail(ui_, **opts):
     """
     Set a Freemail password. If --truster is not given uses the default
     truster.
@@ -570,7 +572,7 @@ def infocalypse_setupfreemail(ui, repo, **opts):
     from . import wot
     # TODO: Here --truster doesn't make sense. There is no trust involved.
     # TODO: Should this be part of the normal fn-setup?
-    wot.execute_setup_freemail(ui, get_truster(ui, repo, opts['truster'],
+    wot.execute_setup_freemail(ui_, get_truster(ui_, truster_identifier=opts['truster'],
                                                fcpport=opts["fcpport"], fcphost=opts["fcphost"]),
                                mailhost=opts["mailhost"], smtpport=opts["smtpport"])
 
@@ -611,7 +613,7 @@ def get_truster(ui, repo=None, truster_identifier=None, fcpport=None, fcphost=No
             default = True
 
         try:
-            return wot_id.Local_WoT_ID('@' + identity.decode('utf-8'), fcpopts=fcpopts)
+            return wot_id.Local_WoT_ID('@' + identity, fcpopts=fcpopts)
         except error.Abort:
             if default:
                 raise error.Abort((b"Cannot resolve the default truster with "
