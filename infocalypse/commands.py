@@ -332,7 +332,8 @@ def infocalypse_push(ui_, repo, **opts):
     if inserted_to and associated_wot_id:
         from . import wot
         from .wot_id import Local_WoT_ID
-        local_id = Local_WoT_ID('@' + associated_wot_id) # need .decode('uft-8')?
+        fcpopts = wot.get_fcpopts(ui_, fcphost=opts["fcphost"], fcpport=opts["fcpport"])
+        local_id = Local_WoT_ID('@' + associated_wot_id, fcpopts=fcpopts) # need .decode('uft-8')?
         wot.update_repo_listing(ui_, local_id, 
                                 fcphost=opts["fcphost"],
                                 fcpport=opts["fcpport"])
