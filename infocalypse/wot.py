@@ -221,9 +221,12 @@ def read_message_yaml(ui, from_address, subject, body):
         ui.status(b"To accept this request, pull from: %s\n" %
                   (request['source'].encode("utf-8"), ))
         # FIXME: request['target'] can be more up to date than the local listing? Maybe only when sending to myself.
-        ui.status(b"               To your repository: %s\n" %
-                  (cfg.get_repo_dir(request['target'].encode("utf-8"))))
-        ui.status(b"hg -R %s pull '%s'\n" % (cfg.get_repo_dir(request['target'].encode("utf-8")), request['source'].encode("utf-8")))
+        try:
+            target = cfg.get_repo_dir(request['target'].encode("utf-8"))
+            ui.status(b"               To your repository: %s\n" % target)
+            ui.status(b"hg -R %s pull '%s'\n" % (target, request['source'].encode("utf-8")))
+        except error.Abort as err:
+            ui.error(err.message)
         return
 
     ui.status(b"Notification '%s' has an unrecognized request of type '%s'"
@@ -314,7 +317,7 @@ def find_repo(ui, identity, repo_name):
     """
     Return a request URI for a repo of the given name published by an
     identity matching the given identifier.
-    Raise util.Abort if unable to read repo listing or a repo by that name
+    Raise error.Abort if unable to read repo listing or a repo by that name
     does not exist.
 
     :type identity: WoT_ID
@@ -493,7 +496,7 @@ def resolve_pull_uri(ui, path, truster, repo=None, fcphost=None, fcpport=None):
 def resolve_push_uri(ui, path, resolve_edition=True, fcphost=None, fcpport=None):
     """
     Return a push URI for the given path.
-    Raise util.Abort if unable to resolve identity or repository.
+    Raise error.Abort if unable to resolve identity or repository.
 
     :param resolve_edition: Defaults to True. If False, skips resolving the
                             repository, uses the edition number 0. and does
@@ -561,7 +564,7 @@ def execute_setup_freemail(ui, local_id, mailhost=None, smtpport=None):
 
     password = ui.getpass()
     if password is None:
-        raise util.Abort(b"Cannot prompt for a password in a non-interactive "
+        raise error.Abort(b"Cannot prompt for a password in a non-interactive "
                          b"context.\n")
     password = password.decode("utf-8")
 
@@ -577,11 +580,11 @@ def execute_setup_freemail(ui, local_id, mailhost=None, smtpport=None):
         smtp = smtplib.SMTP(host, port)
         smtp.login(address, password)
     except smtplib.SMTPAuthenticationError as e:
-        raise util.Abort(b"Could not log in with the given password.\nGot '{0}'\n"
-                         .format(e.smtp_error))
+        raise error.Abort("Could not log in with the given password.\nGot '{0}'\n"
+                          .format(e.smtp_error).encode("utf-8"))
     except smtplib.SMTPConnectError as e:
-        raise util.Abort(b"Could not connect to server.\nGot '{0}'\n"
-                         .format(e.smtp_error))
+        raise error.Abort("Could not connect to server.\nGot '{0}'\n"
+                         .format(e.smtp_error).encode("utf-8"))
 
     cfg.set_freemail_password(local_id, password)
     config.Config.to_file(cfg)
