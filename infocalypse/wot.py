@@ -132,7 +132,7 @@ def check_notifications(ui, local_identity, mailhost=None, imapport=None):
     # separated by commas. It seems desirable to peek because it's not yet
     # apparent that this is a [vcs] message with YAML.
     # Parenthesis to prevent quotes: http://bugs.python.org/issue917120
-    status, subjects = imap.fetch(','.join(message_numbers),
+    status, subjects = imap.fetch(','.join([m.decode("utf-8") for m in message_numbers]),
                                   r'(body[header.fields Subject])')
 
     # Expecting 2 list items from imaplib for each message, for example:
@@ -149,7 +149,7 @@ def check_notifications(ui, local_identity, mailhost=None, imapport=None):
                     message_number, subject in zip(message_numbers, subjects))
 
     for message_number, subject in subjects.items():
-        status, fetched = imap.fetch(str(message_number),
+        status, fetched = imap.fetch(message_number.decode("utf-8"),
                                      r'(body[text] '
                                      r'body[header.fields From)')
 
@@ -165,11 +165,11 @@ def read_message_yaml(ui, from_address, subject, body):
     Print information about the given message.
     """
     # Get consistent line endings.
-    body = '\n'.join(body.splitlines())
-    yaml_start = body.rfind('---\n')
+    body = b'\n'.join(body.splitlines())
+    yaml_start = body.rfind(b'---\n')
     # The .join() does not add a trailing newline, and the end token might be
     # the last line.
-    end_token = '...'
+    end_token = b'...'
     yaml_end = body.rfind(end_token)
 
     cfg = config.Config.from_ui(ui)
@@ -180,13 +180,13 @@ def read_message_yaml(ui, from_address, subject, body):
         yaml_end += len(end_token)
 
     if yaml_start == -1 or yaml_end == -1:
-        ui.status("Notification '%s' does not have a request.\n" % subject)
+        ui.status(b"Notification '%s' does not have a request.\n" % subject)
         return
 
     def require(field, request):
         if field not in request:
-            ui.status("Notification '%s' has a properly formatted request "
-                      "that does not include necessary information. ('%s')\n"
+            ui.status(b"Notification '%s' has a properly formatted request "
+                      b"that does not include necessary information. ('%s')\n"
                       % (subject, field))
             return False
         return True
@@ -197,35 +197,36 @@ def read_message_yaml(ui, from_address, subject, body):
         if not require('vcs', request) or not require('request', request):
             return
     except yaml.YAMLError as e:
-        ui.status("Notification '%s' has a request but it is not properly"
-                  " formatted. Details:\n%s\n" % (subject, e))
+        ui.status(b"Notification '%s' has a request but it is not properly"
+                  b" formatted. Details:\n%s\n" % (subject, e))
         return
 
     if request['vcs'] != VCS_NAME:
-        ui.status("Notification '%s' is for '%s', not Infocalypse.\n"
+        ui.status(b"Notification '%s' is for '%s', not Infocalypse.\n"
                   % (subject, request['vcs']))
         return
 
     if request['request'] == 'pull':
-        ui.status("Found pull request from '%s':\n" % from_address)
-        separator = ('-' * len(subject)) + '\n'
+        ui.status(b"Found pull request from '%s':\n" % from_address)
+        subject_to_show = subject[subject.find(VCS_TOKEN.encode("utf-8")) + len(VCS_TOKEN) + 1:]
+        separator = (b'-' * len(subject_to_show)) + b'\n'
 
         ui.status(separator)
-        ui.status(subject[subject.find(VCS_TOKEN) + len(VCS_TOKEN):] + '\n')
+        ui.status((subject_to_show + b'\n'))
 
         ui.status(separator)
-        ui.status(body[:yaml_start] + '\n')
+        ui.status(body[:yaml_start] + b'\n')
         ui.status(separator)
 
-        ui.status("To accept this request, pull from: %s\n" %
-                  (request['source'], ))
+        ui.status(b"To accept this request, pull from: %s\n" %
+                  (request['source'].encode("utf-8"), ))
         # FIXME: request['target'] can be more up to date than the local listing? Maybe only when sending to myself.
-        ui.status("               To your repository: %s\n" %
-                  (cfg.get_repo_dir(request['target'])))
-        ui.status("hg -R %s pull '%s'\n" % (request['source'], cfg.get_repo_dir(request['target'])))
+        ui.status(b"               To your repository: %s\n" %
+                  (cfg.get_repo_dir(request['target'].encode("utf-8"))))
+        ui.status(b"hg -R %s pull '%s'\n" % (cfg.get_repo_dir(request['target'].encode("utf-8")), request['source'].encode("utf-8")))
         return
 
-    ui.status("Notification '%s' has an unrecognized request of type '%s'"
+    ui.status(b"Notification '%s' has an unrecognized request of type '%s'"
               % (subject, request['request']))
 
 
@@ -567,12 +568,12 @@ def execute_setup_freemail(ui, local_id, mailhost=None, smtpport=None):
     ui.status("Checking password for {0}.\n".format(local_id).encode("utf-8"))
 
     cfg = config.Config.from_ui(ui)
+    # TODO: define a config value for the MAILHOST or change Freemail to use the same bindTo as fred
     host = mailhost or cfg.defaults['HOST']
     port = smtpport or FREEMAIL_SMTP_PORT
     
     # Check that the password works.
     try:
-        # TODO: Is this the correct way to get the configured host?
         smtp = smtplib.SMTP(host, port)
         smtp.login(address, password)
     except smtplib.SMTPAuthenticationError as e:

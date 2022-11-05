@@ -360,20 +360,20 @@ FREEMAIL_SMTP_PORT = 4025
 FREEMAIL_IMAP_PORT = 4143
 
 # Can't use None as a default? Means "takes no argument'?
-FCP_OPTS = [(b'', b'fcphost', b'', b'fcp host, defaults to setup or ' + DEFAULT_FCP_HOST),
-            (b'', b'fcpport', 0, b'fcp port, defaults to setup or ' + str(DEFAULT_FCP_PORT).encode('utf8')),
+FCP_OPTS = [(b'', b'fcphost', b'', b'fcp host, defaults to setup or ' + DEFAULT_FCP_HOST, b'HOST'),
+            (b'', b'fcpport', 0, b'fcp port, defaults to setup or ' + str(DEFAULT_FCP_PORT).encode('utf8'), b'PORT'),
 ]
 
-FREEMAIL_OPTS = [(b'', b'mailhost', b'', b'freemail host, defaults to setup or ' + DEFAULT_FCP_HOST),
-                 (b'', b'smtpport', 0, b'freemail smtp port, defaults to setup or ' + str(FREEMAIL_SMTP_PORT).encode('utf8')),
-                 (b'', b'imapport', 0, b'freemail imap port, defaults to setup or ' + str(FREEMAIL_IMAP_PORT).encode('utf8')),
+FREEMAIL_OPTS = [(b'', b'mailhost', b'', b'freemail host, defaults to setup or ' + DEFAULT_FCP_HOST, b'HOST'),
+                 (b'', b'smtpport', 0, b'freemail smtp port, defaults to setup or ' + str(FREEMAIL_SMTP_PORT).encode('utf8'), b'PORT'),
+                 (b'', b'imapport', 0, b'freemail imap port, defaults to setup or ' + str(FREEMAIL_IMAP_PORT).encode('utf8'), b'PORT'),
 ]
 
 FMS_OPTS = [(b'', b'fmshost', b'', b'fms host'),
             (b'', b'fmsport', 0, b'fms port'),
 ]
 
-WOT_OPTS = [(b'', b'truster', b'', b'WoT nick@key to use when looking up others'),
+WOT_OPTS = [(b'', b'truster', b'', b'WoT nick@key to use when looking up others', b'ID'),
 ]
 WOT_CREATE_OPTS = [(b'', b'wot', b'', b'WoT nickname to create on'),
 ]
@@ -409,7 +409,8 @@ cmdtable = {
 
     b"fn-pull-request": (fncommands.infocalypse_pull_request,
                         [(b'', b'wot', b'', b'WoT nick@key/repo to send request '
-                                         b'to')]
+                                         b'to', b'WOT_REPO'),
+                         (b'm', b'message', b'', b'use text as pull-request message', b'TEXT')]
                         + WOT_OPTS
                         + FCP_OPTS
                         + FREEMAIL_OPTS,

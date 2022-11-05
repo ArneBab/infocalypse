@@ -73,6 +73,12 @@ Welcome to the Infocalypse!
 
 * Example
 
+/You need two Identities. None of them may be a prefix of the other.
+Both must have enabled Freemail in the web interface (set a non-empty
+password!) and via/
+
+: hg fn-setupfreemail --truster TestBab-2@<the identity string> --mailhost 127.0.0.1
+
 #+BEGIN_SRC sh
 # Create the repo
 N=$RANDOM
@@ -83,25 +89,29 @@ hg commit -Am "first steps"
 cd ..
 
 # Share the repo
-hg clone life-repo-${N} freenet://ArneBab/life-repo-${N}
+hg clone life-repo-${N} freenet://TestBab-1/life-repo-${N}
 
 # Get a repo and add changes
-hg clone freenet://ArneBab/life-repo-${N} real-life-${N}
+hg clone freenet://TestBab-1/life-repo-${N} real-life-${N}
 cd real-life-${N}
 echo "real" > life.txt
 hg commit -m "getting serious"
 
 # Share the repo and file a pull-request
-hg clone . freenet://ArneBab/real-life-${N}
-# the . stands for "the current folder"
-hg fn-pull-request --wot ArneBab/life-repo-${N} --mailhost 127.0.0.1 # enter a message
+hg clone . freenet://TestBab-2/real-life-${N}
+# the . means "the current folder"
+hg fn-pull-request --wot TestBab-1/life-repo-${N} --mailhost 127.0.0.1 # enter a message
 cd ..
 
-# Check for pull-requests and share the changes
+# give the pull-request 5 minutes of time to propagate
+sleep 5m
+
+# Check for pull-requests, then pull and share the changes
 cd life-repo-${N}
-hg fn-check-notifications --wot ArneBab --mailhost 127.0.0.1
-hg pull -u freenet://ArneBab/real-life-${N}
-hg push freenet://ArneBab/life-repo-${N}
+hg fn-check-notifications --wot TestBab-1 --mailhost 127.0.0.1
+hg pull -u freenet://TestBab-2/real-life-${N}
+hg push freenet://TestBab-1/life-repo-${N}
+cd ..
 #+END_SRC
 
 For a non-interactive speed test, use

@@ -16,9 +16,10 @@ def connect(ui, repo):
     """
     Connect to the WebUI plugin to provide local support.
     
-    TODO: Add command option handling (fcphost and fcpport).
+    TODO: Add command option handling (fcphost and fcpport) instead of only loading from cfg.
     """
-    node = fcp3.FCPNode()
+    cfg = Config.from_ui(ui)
+    node = fcp3.FCPNode(host=cfg.defaults['HOST'], port=cfg.defaults['PORT'])
     atexit.register(node.shutdown)
 
     ui.status(b"Connecting.\n")
@@ -150,7 +151,13 @@ def RepoListQuery(command, ui, **opts):
 
     # TODO: Failure should result in an error message sent to the plugin.
     # Truster is the ID of the identity only. Prepend '@' for identifier.
-    truster = Local_WoT_ID('@' + command['Replies.Truster'])
+    # TODO: add fcpopts
+    cfg = Config.from_ui(ui)
+    fcpopts = {
+        "host": cfg.defaults['HOST'],
+        "port": cfg.defaults['PORT'],
+    }
+    truster = Local_WoT_ID('@' + command['Replies.Truster'], fcpopts=fcpopts)
     identity = WoT_ID(command['Replies.RemoteIdentifier'], truster)
 
     repo_list = wot.read_repo_listing(ui, identity)
