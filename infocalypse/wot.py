@@ -84,7 +84,7 @@ HG: Subsequent lines are the body of the message.
         raise error.Abort("Empty pull request message.")
 
     # Body is third line and after.
-    msg = MIMEText('\n'.join(source_lines[2:]) + footer)
+    msg = MIMEText('\n'.join(l.decode("utf-8") for l in source_lines[2:]) + footer)
     msg['Subject'] = VCS_TOKEN + ' ' + source_lines[0].decode("utf-8")
     msg['To'] = to_address
     msg['From'] = from_address
