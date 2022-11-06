@@ -830,7 +830,6 @@ def freenetclone(orig, *args, **opts):
 
         from .wot_id import Local_WoT_ID
         from .wot import get_fcpopts
-        import fcp
 
         try:
             local_identity = Local_WoT_ID(local_identifier.decode("utf-8"),
