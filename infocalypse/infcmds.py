@@ -356,8 +356,8 @@ def run_until_quiescent(update_sm, poll_secs, close_socket=True):
                 # Indirectly nudge the state machine.
                 update_sm.runner.kick()
             except socket.error: # Not an IOError until 2.6.
-                update_sm.ctx.ui_.warn("Exiting because of an error on "
-                                       + "the FCP socket.\n")
+                update_sm.ctx.ui_.warn(b"Exiting because of an error on "
+                                       + b"the FCP socket.\n")
                 raise
             except IOError:
                 # REDLAG: better message.
