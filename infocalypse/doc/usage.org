@@ -80,44 +80,53 @@ password!) and via/
 : hg fn-setupfreemail --truster TestBab-2@<the identity string> --mailhost 127.0.0.1
 
 #+BEGIN_SRC sh
-# Create the repo
-N=$RANDOM
-hg init life-repo-${N}
-cd life-repo-${N}
-echo "my" > life.txt
-hg commit -Am "first steps"
+# Variables for the run, choose two WoT IDs of your own, do not use
+# the same: you cannot message yourself yet.
+export WOT_ID1=TestBab-1
+export WOT_ID2=TestBab-2
+export N=$(uuidgen);
+
+# Cleanup
+rm -r /tmp/infocalypse-*
+cd /tmp
+
+# Prepare first repository
+hg init infocalypse-revived-${N}
+cd infocalypse-revived-${N}
+echo "Follow the white rabbit" > looking-glass.txt
+hg ci -Am "infocalypse"
 cd ..
 
 # Share the repo
-hg clone life-repo-${N} freenet://TestBab-1/life-repo-${N}
+hg clone infocalypse-revived-${N} freenet://${WOT_ID1}/infocalypse-revived-${N}
 
 # Get a repo and add changes
-hg clone freenet://TestBab-1/life-repo-${N} real-life-${N}
-cd real-life-${N}
-echo "real" > life.txt
-hg commit -m "getting serious"
+hg clone freenet://${WOT_ID1}/infocalypse-revived-${N} infocalypse-averted-${N}
+cd infocalypse-averted-${N}
+echo "One pill makes you larger" >> looking-glass.txt
+hg ci -m "And one pill makes you small, so you can roundtrip"
 
 # Share the repo and file a pull-request
-hg clone . freenet://TestBab-2/real-life-${N}
+hg clone . freenet://${WOT_ID2}/infocalypse-averted-${N}
 # the . means "the current folder"
-hg fn-pull-request --wot TestBab-1/life-repo-${N} --mailhost 127.0.0.1 # enter a message
+hg fn-pull-request --wot ${WOT_ID1}/infocalypse-revived-${N} --mailhost 127.0.0.1 # enter a message
 cd ..
 
 # give the pull-request 5 minutes of time to propagate
 sleep 5m
 
 # Check for pull-requests, then pull and share the changes
-cd life-repo-${N}
-hg fn-check-notifications --wot TestBab-1 --mailhost 127.0.0.1
-hg pull -u freenet://TestBab-2/real-life-${N}
-hg push freenet://TestBab-1/life-repo-${N}
+cd infocalypse-revived-${N}
+hg fn-check-notifications --wot ${WOT_ID1} --mailhost 127.0.0.1
+hg pull -u freenet://${WOT_ID2}/infocalypse-averted-${N}
+hg push freenet://${WOT_ID1}/infocalypse-revived-${N}
 cd ..
 #+END_SRC
 
 For a non-interactive speed test, use
 
 #+begin_src bash
-time (ID=ArneBab; N=$RANDOM; cd /tmp; hg init life-repo-${N}; cd life-repo-${N}; echo "my" > life.txt; hg commit -Am "first steps"; cd ..; hg clone life-repo-${N} freenet://${ID}/life-repo-${N}; hg clone freenet://${ID}/life-repo-${N} real-life-${N}; cd real-life-${N}; echo "real" > life.txt; hg commit -m "getting serious"; hg clone . freenet://${ID}/real-life-${N}; hg pull -u freenet://${ID}/real-life-${N}; hg push freenet://${ID}/life-repo-${N}); echo without realtime
+time (ID=TestBab-1; N=$RANDOM; cd /tmp; hg init life-repo-${N}; cd life-repo-${N}; echo "my" > life.txt; hg commit -Am "first steps"; cd ..; hg clone life-repo-${N} freenet://${ID}/life-repo-${N}; hg clone freenet://${ID}/life-repo-${N} real-life-${N}; cd real-life-${N}; echo "real" > life.txt; hg commit -m "getting serious"; hg clone . freenet://${ID}/real-life-${N}; hg pull -u freenet://${ID}/real-life-${N}; hg push freenet://${ID}/life-repo-${N})
 #+end_src
 
 * Privacy Protections
