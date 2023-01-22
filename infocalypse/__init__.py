@@ -842,10 +842,11 @@ def freenetclone(orig, *args, **opts):
 
         fncommands.infocalypse_create(ui, repo, local_identity, **opts)
 
-        # TODO: Function for adding paths? It's currently here, for pull,
-        # and in WoT pull URI resolution.
-        with open(util.expandpath(source) + b"/.hg/hgrc", "a") as f:
-            f.write("""[paths]
+        # If there is no local id found, set the insert URI. Otherwise rely on WoT to provide it.
+        # Adding it when there’s a WoT ID unnecessarily increases the risk to expose the secret ID key.
+        if local_identity is None:
+            with open(util.expandpath(source) + b"/.hg/hgrc", "a") as f:
+                f.write("""[paths]
 default-push = freenet:{0}
 """.format(pushuri.decode("utf-8")))
 
