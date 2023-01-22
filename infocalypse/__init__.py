@@ -849,6 +849,18 @@ def freenetclone(orig, *args, **opts):
                 f.write("""[paths]
 default-push = freenet:{0}
 """.format(pushuri.decode("utf-8")))
+        elif opts['wot'] or opts['uri']:
+            uri = opts['wot'] or opts['uri']
+            uri = (strip_protocol(uri) if uri else uri)
+            if uri:
+                if uri.startswith(b"USK@"):
+                    repo_name = USK(uri).get_repo_name()
+                else:
+                    nick_prefix, repo_name, repo_edition = uri.split(b'/', 2)
+                with open(util.expandpath(source) + b"/.hg/hgrc", "a") as f:
+                    f.write("""[paths]
+default-push = freenet:{0}/{1}
+""".format(local_identifier.decode("utf-8"), repo_name.decode('utf-8')))
 
     if action == "pull":
         if os.path.exists(dest):
