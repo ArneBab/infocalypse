@@ -858,7 +858,7 @@ default-push = freenet:{0}
         origdest = util.expandpath(dest)
         dest, branch = hg.parseurl(origdest)
         destrepo = hg.repository(ui, dest)
-        fncommands.infocalypse_pull(ui, destrepo, aggressive=True, hash=None, uri=pulluri, **opts)
+        fncommands.infocalypse_pull(ui, destrepo, hash=None, uri=pulluri, **opts)
         # store the request uri for future updates
         _hgrc_template = """[paths]
 default = freenet://{pulluri}
