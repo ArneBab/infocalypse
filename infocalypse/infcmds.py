@@ -232,12 +232,12 @@ def get_config_info(ui_, opts):
     request_uri = opts.get('uri') or opts.get('requesturi')
     if bool(opts.get('nosearch')) and not request_uri:
         if opts.get('uri'):
-            arg_name = 'uri'
+            arg_name = b'uri'
         else:
             assert opts.get('requesturi')
-            arg_name = 'requesturi'
+            arg_name = b'requesturi'
 
-        ui_.status('--nosearch ignored because --%s was not set.\n' % arg_name)
+        ui_.status(b'--nosearch ignored because --%s was not set.\n' % arg_name)
     params['AGGRESSIVE_SEARCH'] = (bool(opts.get('aggressive')) and
                                    not params['NO_SEARCH'])
     if bool(opts.get('aggressive')) and params['NO_SEARCH']:
@@ -254,13 +254,13 @@ def check_uri(ui_, uri):
     if is_usk(uri):
         if not is_usk_file(uri):
             ui_.status(b"Only file USKs are allowed."
-                       + "\nMake sure the URI ends with '/<number>' "
-                       + "with no trailing '/'.\n")
+                       + b"\nMake sure the URI ends with '/<number>' "
+                       + b"with no trailing '/'.\n")
             raise error.Abort(b"Non-file USK %s\n" % uri)
         # Just fix it instead of doing B&H?
         if is_negative_usk(uri):
             ui_.status(b"Negative USK index values are not allowed."
-                       + "\nUse --aggressive instead. \n")
+                       + b"\nUse --aggressive instead. \n")
             raise error.Abort(b"Negative USK %s\n" % uri)
 
 def set_debug_vars(verbosity, params):
