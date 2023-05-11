@@ -921,6 +921,8 @@ entry = extensions.wrapcommand(commands.table, b"clone", freenetclone)
 entry[1].extend(FCP_OPTS)
 entry[1].extend(WOT_OPTS)
 entry[1].extend(WOT_CREATE_OPTS)
+entry[1].extend([NOSEARCH_OPT, AGGRESSIVE_OPT])
+
 
 
 # Starting an FTP repo. Not yet used, except for throwing errors for missing commands and faking the lock.
