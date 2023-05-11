@@ -903,7 +903,7 @@ entry = extensions.wrapcommand(commands.table, b"clone", freenetclone)
 entry[1].extend(FCP_OPTS)
 entry[1].extend(WOT_OPTS)
 entry[1].extend(WOT_CREATE_OPTS)
-entry[1].extend([NOSEARCH_OPT, AGGRESSIVE_OPT])
+entry[1].extend(NOSEARCH_OPT + AGGRESSIVE_OPT)
 
 
 
