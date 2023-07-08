@@ -633,7 +633,7 @@ def execute_push(ui_, repo, params, stored_cfg):
         request_uri, is_keypair = do_key_setup(ui_, update_sm, params,
                                                stored_cfg)
 
-        ui_.debug("%sInsert URI:\n%s\n" % (is_redundant(params['INSERT_URI']),
+        ui_.debug(b"%sInsert URI:\n%s\n" % (is_redundant(params['INSERT_URI']),
                                             params['INSERT_URI']))
         #ui_.status(b"Current tip: %s\n" % hex_version(repo)[:12])
 
