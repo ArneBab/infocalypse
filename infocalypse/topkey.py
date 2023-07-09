@@ -217,25 +217,25 @@ def default_out(text):
 
 def dump_top_key_tuple(top_key_tuple, out_func=default_out):
     """ Debugging function to print a top_key_tuple. """
-    out_func("--- %s top key tuple---\n" % HDR_BYTES)
+    out_func(b"--- %s top key tuple---\n" % HDR_BYTES)
     for index, chk in enumerate(top_key_tuple[0]):
-        out_func("graph_%s:%s\n" % (chr(ord('a') + index), chk))
+        out_func(b"graph_%s:%s\n" % (chr(ord('a') + index), chk))
     for index, update in enumerate(top_key_tuple[1]):
         if update[4] and update[5]:
-            text = "full graph info"
+            text = b"full graph info"
         elif not (update[4] or update[5]):
-            text = "incomplete parent, head lists"
+            text = b"incomplete parent, head lists"
         elif not update[4]:
-            text = "incomplete parent list"
+            text = b"incomplete parent list"
         else:
-            text = "incomplete head list"
-        out_func("update[%i] (%s)\n" % (index, text))
-        out_func("   length : %i\n" % update[0])
-        out_func("   parents: %s\n" % ' '.join([ver[:12] for ver in update[1]]))
-        out_func("   heads  : %s\n" % ' '.join([ver[:12] for ver in update[2]]))
+            text = b"incomplete head list"
+        out_func(b"update[%i] (%s)\n" % (index, text))
+        out_func(b"   length : %i\n" % update[0])
+        out_func(b"   parents: %s\n" % ' '.join([ver[:12] for ver in update[1]]))
+        out_func(b"   heads  : %s\n" % ' '.join([ver[:12] for ver in update[2]]))
         for index, chk in enumerate(update[3]):
-            out_func("   CHK[%i]:%s\n" % (index, chk))
-    out_func("binary rep sha1:\n0x00:%s\n0xff:%s\n" %
+            out_func(b"   CHK[%i]:%s\n" % (index, chk))
+    out_func(b"binary rep sha1:\n0x00:%s\n0xff:%s\n" %
              (sha1_hexdigest(top_key_tuple_to_bytes(top_key_tuple, 0)),
               sha1_hexdigest(top_key_tuple_to_bytes(top_key_tuple, 0xff))))
-    out_func("---\n")
+    out_func(b"---\n")
