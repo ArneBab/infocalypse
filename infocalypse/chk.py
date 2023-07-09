@@ -56,6 +56,7 @@ def chk_to_bytes(chk):
 
     assert chk.startswith(b'CHK@')
     # NO / or filename allowed.
+    print(chk, len(chk))
     assert len(chk) == ENCODED_CHK_SIZE
     fields = chk[4:].split(b',')
     assert len(fields) == 3
