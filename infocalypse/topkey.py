@@ -231,8 +231,8 @@ def dump_top_key_tuple(top_key_tuple, out_func=default_out):
             text = b"incomplete head list"
         out_func(b"update[%i] (%s)\n" % (index, text))
         out_func(b"   length : %i\n" % update[0])
-        out_func(b"   parents: %s\n" % ' '.join([ver[:12] for ver in update[1]]))
-        out_func(b"   heads  : %s\n" % ' '.join([ver[:12] for ver in update[2]]))
+        out_func(b"   parents: %s\n" % b' '.join([ver[:12] for ver in update[1]]))
+        out_func(b"   heads  : %s\n" % b' '.join([ver[:12] for ver in update[2]]))
         for index, chk in enumerate(update[3]):
             out_func(b"   CHK[%i]:%s\n" % (index, chk))
     out_func(b"binary rep sha1:\n0x00:%s\n0xff:%s\n" %
